@@ -78,19 +78,17 @@ type ViaHeader struct {
     transport string
     address net.Addr
     port uint8
-    hasBranch bool
-    branch string
-    hasReceived bool
-    received net.IP
+    branch *string
+    received *net.IP
 }
 func (via *ViaHeader) String() (string) {
     result := fmt.Sprintf("Via: %s %s:%d", via.transport,
                           via.address.String(), via.port)
-    if (via.hasReceived) {
+    if (via.received != nil) {
         result += ";received=" + via.received.String()
     }
-    if (via.hasBranch) {
-        result += ";branch=" + via.branch
+    if (via.branch != nil) {
+        result += ";branch=" + *via.branch
     }
 
     return result
