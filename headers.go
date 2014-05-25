@@ -102,3 +102,35 @@ type ContactHeader struct  {
 func (contactHeader *ContactHeader) String() (string) {
     return fmt.Sprintf("Contact: <%s>", contactHeader.uri.String())
 }
+
+type RequireHeader struct {
+    options []string
+}
+func (header *RequireHeader) String() (string) {
+    return fmt.Sprintf("Require: %s",
+        joinStrings(", ", header.options...))
+}
+
+type SupportedHeader struct {
+    options []string
+}
+func (header *SupportedHeader) String() (string) {
+    return fmt.Sprintf("Supported: %s",
+        joinStrings(", ", header.options...))
+}
+
+type ProxyRequireHeader struct {
+    options []string
+}
+func (header *ProxyRequireHeader) String() (string) {
+    return fmt.Sprintf("Proxy-Require: %s",
+        joinStrings(", ", header.options...))
+}
+
+type UnsupportedHeader struct {
+    options []string
+}
+func (header *UnsupportedHeader) String() (string) {
+    return fmt.Sprintf("Unsupported: %s",
+        joinStrings(", ", header.options...))
+}
