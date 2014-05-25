@@ -59,6 +59,11 @@ type FromHeader struct {
     uri Uri
 }
 
+type CallId string
+func (callId *CallId) String() (string) {
+    return (string)(*callId)
+}
+
 type CSeq uint32
 func (cseq *CSeq) String() (string) {
     return fmt.Sprintf("CSeq: %d", ((int)(*cseq)))
