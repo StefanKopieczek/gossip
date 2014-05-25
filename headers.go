@@ -52,11 +52,26 @@ type TelUri struct {
 type ToHeader struct {
     displayName string
     uri Uri
+    tag *string
+}
+func (to *ToHeader) String() (string) {
+    result := fmt.Sprintf("To: \"%s\" <$s>", to.displayName, to.uri.String())
+
+    if (to.tag != nil) {
+        result += ";tag=" + *to.tag
+    }
+
+    return result
 }
 
 type FromHeader struct {
     displayName string
     uri Uri
+    tag string
+}
+func (from *FromHeader) String() (string) {
+    return fmt.Sprintf("From: \"%s\" <%s>;tag=%s",
+        from.displayName, from.uri.String(), from.tag)
 }
 
 type CallId string
