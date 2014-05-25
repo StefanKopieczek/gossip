@@ -4,7 +4,7 @@ import "fmt"
 import "net"
 
 type SipHeader interface {
-    GetContents() (string)
+    String() (string)
 }
 
 type Uri interface {
