@@ -1,7 +1,7 @@
 gossip
 ======
 
-SIP stack in Golang, for use by stateful SIP UAs.
+SIP stack in Golang, for use by stateful SIP UAs, whether client, server, or proxy.
 
 Project status
 --------------
