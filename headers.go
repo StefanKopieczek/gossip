@@ -1,7 +1,9 @@
 package gossip
 
+import "bytes"
 import "fmt"
 import "net"
+import "strconv"
 
 type SipHeader interface {
     String() (string)
@@ -11,42 +13,75 @@ type Uri interface {
     String() (string)
 }
 
-type SipUri interface {
-    String() (string)
-    HostPart() (string)
-    DomainPart() (string)
+type SipUri struct {
+    IsEncrypted bool
+    User *string
+    Password *string
+    Host string
+    Port *uint8
+    UriParams map[string]string
+    Headers map[string]string
 }
 
-type PlainSipUri struct {
-    host string
-    domain string
-}
-func (uri *PlainSipUri) String() (string) {
-    return fmt.Sprintf("sip:%s@%s", uri.host, uri.domain)
-}
-func (uri *PlainSipUri) HostPart() (string) {
-    return uri.host
-}
-func (uri *PlainSipUri) DomainPart() (string) {
-    return uri.domain
-}
+// Generates the string representation of a SipUri struct.
+func (uri *SipUri) String() (string) {
+    var buffer bytes.Buffer
 
-type SipsUri struct {
-    host string
-    domain string
-}
-func (uri *SipsUri) String() (string) {
-    return fmt.Sprintf("sips:%s@%s", uri.host, uri.domain)
-}
-func (uri *SipsUri) HostPart() (string) {
-    return uri.host
-}
-func (uri *SipsUri) DomainPart() (string) {
-    return uri.domain
-}
+    // Compulsory protocol identifier.
+    if (uri.IsEncrypted) {
+        buffer.WriteString("sips")
+        buffer.WriteString(":")
+    } else {
+        buffer.WriteString("sip")
+        buffer.WriteString(":")
+    }
 
-type TelUri struct {
-    // TODO
+    // Optional userinfo part.
+    if (uri.User != nil) {
+        buffer.WriteString(*uri.User)
+
+        if (uri.Password != nil) {
+            buffer.WriteString(":")
+            buffer.WriteString(*uri.Password)
+        }
+
+        buffer.WriteString("@")
+    }
+
+    // Compulsory hostname.
+    buffer.WriteString(uri.Host)
+
+    // Optional port number.
+    if (uri.Port != nil) {
+        buffer.WriteString(":")
+        buffer.WriteString(strconv.Itoa(int(*uri.Port)))
+    }
+
+    // Zero or more URI parameters.
+    // Form ;key1=value1;key2=value2;key3=value3
+    for key, value := range(uri.UriParams) {
+        buffer.WriteString(";")
+        buffer.WriteString(key)
+        buffer.WriteString("=")
+        buffer.WriteString(value)
+    }
+
+    // Optional header section.
+    // Has form ?key1=value1&key2=value2&key3=value3
+    firstHeader := true
+    for key, value := range(uri.Headers) {
+        if firstHeader {
+            buffer.WriteString("?")
+        } else {
+            buffer.WriteString("&")
+        }
+
+        buffer.WriteString(key)
+        buffer.WriteString("=")
+        buffer.WriteString(value)
+    }
+
+    return buffer.String()
 }
 
 type ToHeader struct {

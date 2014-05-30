@@ -17,24 +17,24 @@ const (
 )
 
 type SipMessage interface {
-    String()
+    String() (string)
 }
 
 type Request struct {
-    method Method
-    uri SipUri
-    sipVersion string
+    Method Method
+    Uri SipUri
+    SipVersion string
     headers []SipHeader
-    body *string
+    Body *string
 }
 func (request *Request) String() (string) {
     var buffer bytes.Buffer
 
     // Every SIP request starts with a Request Line - RFC 2361 7.1.
     buffer.WriteString(fmt.Sprintf("%s %s %s\r\n",
-        (string)(request.method),
-        request.uri.String(),
-        request.sipVersion))
+        (string)(request.Method),
+        request.Uri.String(),
+        request.SipVersion))
 
     // Construct each header in turn and add it to the message.
     for idx, header := range(request.headers) {
@@ -46,28 +46,28 @@ func (request *Request) String() (string) {
     }
 
     // If the request has a message body, add it.
-    if (request.body != nil) {
-        buffer.WriteString(*request.body)
+    if (request.Body != nil) {
+        buffer.WriteString(*request.Body)
     }
 
     return buffer.String()
 }
 
 type Response struct {
-    sipVersion string
-    statusCode uint8
-    reason string
+    SipVersion string
+    StatusCode uint8
+    Reason string
     headers []SipHeader
-    body *string
+    Body *string
 }
 func (response *Response) String() (string) {
     var buffer bytes.Buffer
 
     // Every SIP response starts with a Status Line - RFC 2361 7.2.
     buffer.WriteString(fmt.Sprintf("%s %d %s",
-        response.sipVersion,
-        response.statusCode,
-        response.reason))
+        response.SipVersion,
+        response.StatusCode,
+        response.Reason))
 
     // Construct each header in turn and add it to the message.
     for idx, header := range(response.headers) {
@@ -79,8 +79,8 @@ func (response *Response) String() (string) {
     }
 
     // If the request has a message body, add it.
-    if (response.body != nil) {
-        buffer.WriteString(*response.body)
+    if (response.Body != nil) {
+        buffer.WriteString(*response.Body)
     }
 
     return buffer.String()
