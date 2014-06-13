@@ -24,7 +24,7 @@ type Request struct {
     Method Method
     Uri SipUri
     SipVersion string
-    headers []SipHeader
+    Headers []SipHeader
     Body *string
 }
 func (request *Request) String() (string) {
@@ -37,17 +37,17 @@ func (request *Request) String() (string) {
         request.SipVersion))
 
     // Construct each header in turn and add it to the message.
-    for idx, header := range(request.headers) {
+    for idx, header := range(request.Headers) {
         buffer.WriteString(header.String())
 
-        if (idx < len(request.headers)) {
+        if (idx < len(request.Headers)) {
             buffer.WriteString("\r\n")
         }
     }
 
     // If the request has a message body, add it.
     if (request.Body != nil) {
-        buffer.WriteString(*request.Body)
+        buffer.WriteString("\r\n" + *request.Body)
     }
 
     return buffer.String()
@@ -57,30 +57,30 @@ type Response struct {
     SipVersion string
     StatusCode uint8
     Reason string
-    headers []SipHeader
+    Headers []SipHeader
     Body *string
 }
 func (response *Response) String() (string) {
     var buffer bytes.Buffer
 
     // Every SIP response starts with a Status Line - RFC 2361 7.2.
-    buffer.WriteString(fmt.Sprintf("%s %d %s",
+    buffer.WriteString(fmt.Sprintf("%s %d %s\r\n",
         response.SipVersion,
         response.StatusCode,
         response.Reason))
 
     // Construct each header in turn and add it to the message.
-    for idx, header := range(response.headers) {
+    for idx, header := range(response.Headers) {
         buffer.WriteString(header.String())
 
-        if (idx < len(response.headers)) {
+        if (idx < len(response.Headers)) {
             buffer.WriteString("\r\n")
         }
     }
 
     // If the request has a message body, add it.
     if (response.Body != nil) {
-        buffer.WriteString(*response.Body)
+        buffer.WriteString("\r\n" + *response.Body)
     }
 
     return buffer.String()
