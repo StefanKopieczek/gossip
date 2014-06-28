@@ -38,27 +38,27 @@ func doTests(tests []test, t *testing.T) {
 var fail error = fmt.Errorf("A bad thing happened.")
 var pass error = nil
 
+// Need to define immutable variables in order to pointer to them.
+var bar string = "bar"
+var barQuote string = "\"bar\""
+var barQuote2 string = "\"bar"
+var barQuote3 string = "bar\""
+var barBaz string = "bar;baz"
+// var baz string = "baz"
+var bob string = "bob"
+var boop string = "boop"
+var b string = "b"
+var empty string = ""
+//var hunter2 string = "Hunter2"
+//var port5060 string = uint16(5060)
+//var port9 string = uint16(9)
+//var uint16_5 uint16:= uint16(5)
+//var uint16_5060 := uint16(5060)
 
 func TestParams(t *testing.T) {
-    // Need named variables for pointer field values.
-    bar := "bar"
-    barQuote := "\"bar\""
-    barQuote2 := "\"bar"
-    barQuote3 := "bar\""
-    barBaz := "bar;baz"
-    //baz := "baz"
-    bob := "bob"
-    boop := "boop"
-    b := "b"
-    empty := ""
-    //hunter2 := "Hunter2"
-    //port5060 := uint16(5060)
-    //port9 := uint16(9)
-    //ui16_5 := uint16(5)
-    //ui16_5060 := uint16(5060)
     doTests([]test {
         // TEST: parseParams
-        test{&paramInput{";foo=bar",              ';', ';',  0,  false, true},   &paramResult{pass, map[string]*string{"foo":&bar},                          8}},
+        test{&paramInput{";foo=bar",               ';', ';',  0,  false, true},   &paramResult{pass, map[string]*string{"foo":&bar},                         8}},
         test{&paramInput{";foo=",                  ';', ';',  0,  false, true},  &paramResult{pass, map[string]*string{"foo":&empty},                        5}},
         test{&paramInput{";foo",                   ';', ';',  0,  false, true},  &paramResult{pass, map[string]*string{"foo":nil},                           4}},
         test{&paramInput{";foo=bar!hello",         ';', ';', '!', false, true},  &paramResult{pass, map[string]*string{"foo":&bar},                          8}},
