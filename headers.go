@@ -3,12 +3,14 @@ package gossip
 import "bytes"
 import "fmt"
 import "strconv"
+import "strings"
 
 type SipHeader interface {
     String() (string)
 }
 
 type Uri interface {
+    Equals(other Uri) (bool)
     String() (string)
 }
 
@@ -17,11 +19,38 @@ type SipUri struct {
     User *string
     Password *string
     Host string
-    Port *uint8
+    Port *uint16
     UriParams map[string]*string
     Headers map[string]*string
 }
 
+func (uri *SipUri) Equals(otherUri Uri) (bool) {
+    otherPtr, ok := otherUri.(*SipUri)
+    if !ok {
+        return false
+    }
+
+    other := *otherPtr
+    result := uri.IsEncrypted == other.IsEncrypted &&
+              strPtrEq(uri.User, other.User) &&
+              strPtrEq(uri.Password, other.Password) &&
+              uri.Host == other.Host &&
+              uint16PtrEq(uri.Port, other.Port)
+
+    if !result {
+        return false
+    }
+
+    if !paramsEqual(uri.UriParams, other.UriParams) {
+        return false
+    }
+
+    if !paramsEqual(uri.Headers, other.Headers) {
+        return false
+    }
+
+    return true
+}
 
 // Generates the string representation of a SipUri struct.
 func (uri *SipUri) String() (string) {
@@ -57,33 +86,8 @@ func (uri *SipUri) String() (string) {
         buffer.WriteString(strconv.Itoa(int(*uri.Port)))
     }
 
-    // Zero or more URI parameters.
-    // Form ;key1=value1;key2;key3=value3
-    for key, value := range(uri.UriParams) {
-        buffer.WriteString(";")
-        buffer.WriteString(key)
-        if value != nil {
-            buffer.WriteString("=")
-            buffer.WriteString(*value)
-        }
-    }
-
-    // Optional header section.
-    // Has form ?key1=value1&key2&key3=value3
-    firstHeader := true
-    for key, value := range(uri.Headers) {
-        if firstHeader {
-            buffer.WriteString("?")
-        } else {
-            buffer.WriteString("&")
-        }
-
-        buffer.WriteString(key)
-        if value != nil {
-            buffer.WriteString("=")
-            buffer.WriteString(*value)
-        }
-    }
+    buffer.WriteString(ParamsToString(uri.UriParams, ';', ';'))
+    buffer.WriteString(ParamsToString(uri.Headers, '?', '&'))
 
     return buffer.String()
 }
@@ -110,14 +114,7 @@ func (to *ToHeader) String() (string) {
     }
 
     buffer.WriteString(fmt.Sprintf("<%s>", to.uri))
-
-    for key, value := range(to.params) {
-        if value != nil {
-            buffer.WriteString(fmt.Sprintf(";%s=%s", key, *value))
-        } else {
-            buffer.WriteString(fmt.Sprintf(";%s", key))
-        }
-    }
+    buffer.WriteString(ParamsToString(to.params, ';', ';'))
 
     return buffer.String()
 }
@@ -136,14 +133,7 @@ func (from *FromHeader) String() (string) {
     }
 
     buffer.WriteString(fmt.Sprintf("<%s>", from.uri))
-
-    for key, value := range(from.params) {
-        if value != nil {
-            buffer.WriteString(fmt.Sprintf(";%s=%s", key, *value))
-        } else {
-            buffer.WriteString(fmt.Sprintf(";%s", key))
-        }
-    }
+    buffer.WriteString(ParamsToString(from.params, ';', ';'))
 
     return buffer.String()
 }
@@ -162,14 +152,7 @@ func (contact *ContactHeader) String() (string) {
     }
 
     buffer.WriteString(fmt.Sprintf("<%s>", contact.uri.String()))
-
-    for key, value := range(contact.params) {
-        if value != nil {
-            buffer.WriteString(fmt.Sprintf(";%s=%s", key, *value))
-        } else {
-            buffer.WriteString(fmt.Sprintf(";%s", key))
-        }
-    }
+    buffer.WriteString(ParamsToString(contact.params, ';', ';'))
 
     return buffer.String()
 }
@@ -202,7 +185,7 @@ type ViaHeader struct {
     protocolVersion string
     transport string
     host string
-    port *uint8
+    port *uint16
     params map[string]*string
 }
 func (via *ViaHeader) String() (string) {
@@ -215,13 +198,7 @@ func (via *ViaHeader) String() (string) {
         buffer.WriteString(fmt.Sprintf(":%d", *via.port))
     }
 
-    for key, value := range(via.params) {
-        if value != nil {
-            buffer.WriteString(fmt.Sprintf(";%s=%s", key, *value))
-        } else {
-            buffer.WriteString(fmt.Sprintf(";%s", key))
-        }
-    }
+    buffer.WriteString(ParamsToString(via.params, ';', ';'))
 
     return buffer.String()
 }
@@ -257,4 +234,45 @@ type UnsupportedHeader struct {
 func (header *UnsupportedHeader) String() (string) {
     return fmt.Sprintf("Unsupported: %s",
         joinStrings(", ", header.options...))
+}
+
+func ParamsToString(params map[string]*string, start uint8, sep uint8) (
+        string) {
+    var buffer bytes.Buffer
+    first := true
+    for key, value := range(params) {
+        if first {
+            buffer.WriteString(fmt.Sprintf("%c", start))
+            first = false
+        } else {
+            buffer.WriteString(fmt.Sprintf("%c", sep))
+        }
+        if value == nil {
+            buffer.WriteString(fmt.Sprintf("%s", key))
+        } else if strings.ContainsAny(*value, ABNF_WS) {
+            buffer.WriteString(fmt.Sprintf("%s=\"%s\"", key, *value))
+        } else {
+            buffer.WriteString(fmt.Sprintf("%s=%s", key, *value))
+        }
+    }
+
+    return buffer.String()
+}
+
+func paramsEqual(a map[string]*string, b map[string]*string) bool {
+    if len(a) != len(b) {
+        return false
+    }
+
+    for key, a_val := range(a) {
+        b_val, ok := b[key]
+        if !ok {
+            return false
+        }
+        if !strPtrEq(a_val, b_val) {
+            return false
+        }
+    }
+
+    return true
 }

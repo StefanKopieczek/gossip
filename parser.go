@@ -7,7 +7,7 @@ import "strconv"
 import "unicode"
 import "unicode/utf8"
 
-const WS = " \t" // TODO add all whitespace.
+const ABNF_WS = " \t" // TODO add all whitespace.
 
 type MessageParser interface {
     ParseMessage(rawData []byte) (SipMessage, error)
@@ -269,11 +269,14 @@ func parseSipUri(uriStr string) (uri SipUri, err error) {
 
     endOfUriPart := strings.Index(uriStr, ";")
     if (endOfUriPart == -1) {
-        endOfUriPart = len(uriStr) - 1
+        endOfUriPart = strings.Index(uriStr, "?")
+    }
+    if (endOfUriPart == -1) {
+        endOfUriPart = len(uriStr)
     }
 
-    uri.Host, uri.Port, err = parseHostPort(uriStr[:endOfUriPart+1])
-    uriStr = uriStr[endOfUriPart+1:]
+    uri.Host, uri.Port, err = parseHostPort(uriStr[:endOfUriPart])
+    uriStr = uriStr[endOfUriPart:]
     if err != nil || len(uriStr) == 0 {
         return
     }
@@ -282,16 +285,23 @@ func parseSipUri(uriStr string) (uri SipUri, err error) {
     // These are key-value pairs separated by ';'.
     // They end at the end of the URI, or at the start of any URI headers
     // which may be present (denoted by an initial '?').
-    uriParams, n, err := parseKeyValuePairs(uriStr, ';', ';', '?')
-    if (err != nil) {
-        return
+    var uriParams map[string]*string
+    var n int
+    if uriStr[0] == ';' {
+        uriParams, n, err = parseParams(uriStr, ';', ';', '?', true, true)
+        if (err != nil) {
+            return
+        }
+    } else {
+        uriParams, n = map[string]*string{}, 0
     }
     uri.UriParams = uriParams
     uriStr = uriStr[n:]
 
     // Finally parse any URI headers.
     // These are key-value pairs, starting with a '?' and separated by '&'.
-    headers, n, err := parseKeyValuePairs(uriStr, '?', '&', 0)
+    var headers map[string]*string
+    headers, n, err = parseParams(uriStr, '?', '&', 0, true, false)
     if (err != nil) {
         return
     }
@@ -306,7 +316,7 @@ func parseSipUri(uriStr string) (uri SipUri, err error) {
     return
 }
 
-func parseHostPort(rawText string) (host string, port *uint8, err error) {
+func parseHostPort(rawText string) (host string, port *uint16, err error) {
     colonIdx := strings.Index(rawText, ":")
     if (colonIdx == -1) {
         host = rawText
@@ -315,20 +325,21 @@ func parseHostPort(rawText string) (host string, port *uint8, err error) {
 
     // Surely there must be a better way..!
     var portRaw64 uint64
-    var portRaw8 uint8
+    var portRaw16 uint16
     host = rawText[:colonIdx]
-    portRaw64, err = strconv.ParseUint(rawText[colonIdx+1:], 10, 8)
-    portRaw8 = uint8(portRaw64)
-    port = &portRaw8
+    portRaw64, err = strconv.ParseUint(rawText[colonIdx+1:], 10, 16)
+    portRaw16 = uint16(portRaw64)
+    port = &portRaw16
 
     return
 }
 
-func parseKeyValuePairs(source string,
-                        start uint8, sep uint8, end uint8) (
-    pairs map[string]*string, consumed int, err error) {
+func parseParams(source string,
+                 start uint8, sep uint8, end uint8,
+                 quoteValues bool, permitSingletons bool) (
+            params map[string]*string, consumed int, err error) {
 
-    pairs = make(map[string]*string)
+    params = make(map[string]*string)
 
     if len(source) == 0 {
         // Key-value section is completely empty; return defaults.
@@ -341,67 +352,101 @@ func parseKeyValuePairs(source string,
                              "got %c. section was %s", start, source[0], source)
             return
         }
-        consumed += 1
-        source = source[1:]
+        consumed++
     }
 
-    for {
-        equalsIdx := strings.Index(source, "=")
-        sepIdx := strings.Index(source, string(sep))
-        endIdx := strings.Index(source, string(end))
-
-        if equalsIdx != -1 &&
-           (equalsIdx < sepIdx || sepIdx == -1) &&
-           (equalsIdx < endIdx || endIdx == -1) {
-            // We have a key value pair. Parse it.
-            key := source[:equalsIdx]
-            source = source[equalsIdx + 1:]
-            consumed += equalsIdx + 1
-
-            if sepIdx != -1 && (sepIdx < endIdx || endIdx == -1) {
-                // There are more tokens to come, so consume the value up to
-                // the separator and then move the loop on to the next token.
-                value := source[:sepIdx]
-                consumed += sepIdx + 1
-                source = source[sepIdx + 1:]
-                pairs[key] = &value
+    var buffer bytes.Buffer
+    var key string
+    parsingKey := true // false implies parsing value
+    inQuotes := false
+    parseLoop: for ; consumed < len(source); consumed++ {
+        if inQuotes {
+            if source[consumed] == '"' {
+                inQuotes = false
                 continue
             } else {
-                // That was the last token, so consume the value up to the end
-                // of the section and then exit.
-                if endIdx == -1 {
-                    endIdx = len(source)
-                    consumed -= 1 // No end token to consume.
-                }
-                value := source[:endIdx]
-                consumed += endIdx
-                pairs[key] = &value
-                return
-            }
-        } else {
-            // We have a key with no value. This is valid, so parse it.
-            if sepIdx != -1 && (sepIdx < endIdx || endIdx == -1) {
-                // There are more tokens to come, so consume the key up to
-                // the separator and then move the loop on to the next token.
-                key := source[:sepIdx]
-                consumed += sepIdx + 1
-                source = source[sepIdx + 1:]
-                pairs[key] = nil
+                buffer.WriteString(string(source[consumed]))
                 continue
-            } else {
-                // That was the last token, so consume the value up to the end
-                // of the section and then exit.
-                if endIdx == -1 {
-                    endIdx = len(source)
-                    consumed -= 1 // No end token to consume.
-                }
-                key := source[:endIdx]
-                consumed += endIdx
-                pairs[key] = nil
-                return
             }
         }
+
+        switch source[consumed] {
+        case end:
+            break parseLoop
+        case sep:
+            if parsingKey && permitSingletons {
+                params[buffer.String()] = nil
+            } else if parsingKey {
+                err = fmt.Errorf("Singleton param '%s' when parsing params " +
+                                 "which disallow singletons: \"%s\"",
+                                 buffer.String(), source)
+                return
+            } else {
+                value := buffer.String()
+                params[key] = &value
+            }
+            buffer.Reset()
+            parsingKey = true
+        case '"':
+            if !quoteValues {
+                buffer.WriteString("\"")
+                continue
+            }
+            if buffer.Len() != 0 {
+                err = fmt.Errorf("unexpected '\"' in params \"%s\"", source)
+                return
+            }
+            if parsingKey {
+                err = fmt.Errorf("Unexpected '\"' in parameter key in params \"%s\"", source)
+                return
+            }
+            if (inQuotes &&
+                    consumed != len(source) - 1 &&
+                    source[consumed+1] != sep) {
+                // End of quote must indicate end of token.
+                err = fmt.Errorf("unexpected character %c after quoted " +
+                                 "param in \"%s\"", source[consumed+1], source)
+                return
+            }
+            inQuotes = !inQuotes
+        case '=':
+            if buffer.Len() == 0 {
+                err = fmt.Errorf("Key of length 0 in params \"%s\"", source)
+                return
+            }
+            if !parsingKey {
+                err = fmt.Errorf("Unexpected '=' char in value token: \"%s\"",
+                                 source)
+                return
+            }
+            key = buffer.String()
+            buffer.Reset()
+            parsingKey = false
+        default:
+            if strings.Contains(ABNF_WS, string(source[consumed])) {
+                // Skip unquoted whitespace.
+                continue
+            }
+
+            buffer.WriteString(string(source[consumed]))
+        }
     }
+
+    if inQuotes {
+        err = fmt.Errorf("Unclosed quotes in parameter string: %s", source)
+        return
+    } else if parsingKey && permitSingletons {
+        params[buffer.String()] = nil
+    } else if parsingKey {
+        err = fmt.Errorf("Singleton param '%s' when parsing params " +
+                         "which disallow singletons: \"%s\"",
+                         buffer.String(), source)
+        return
+    } else {
+        value := buffer.String()
+        params[key] = &value
+    }
+    return
 }
 
 func (parser *parserImpl) parseHeaders(contents[] string) (
@@ -540,7 +585,7 @@ func parseViaHeader(headerName string, headerText string) (
     for _, section := range(sections) {
         sectionCopy := section
         var via ViaHeader
-        sentByIdx := strings.IndexAny(section, WS) + 1
+        sentByIdx := strings.IndexAny(section, ABNF_WS) + 1
         if (sentByIdx == -1) {
             err = fmt.Errorf("expected whitespace after sent-protocol part " +
                              "in via header '%s'", sectionCopy)
@@ -561,7 +606,7 @@ func parseViaHeader(headerName string, headerText string) (
 
         paramsIdx := strings.Index(section, ";")
         var host string
-        var port *uint8
+        var port *uint16
         if paramsIdx == -1 {
             host, port, err = parseHostPort(section[sentByIdx:])
             via.host = host
@@ -574,8 +619,8 @@ func parseViaHeader(headerName string, headerText string) (
             via.host = host
             via.port = port
 
-            via.params, _, err = parseKeyValuePairs(section[paramsIdx:],
-                                                    ';', ';', 0)
+            via.params, _, err = parseParams(section[paramsIdx:],
+                                             ';', ';', 0, true, true)
         }
         headers = append(headers, &via)
     }
@@ -667,7 +712,7 @@ func parseAddressValue(addressText string) (
     addressText = strings.TrimSpace(addressText)
 
     firstAngleBracket := strings.Index(addressText, "<")
-    firstSpace := strings.IndexAny(addressText, WS)
+    firstSpace := strings.IndexAny(addressText, ABNF_WS)
     if (firstAngleBracket != -1 && firstSpace != -1 &&
         firstSpace < firstAngleBracket) {
         // There is a display name present. Let's parse it.
@@ -729,19 +774,29 @@ func parseAddressValue(addressText string) (
     if (err != nil) {
         return
     }
-    addressText = addressText[endOfUri+1:]
+
+    if endOfUri == len(addressText) {
+        return
+    }
 
     // Finally, parse any header parameters and then return.
-    headerParams, _, err = parseKeyValuePairs(addressText, ';', ';', ',')
+    addressText = addressText[endOfUri+1:]
+    headerParams, _, err = parseParams(addressText, ';', ';', ',', true, true)
     return
 }
 
 
 func getNextHeaderBlock(contents[] string) (headerText string, consumed int) {
+    if len(contents) == 0 {
+        return
+    }
+
     var buffer bytes.Buffer
-    for consumed = 0; consumed < len(contents); consumed++ {
+    buffer.WriteString(contents[0])
+
+    for consumed = 1; consumed < len(contents); consumed++ {
         firstChar, _ := utf8.DecodeRuneInString(contents[consumed])
-        if consumed > 0 && !unicode.IsSpace(firstChar) {
+        if !unicode.IsSpace(firstChar) {
             break
         } else if len(contents[consumed]) == 0 {
             break
