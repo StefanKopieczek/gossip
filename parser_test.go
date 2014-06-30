@@ -220,27 +220,25 @@ func TestSipUris(t *testing.T) {
     }, t)
 }
 
-/*
-func getHostPortTests() (map[hostPortTest]hostPortResult) {
+func TestHostPort(t *testing.T) () {
     port5060 := uint16(5060)
     port9 := uint16(9)
 
-    hostPortTests := map[hostPortTest]hostPortResult {
-        "example.com"        : hostPortResult{true, "example.com", nil},
-        "192.168.0.1"        : hostPortResult{true, "192.168.0.1", nil},
-        "abc123"             : hostPortResult{true, "abc123",      nil},
-        "example.com:5060"   : hostPortResult{true, "example.com", &port5060},
-        "example.com:9"      : hostPortResult{true, "example.com", &port9},
-        "192.168.0.1:5060"   : hostPortResult{true, "192.168.0.1", &port5060},
-        "192.168.0.1:9"      : hostPortResult{true, "192.168.0.1", &port9},
-        "abc123:5060"        : hostPortResult{true, "abc123",      &port5060},
-        "abc123:9"           : hostPortResult{true, "abc123",      &port9},
+    doTests([]test {
+        test{hostPortInput("example.com"),      &hostPortResult{pass, "example.com", nil}},
+        test{hostPortInput("192.168.0.1"),      &hostPortResult{pass, "192.168.0.1", nil}},
+        test{hostPortInput("abc123"),           &hostPortResult{pass, "abc123",      nil}},
+        test{hostPortInput("example.com:5060"), &hostPortResult{pass, "example.com", &port5060}},
+        test{hostPortInput("example.com:9"),    &hostPortResult{pass, "example.com", &port9}},
+        test{hostPortInput("192.168.0.1:5060"), &hostPortResult{pass, "192.168.0.1", &port5060}},
+        test{hostPortInput("192.168.0.1:9"),    &hostPortResult{pass, "192.168.0.1", &port9}},
+        test{hostPortInput("abc123:5060"),      &hostPortResult{pass, "abc123",      &port5060}},
+        test{hostPortInput("abc123:9"),         &hostPortResult{pass, "abc123",      &port9}},
         // TODO IPV6, c.f. IPv6reference in RFC 3261 s25
-    }
-
-    return hostPortTests
+    }, t)
 }
 
+/*
 func getHeaderBlockTests() (map[headerBlockTest]headerBlockResult) {
     return map[headerBlockTest]headerBlockResult {
         []string{"All on one line."}                             : headerBlockResult{"All on one line.", 1},
@@ -256,23 +254,6 @@ func getHeaderBlockTests() (map[headerBlockTest]headerBlockResult) {
         []string{" "}                                            : headerBlockResult{" ", 1},
         []string{" foo"}                                         : headerBlockResult{" foo", 1},
     }
-}
-
-func TestParseHostPort(t *testing.T) {
-    for test, expected := range(getHostPortTests()) {
-        host, port, err := parseHostPort(string(test))
-        totalTests++
-
-        if err != nil && expected.success {
-            t.Error(fmt.Sprintf("Unexpected failure on parsing \"%s\": %s", test, err.Error()))
-            continue
-        }
-
-        parsedStr := host
-        if port != nil {
-        }
-    }
-    // TODO
 }*/
 
 type paramInput struct {
@@ -358,6 +339,52 @@ func (expected *sipUriResult) equals(other result) (equal bool, reason string) {
         return false, fmt.Sprintf("unequal uri headers; expected \"%s\"; got \"%s\"",
             ParamsToString(expected.uri.Headers, '?', '&'),
             ParamsToString(actual.uri.Headers, '?', '&'))
+    }
+
+    return true, ""
+}
+
+type hostPortInput string
+
+func (data hostPortInput) String() string {
+    return string(data)
+}
+
+func (data hostPortInput) evaluate() result {
+    host, port, err := parseHostPort(string(data))
+    return &hostPortResult{err, host, port}
+}
+
+type hostPortResult struct {
+    err error
+    host string
+    port *uint16
+}
+
+func (expected *hostPortResult) equals(other result) (equal bool, reason string) {
+    actual := *(other.(*hostPortResult))
+    if expected.err == nil && actual.err != nil {
+        return false, fmt.Sprintf("unexpected error: %s", actual.err.Error())
+    } else if expected.err != nil && actual.err != nil {
+        // Expected failure. Return true unconditionally.
+        return true, ""
+    }
+
+    var actualStr string
+    if actual.port == nil {
+        actualStr = actual.host
+    } else {
+        actualStr = fmt.Sprintf("%s:%d", actual.host, actual.port)
+    }
+
+    if expected.err != nil && actual.err == nil {
+        return false, fmt.Sprintf("unexpected success: got %s", actualStr)
+    } else if expected.host != actual.host {
+        return false, fmt.Sprintf("unexpected host part: expected \"%s\", got \"%s\"", expected.host, actual.host)
+    } else if uint16PtrStr(expected.port) != uint16PtrStr(actual.port) {
+        return false, fmt.Sprintf("unexpected port: expected %s, got %s",
+                                  uint16PtrStr(expected.port),
+                                  uint16PtrStr(actual.port))
     }
 
     return true, ""
