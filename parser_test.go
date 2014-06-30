@@ -2,7 +2,7 @@ package gossip
 
 import "fmt"
 //import "strings"
-//import "strconv"
+import "strconv"
 import "testing"
 
 var testsRun int
@@ -58,7 +58,7 @@ var empty string = ""
 func TestParams(t *testing.T) {
     doTests([]test {
         // TEST: parseParams
-        test{&paramInput{";foo=bar",               ';', ';',  0,  false, true},   &paramResult{pass, map[string]*string{"foo":&bar},                         8}},
+        test{&paramInput{";foo=bar",               ';', ';',  0,  false, true},  &paramResult{pass, map[string]*string{"foo":&bar},                          8}},
         test{&paramInput{";foo=",                  ';', ';',  0,  false, true},  &paramResult{pass, map[string]*string{"foo":&empty},                        5}},
         test{&paramInput{";foo",                   ';', ';',  0,  false, true},  &paramResult{pass, map[string]*string{"foo":nil},                           4}},
         test{&paramInput{";foo=bar!hello",         ';', ';', '!', false, true},  &paramResult{pass, map[string]*string{"foo":&bar},                          8}},
@@ -127,8 +127,8 @@ func TestParams(t *testing.T) {
         test{&paramInput{";foo=\"\"",              ';', ';',  0,  true, true},   &paramResult{pass,  map[string]*string{"foo":&empty},                        7}},
     }, t)
 }
-/*
-func getSipUriTests() map[sipUriTest]sipUriResult {
+
+func TestSipUris(t *testing.T) {
     // Need named variables for pointer fields in SipUri struct.
     b := "b"
     bar := "bar"
@@ -139,84 +139,88 @@ func getSipUriTests() map[sipUriTest]sipUriResult {
     ui16_5 := uint16(5)
     ui16_5060 := uint16(5060)
 
-    sipUriTests := map[sipUriTest]sipUriResult {
-        "sip:bob@example.com"                          : sipUriResult{true, SipUri{User:&bob, Host:"example.com"}},
-        "sip:bob@192.168.0.1"                          : sipUriResult{true, SipUri{User:&bob, Host:"192.168.0.1"}},
-        "sip:bob:Hunter2@example.com"                  : sipUriResult{true, SipUri{User:&bob, Password:&hunter2, Host:"example.com"}},
-        "sips:bob:Hunter2@example.com"                 : sipUriResult{true, SipUri{IsEncrypted:true, User:&bob, Password:&hunter2, Host:"example.com"}},
-        "sips:bob@example.com"                         : sipUriResult{true, SipUri{IsEncrypted:true, User:&bob, Host:"example.com"}},
-        "sip:example.com"                              : sipUriResult{true, SipUri{Host:"example.com"}},
-        "example.com"                                  : sipUriResult{false, SipUri{}},
-        "bob@example.com"                              : sipUriResult{false, SipUri{}},
-        "sip:bob@example.com:5060"                     : sipUriResult{true, SipUri{User:&bob, Host:"example.com", Port:&ui16_5060}},
-        "sip:bob@88.88.88.88:5060"                     : sipUriResult{true, SipUri{User:&bob, Host:"88.88.88.88", Port:&ui16_5060}},
-        "sip:bob:Hunter2@example.com:5060"             : sipUriResult{true, SipUri{User:&bob, Password:&hunter2, Host:"example.com", Port:&ui16_5060}},
-        "sip:bob@example.com:5"                        : sipUriResult{true, SipUri{User:&bob, Host:"example.com", Port:&ui16_5}},
-        "sip:bob@example.com;foo=bar"                  : sipUriResult{true, SipUri{User:&bob, Host:"example.com",
-                                                            UriParams:map[string]*string{"foo":&bar}}},
-        "sip:bob@example.com:5060;foo=bar"             : sipUriResult{true, SipUri{User:&bob, Host:"example.com", Port:&ui16_5060,
-                                                            UriParams:map[string]*string{"foo":&bar}}},
-        "sip:bob@example.com:5;foo"                    : sipUriResult{true, SipUri{User:&bob, Host:"example.com", Port:&ui16_5,
-                                                            UriParams:map[string]*string{"foo":nil}}},
-        "sip:bob@example.com:5;foo;baz=bar"            : sipUriResult{true, SipUri{User:&bob, Host:"example.com", Port:&ui16_5,
-                                                            UriParams:map[string]*string{"foo":nil, "baz":&bar}}},
-        "sip:bob@example.com:5;baz=bar;foo"            : sipUriResult{true, SipUri{User:&bob, Host:"example.com", Port:&ui16_5,
-                                                            UriParams:map[string]*string{"foo":nil, "baz":&bar}}},
-        "sip:bob@example.com:5;foo;baz=bar;a=b"        : sipUriResult{true, SipUri{User:&bob, Host:"example.com", Port:&ui16_5,
-                                                            UriParams:map[string]*string{"foo":nil, "baz":&bar, "a":&b}}},
-        "sip:bob@example.com:5;baz=bar;foo;a=b"        : sipUriResult{true, SipUri{User:&bob, Host:"example.com", Port:&ui16_5,
-                                                            UriParams:map[string]*string{"foo":nil, "baz":&bar, "a":&b}}},
-        "sip:bob@example.com?foo=bar"                  : sipUriResult{true, SipUri{User:&bob, Host:"example.com",
-                                                            Headers:map[string]*string{"foo":&bar}}},
-        "sip:bob@example.com?foo="                     : sipUriResult{true, SipUri{User:&bob, Host:"example.com",
-                                                            Headers:map[string]*string{"foo":&emptyString}}},
-        "sip:bob@example.com:5060?foo=bar"             : sipUriResult{true, SipUri{User:&bob, Host:"example.com", Port:&ui16_5060,
-                                                            Headers:map[string]*string{"foo":&bar}}},
-        "sip:bob@example.com:5?foo=bar"                : sipUriResult{true, SipUri{User:&bob, Host:"example.com", Port:&ui16_5,
-                                                            Headers:map[string]*string{"foo":&bar}}},
-        "sips:bob@example.com:5?baz=bar&foo=&a=b"      : sipUriResult{true, SipUri{IsEncrypted:true, User:&bob, Host:"example.com", Port:&ui16_5,
-                                                            Headers:map[string]*string{"baz":&bar, "a":&b, "foo":&emptyString}}},
-        "sip:bob@example.com:5?baz=bar&foo&a=b"        : sipUriResult{false, SipUri{}},
-        "sip:bob@example.com:5?foo"                    : sipUriResult{false, SipUri{}},
-        "sip:bob@example.com:50?foo"                   : sipUriResult{false, SipUri{}},
-        "sip:bob@example.com:50?foo=bar&baz"           : sipUriResult{false, SipUri{}},
-        "sip:bob@example.com;foo?foo=bar"              : sipUriResult{true, SipUri{User:&bob, Host:"example.com",
-                                                            UriParams:map[string]*string{"foo":nil},
-                                                            Headers:map[string]*string{"foo":&bar}}},
-        "sip:bob@example.com:5060;foo?foo=bar"         : sipUriResult{true, SipUri{User:&bob, Host:"example.com", Port:&ui16_5060,
-                                                            UriParams:map[string]*string{"foo":nil},
-                                                            Headers:map[string]*string{"foo":&bar}}},
-        "sip:bob@example.com:5;foo?foo=bar"            : sipUriResult{true, SipUri{User:&bob, Host:"example.com", Port:&ui16_5,
-                                                            UriParams:map[string]*string{"foo":nil},
-                                                            Headers:map[string]*string{"foo":&bar}}},
-        "sips:bob@example.com:5;foo?baz=bar&a=b&foo="  : sipUriResult{true, SipUri{IsEncrypted:true, User:&bob, Host:"example.com", Port:&ui16_5,
-                                                            UriParams:map[string]*string{"foo":nil},
-                                                            Headers:map[string]*string{"baz":&bar, "a":&b, "foo":&emptyString}}},
-        "sip:bob@example.com:5;foo?baz=bar&foo&a=b"    : sipUriResult{false, SipUri{}},
-        "sip:bob@example.com:5;foo?foo"                : sipUriResult{false, SipUri{}},
-        "sip:bob@example.com:50;foo?foo"               : sipUriResult{false, SipUri{}},
-        "sip:bob@example.com:50;foo?foo=bar&baz"       : sipUriResult{false, SipUri{}},
-        "sip:bob@example.com;foo=baz?foo=bar"          : sipUriResult{true, SipUri{User:&bob, Host:"example.com",
-                                                            UriParams:map[string]*string{"foo":&baz},
-                                                            Headers:map[string]*string{"foo":&bar}}},
-        "sip:bob@example.com:5060;foo=baz?foo=bar"     : sipUriResult{true, SipUri{User:&bob, Host:"example.com", Port:&ui16_5060,
-                                                            UriParams:map[string]*string{"foo":&baz},
-                                                            Headers:map[string]*string{"foo":&bar}}},
-        "sip:bob@example.com:5;foo=baz?foo=bar"        : sipUriResult{true, SipUri{User:&bob, Host:"example.com", Port:&ui16_5,
-                                                            UriParams:map[string]*string{"foo":&baz},
-                                                            Headers:map[string]*string{"foo":&bar}}},
-        "sips:bob@example.com:5;foo=baz?baz=bar&a=b"   : sipUriResult{true, SipUri{IsEncrypted:true, User:&bob, Host:"example.com", Port:&ui16_5,
-                                                            UriParams:map[string]*string{"foo":&baz},
-                                                            Headers:map[string]*string{"baz":&bar, "a":&b}}},
-        "sip:bob@example.com:5;foo=baz?baz=bar&foo&a=b": sipUriResult{false, SipUri{}},
-        "sip:bob@example.com:5;foo=baz?foo"            : sipUriResult{false, SipUri{}},
-        "sip:bob@example.com:50;foo=baz?foo"           : sipUriResult{false, SipUri{}},
-        "sip:bob@example.com:50;foo=baz?foo=bar&baz"   : sipUriResult{false, SipUri{}},
-    }
-
-    return sipUriTests
+    doTests([]test {
+        test{sipUriInput("sip:bob@example.com"),                          &sipUriResult{pass, SipUri{User:&bob, Host:"example.com"}}},
+        test{sipUriInput("sip:bob@192.168.0.1"),                          &sipUriResult{pass, SipUri{User:&bob, Host:"192.168.0.1"}}},
+        test{sipUriInput("sip:bob:Hunter2@example.com"),                  &sipUriResult{pass, SipUri{User:&bob, Password:&hunter2, Host:"example.com"}}},
+        test{sipUriInput("sips:bob:Hunter2@example.com"),                 &sipUriResult{pass, SipUri{IsEncrypted:true, User:&bob, Password:&hunter2,
+                                                                                                     Host:"example.com"}}},
+        test{sipUriInput("sips:bob@example.com"),                         &sipUriResult{pass, SipUri{IsEncrypted:true, User:&bob, Host:"example.com"}}},
+        test{sipUriInput("sip:example.com"),                              &sipUriResult{pass, SipUri{Host:"example.com"}}},
+        test{sipUriInput("example.com"),                                  &sipUriResult{fail, SipUri{}}},
+        test{sipUriInput("bob@example.com"),                              &sipUriResult{fail, SipUri{}}},
+        test{sipUriInput("sip:bob@example.com:5060"),                     &sipUriResult{pass, SipUri{User:&bob, Host:"example.com", Port:&ui16_5060}}},
+        test{sipUriInput("sip:bob@88.88.88.88:5060"),                     &sipUriResult{pass, SipUri{User:&bob, Host:"88.88.88.88", Port:&ui16_5060}}},
+        test{sipUriInput("sip:bob:Hunter2@example.com:5060"),             &sipUriResult{pass, SipUri{User:&bob, Password:&hunter2,
+                                                                                                     Host:"example.com", Port:&ui16_5060}}},
+        test{sipUriInput("sip:bob@example.com:5"),                        &sipUriResult{pass, SipUri{User:&bob, Host:"example.com", Port:&ui16_5}}},
+        test{sipUriInput("sip:bob@example.com;foo=bar"),                  &sipUriResult{pass, SipUri{User:&bob, Host:"example.com",
+                                                                                                     UriParams:map[string]*string{"foo":&bar}}}},
+        test{sipUriInput("sip:bob@example.com:5060;foo=bar"),             &sipUriResult{pass, SipUri{User:&bob, Host:"example.com", Port:&ui16_5060,
+                                                                                                     UriParams:map[string]*string{"foo":&bar}}}},
+        test{sipUriInput("sip:bob@example.com:5;foo"),                    &sipUriResult{pass, SipUri{User:&bob, Host:"example.com", Port:&ui16_5,
+                                                                                                     UriParams:map[string]*string{"foo":nil}}}},
+        test{sipUriInput("sip:bob@example.com:5;foo;baz=bar"),            &sipUriResult{pass, SipUri{User:&bob, Host:"example.com", Port:&ui16_5,
+                                                                                                     UriParams:map[string]*string{"foo":nil, "baz":&bar}}}},
+        test{sipUriInput("sip:bob@example.com:5;baz=bar;foo"),            &sipUriResult{pass, SipUri{User:&bob, Host:"example.com", Port:&ui16_5,
+                                                                                                     UriParams:map[string]*string{"foo":nil, "baz":&bar}}}},
+        test{sipUriInput("sip:bob@example.com:5;foo;baz=bar;a=b"),        &sipUriResult{pass, SipUri{User:&bob, Host:"example.com", Port:&ui16_5,
+                                                                                                     UriParams:map[string]*string{"foo":nil, "baz":&bar, "a":&b}}}},
+        test{sipUriInput("sip:bob@example.com:5;baz=bar;foo;a=b"),        &sipUriResult{pass, SipUri{User:&bob, Host:"example.com", Port:&ui16_5,
+                                                                                                     UriParams:map[string]*string{"foo":nil, "baz":&bar, "a":&b}}}},
+        test{sipUriInput("sip:bob@example.com?foo=bar"),                  &sipUriResult{pass, SipUri{User:&bob, Host:"example.com",
+                                                                                                     Headers:map[string]*string{"foo":&bar}}}},
+        test{sipUriInput("sip:bob@example.com?foo="),                     &sipUriResult{pass, SipUri{User:&bob, Host:"example.com",
+                                                                                                     Headers:map[string]*string{"foo":&emptyString}}}},
+        test{sipUriInput("sip:bob@example.com:5060?foo=bar"),             &sipUriResult{pass, SipUri{User:&bob, Host:"example.com", Port:&ui16_5060,
+                                                                                                     Headers:map[string]*string{"foo":&bar}}}},
+        test{sipUriInput("sip:bob@example.com:5?foo=bar"),                &sipUriResult{pass, SipUri{User:&bob, Host:"example.com", Port:&ui16_5,
+                                                                                                     Headers:map[string]*string{"foo":&bar}}}},
+        test{sipUriInput("sips:bob@example.com:5?baz=bar&foo=&a=b"),      &sipUriResult{pass, SipUri{IsEncrypted:true, User:&bob, Host:"example.com", Port:&ui16_5,
+                                                                                                     Headers:map[string]*string{"baz":&bar, "a":&b,
+                                                                                                                                "foo":&emptyString}}}},
+        test{sipUriInput("sip:bob@example.com:5?baz=bar&foo&a=b"),        &sipUriResult{fail, SipUri{}}},
+        test{sipUriInput("sip:bob@example.com:5?foo"),                    &sipUriResult{fail, SipUri{}}},
+        test{sipUriInput("sip:bob@example.com:50?foo"),                   &sipUriResult{fail, SipUri{}}},
+        test{sipUriInput("sip:bob@example.com:50?foo=bar&baz"),           &sipUriResult{fail, SipUri{}}},
+        test{sipUriInput("sip:bob@example.com;foo?foo=bar"),              &sipUriResult{pass, SipUri{User:&bob, Host:"example.com",
+                                                                                                     UriParams:map[string]*string{"foo":nil},
+                                                                                                     Headers:map[string]*string{"foo":&bar}}}},
+        test{sipUriInput("sip:bob@example.com:5060;foo?foo=bar"),         &sipUriResult{pass, SipUri{User:&bob, Host:"example.com", Port:&ui16_5060,
+                                                                                                     UriParams:map[string]*string{"foo":nil},
+                                                                                                     Headers:map[string]*string{"foo":&bar}}}},
+        test{sipUriInput("sip:bob@example.com:5;foo?foo=bar"),            &sipUriResult{pass, SipUri{User:&bob, Host:"example.com", Port:&ui16_5,
+                                                                                                     UriParams:map[string]*string{"foo":nil},
+                                                                                                     Headers:map[string]*string{"foo":&bar}}}},
+        test{sipUriInput("sips:bob@example.com:5;foo?baz=bar&a=b&foo="),  &sipUriResult{pass, SipUri{IsEncrypted:true, User:&bob,
+                                                                                                     Host:"example.com", Port:&ui16_5,
+                                                                                                     UriParams:map[string]*string{"foo":nil},
+                                                                                                     Headers:map[string]*string{"baz":&bar, "a":&b,
+                                                                                                                                "foo":&emptyString}}}},
+        test{sipUriInput("sip:bob@example.com:5;foo?baz=bar&foo&a=b"),    &sipUriResult{fail, SipUri{}}},
+        test{sipUriInput("sip:bob@example.com:5;foo?foo"),                &sipUriResult{fail, SipUri{}}},
+        test{sipUriInput("sip:bob@example.com:50;foo?foo"),               &sipUriResult{fail, SipUri{}}},
+        test{sipUriInput("sip:bob@example.com:50;foo?foo=bar&baz"),       &sipUriResult{fail, SipUri{}}},
+        test{sipUriInput("sip:bob@example.com;foo=baz?foo=bar"),          &sipUriResult{pass, SipUri{User:&bob, Host:"example.com",
+                                                                                                     UriParams:map[string]*string{"foo":&baz},
+                                                                                                     Headers:map[string]*string{"foo":&bar}}}},
+        test{sipUriInput("sip:bob@example.com:5060;foo=baz?foo=bar"),     &sipUriResult{pass, SipUri{User:&bob, Host:"example.com", Port:&ui16_5060,
+                                                                                                     UriParams:map[string]*string{"foo":&baz},
+                                                                                                     Headers:map[string]*string{"foo":&bar}}}},
+        test{sipUriInput("sip:bob@example.com:5;foo=baz?foo=bar"),        &sipUriResult{pass, SipUri{User:&bob, Host:"example.com", Port:&ui16_5,
+                                                                                                     UriParams:map[string]*string{"foo":&baz},
+                                                                                                     Headers:map[string]*string{"foo":&bar}}}},
+        test{sipUriInput("sips:bob@example.com:5;foo=baz?baz=bar&a=b"),   &sipUriResult{pass, SipUri{IsEncrypted:true, User:&bob, Host:"example.com", Port:&ui16_5,
+                                                                                                     UriParams:map[string]*string{"foo":&baz},
+                                                                                                     Headers:map[string]*string{"baz":&bar, "a":&b}}}},
+        test{sipUriInput("sip:bob@example.com:5;foo=baz?baz=bar&foo&a=b"),&sipUriResult{fail, SipUri{}}},
+        test{sipUriInput("sip:bob@example.com:5;foo=baz?foo"),            &sipUriResult{fail, SipUri{}}},
+        test{sipUriInput("sip:bob@example.com:50;foo=baz?foo"),           &sipUriResult{fail, SipUri{}}},
+        test{sipUriInput("sip:bob@example.com:50;foo=baz?foo=bar&baz"),   &sipUriResult{fail, SipUri{}}},
+    }, t)
 }
 
+/*
 func getHostPortTests() (map[hostPortTest]hostPortResult) {
     port5060 := uint16(5060)
     port9 := uint16(9)
@@ -309,6 +313,72 @@ func (expected *paramResult) equals (other result) (equal bool, reason string) {
     return true, ""
 }
 
+type sipUriInput string
+func (data sipUriInput) String() string {
+    return string(data)
+}
+func (data sipUriInput) evaluate() result {
+    output, err := parseSipUri(string(data))
+    return &sipUriResult{err, output}
+}
+
+type sipUriResult struct {
+    err error
+    uri SipUri
+}
+func (expected *sipUriResult) equals(other result) (equal bool, reason string) {
+    actual := *(other.(*sipUriResult))
+    if expected.err == nil && actual.err != nil {
+        return false, fmt.Sprintf("unexpected error: %s", actual.err.Error())
+    } else if expected.err != nil && actual.err == nil {
+        return false, fmt.Sprintf("unexpected success: got \"%s\"", actual.uri.String())
+    } else if actual.err != nil {
+        // Expected error. Test passes immediately.
+        return true, ""
+    } else if expected.uri.IsEncrypted != actual.uri.IsEncrypted {
+        return false, fmt.Sprintf("unexpected IsEncrypted value: expected %b; got %b",
+            expected.uri.IsEncrypted, actual.uri.IsEncrypted)
+    } else if !strPtrEq(expected.uri.User, actual.uri.User) {
+        return false, fmt.Sprintf("unexpected User value: expected %s; got %s",
+            strPtrStr(expected.uri.User), strPtrStr(actual.uri.User))
+    } else if !strPtrEq(expected.uri.Password, actual.uri.Password) {
+        return false, fmt.Sprintf("unexpected Password value: expected %s; got %s",
+            strPtrStr(expected.uri.Password), strPtrStr(actual.uri.Password))
+    } else if expected.uri.Host != actual.uri.Host {
+        return false, fmt.Sprintf("unexpected Host value: expected %s; got %s",
+            expected.uri.Host, actual.uri.Host)
+    } else if !uint16PtrEq(expected.uri.Port, actual.uri.Port) {
+        return false, fmt.Sprintf("unexpected Port value: expected %s; got %s",
+            uint16PtrStr(expected.uri.Port), uint16PtrStr(actual.uri.Port))
+    } else if !paramsEqual(expected.uri.UriParams, actual.uri.UriParams) {
+        return false, fmt.Sprintf("unequal uri parameters: expected \"%s\"; got \"%s\"",
+            ParamsToString(expected.uri.UriParams, ';', ';'),
+            ParamsToString(actual.uri.UriParams, ';', ';'))
+    } else if !paramsEqual(expected.uri.Headers, actual.uri.Headers) {
+        return false, fmt.Sprintf("unequal uri headers; expected \"%s\"; got \"%s\"",
+            ParamsToString(expected.uri.Headers, '?', '&'),
+            ParamsToString(actual.uri.Headers, '?', '&'))
+    }
+
+    return true, ""
+}
+
 func TestZZZCountTests (t *testing.T) {
     fmt.Printf("\n *** %d tests run *** \n\n", testsRun)
+}
+
+func strPtrStr(strPtr *string) string {
+    if strPtr == nil {
+        return "nil"
+    } else {
+        return *strPtr
+    }
+}
+
+func uint16PtrStr(uint16Ptr *uint16) string {
+    if uint16Ptr == nil {
+        return "nil"
+    } else {
+        return strconv.Itoa(int(*uint16Ptr))
+    }
 }
