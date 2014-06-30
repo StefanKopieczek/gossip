@@ -1,7 +1,7 @@
 package gossip
 
 import "fmt"
-//import "strings"
+import "strings"
 import "strconv"
 import "testing"
 
@@ -238,23 +238,22 @@ func TestHostPort(t *testing.T) () {
     }, t)
 }
 
-/*
-func getHeaderBlockTests() (map[headerBlockTest]headerBlockResult) {
-    return map[headerBlockTest]headerBlockResult {
-        []string{"All on one line."}                             : headerBlockResult{"All on one line.", 1},
-        []string{"Line one", "Line two."}                        : headerBlockResult{"Line one", 1},
-        []string{"Line one", " then an indent"}                  : headerBlockResult{"Line one then an indent", 2},
-        []string{"Line one", " then an indent", "then line two"} : headerBlockResult{"Line one then an indent", 2},
-        []string{"Line one", "Line two", " then an indent"}      : headerBlockResult{"Line one", 1},
-        []string{"Line one", "\twith tab indent"}                : headerBlockResult{"Line one with tab indent", 2},
-        []string{"Line one", "      with a big indent"}          : headerBlockResult{"Line one with a big indent", 2},
-        []string{"Line one", " \twith space then tab"}           : headerBlockResult{"Line one with space then tab", 2},
-        []string{"Line one", "\t    with tab then spaces"}       : headerBlockResult{"Line one with tab then spaces", 2},
-        []string{""}                                             : headerBlockResult{"", 0},
-        []string{" "}                                            : headerBlockResult{" ", 1},
-        []string{" foo"}                                         : headerBlockResult{" foo", 1},
-    }
-}*/
+func TestHeaderBlocks(t *testing.T) {
+    doTests([]test {
+        test{headerBlockInput([]string{"All on one line."}),                             &headerBlockResult{"All on one line.", 1}},
+        test{headerBlockInput([]string{"Line one", "Line two."}),                        &headerBlockResult{"Line one", 1}},
+        test{headerBlockInput([]string{"Line one", " then an indent"}),                  &headerBlockResult{"Line one then an indent", 2}},
+        test{headerBlockInput([]string{"Line one", " then an indent", "then line two"}), &headerBlockResult{"Line one then an indent", 2}},
+        test{headerBlockInput([]string{"Line one", "Line two", " then an indent"}),      &headerBlockResult{"Line one", 1}},
+        test{headerBlockInput([]string{"Line one", "\twith tab indent"}),                &headerBlockResult{"Line one with tab indent", 2}},
+        test{headerBlockInput([]string{"Line one", "      with a big indent"}),          &headerBlockResult{"Line one with a big indent", 2}},
+        test{headerBlockInput([]string{"Line one", " \twith space then tab"}),           &headerBlockResult{"Line one with space then tab", 2}},
+        test{headerBlockInput([]string{"Line one", "\t    with tab then spaces"}),       &headerBlockResult{"Line one with tab then spaces", 2}},
+        test{headerBlockInput([]string{""}),                                             &headerBlockResult{"", 0}},
+        test{headerBlockInput([]string{" "}),                                            &headerBlockResult{" ", 1}},
+        test{headerBlockInput([]string{" foo"}),                                         &headerBlockResult{" foo", 1}},
+    }, t)
+}
 
 type paramInput struct {
     paramString string
@@ -385,6 +384,35 @@ func (expected *hostPortResult) equals(other result) (equal bool, reason string)
         return false, fmt.Sprintf("unexpected port: expected %s, got %s",
                                   uint16PtrStr(expected.port),
                                   uint16PtrStr(actual.port))
+    }
+
+    return true, ""
+}
+
+type headerBlockInput []string
+
+func (data headerBlockInput) String() string {
+    return "[" + strings.Join([]string(data), ", ") + "]"
+}
+
+func (data headerBlockInput) evaluate() result {
+    contents, linesConsumed := getNextHeaderBlock([]string(data))
+    return &headerBlockResult{contents, linesConsumed}
+}
+
+type headerBlockResult struct {
+    contents string
+    linesConsumed int
+}
+
+func (expected *headerBlockResult) equals(other result) (equal bool, reason string) {
+    actual := *(other.(*headerBlockResult))
+    if expected.contents != actual.contents {
+        return false, fmt.Sprintf("unexpected block contents: got \"%s\"; expected \"%s\"",
+                                  actual.contents, expected.contents)
+    } else if expected.linesConsumed != actual.linesConsumed {
+        return false, fmt.Sprintf("unexpected number of lines used: %d (expected %d)",
+                                  actual.linesConsumed, expected.linesConsumed)
     }
 
     return true, ""
