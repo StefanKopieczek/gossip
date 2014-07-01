@@ -316,32 +316,9 @@ func (expected *sipUriResult) equals(other result) (equal bool, reason string) {
     } else if actual.err != nil {
         // Expected error. Test passes immediately.
         return true, ""
-    } else if expected.uri.IsEncrypted != actual.uri.IsEncrypted {
-        return false, fmt.Sprintf("unexpected IsEncrypted value: expected %b; got %b",
-            expected.uri.IsEncrypted, actual.uri.IsEncrypted)
-    } else if !strPtrEq(expected.uri.User, actual.uri.User) {
-        return false, fmt.Sprintf("unexpected User value: expected %s; got %s",
-            strPtrStr(expected.uri.User), strPtrStr(actual.uri.User))
-    } else if !strPtrEq(expected.uri.Password, actual.uri.Password) {
-        return false, fmt.Sprintf("unexpected Password value: expected %s; got %s",
-            strPtrStr(expected.uri.Password), strPtrStr(actual.uri.Password))
-    } else if expected.uri.Host != actual.uri.Host {
-        return false, fmt.Sprintf("unexpected Host value: expected %s; got %s",
-            expected.uri.Host, actual.uri.Host)
-    } else if !uint16PtrEq(expected.uri.Port, actual.uri.Port) {
-        return false, fmt.Sprintf("unexpected Port value: expected %s; got %s",
-            uint16PtrStr(expected.uri.Port), uint16PtrStr(actual.uri.Port))
-    } else if !paramsEqual(expected.uri.UriParams, actual.uri.UriParams) {
-        return false, fmt.Sprintf("unequal uri parameters: expected \"%s\"; got \"%s\"",
-            ParamsToString(expected.uri.UriParams, ';', ';'),
-            ParamsToString(actual.uri.UriParams, ';', ';'))
-    } else if !paramsEqual(expected.uri.Headers, actual.uri.Headers) {
-        return false, fmt.Sprintf("unequal uri headers; expected \"%s\"; got \"%s\"",
-            ParamsToString(expected.uri.Headers, '?', '&'),
-            ParamsToString(actual.uri.Headers, '?', '&'))
     }
 
-    return true, ""
+    return expected.uri.equals(&actual.uri)
 }
 
 type hostPortInput string
@@ -419,6 +396,64 @@ func (expected *headerBlockResult) equals(other result) (equal bool, reason stri
     return true, ""
 }
 
+type toHeaderInput string
+
+func (data toHeaderInput) String() string {
+    return string(data)
+}
+
+func (data toHeaderInput) evaluate() result {
+    parser := NewMessageParser().(*parserImpl)
+    headers, err := parser.parseHeaderSection(string(data))
+    return &toHeaderResult{err, headers[0].(*ToHeader)}
+}
+
+type toHeaderResult struct {
+    err error
+    header *ToHeader
+}
+
+func (expected *toHeaderResult) equals(other result) (equal bool, reason string) {
+    actual := *(other.(*toHeaderResult))
+
+    if expected.err == nil && actual.err != nil {
+        return false, fmt.Sprintf("unexpected error: %s", actual.err.Error())
+    } else if expected.err != nil && actual.err == nil {
+        return false, fmt.Sprintf("unexpected success: got:\n%s\n\n", actual.header.String())
+    } else if expected.err != nil {
+        // Expected error. Return true immediately with no further checks.
+        return true, ""
+    }
+
+    if !strPtrEq(expected.header.displayName, actual.header.displayName) {
+        return false, fmt.Sprintf("unexpected display name: expected \"%s\"; got \"%s\"",
+            strPtrStr(expected.header.displayName),
+            strPtrStr(actual.header.displayName))
+    }
+
+    switch expected.header.uri.(type) {
+    case *SipUri:
+        uri := *(expected.header.uri.(*SipUri))
+        urisEqual, msg := uri.equals(actual.header.uri)
+        if !urisEqual {
+            return false, msg
+        }
+    default:
+        // If you're hitting this block, then you need to do the following:
+        // - implement a package-private 'equals' method for the URI schema being tested.
+        // - add a case block above for that schema, using the 'equals' method in the same was as the existing SipUri block above.
+        return false, fmt.Sprintf("no support for testing uri schema in uri \"%s\" - fix me!", expected.header.uri)
+    }
+
+    if !paramsEqual(expected.header.params, actual.header.params) {
+        return false, fmt.Sprintf("unexpected parameters \"%s\" (expected \"%s\")",
+            ParamsToString(actual.header.params, '$', '-'),
+            ParamsToString(expected.header.params, '$', '-'))
+    }
+
+    return true, ""
+}
+
 func TestZZZCountTests (t *testing.T) {
     fmt.Printf("\n *** %d tests run *** \n\n", testsRun)
 }
@@ -437,4 +472,39 @@ func uint16PtrStr(uint16Ptr *uint16) string {
     } else {
         return strconv.Itoa(int(*uint16Ptr))
     }
+}
+
+func (a *SipUri) equals(other Uri) (equal bool, reason string) {
+    switch other.(type) {
+    case *SipUri:
+        b := *(other.(*SipUri))
+        if a.IsEncrypted != b.IsEncrypted {
+            return false, fmt.Sprintf("unexpected IsEncrypted value: expected %b; got %b",
+                b.IsEncrypted, a.IsEncrypted)
+        } else if !strPtrEq(b.User, a.User) {
+            return false, fmt.Sprintf("unexpected User value: expected %s; got %s",
+                strPtrStr(b.User), strPtrStr(a.User))
+        } else if !strPtrEq(b.Password, a.Password) {
+            return false, fmt.Sprintf("unexpected Password value: expected %s; got %s",
+                strPtrStr(b.Password), strPtrStr(a.Password))
+        } else if b.Host != a.Host {
+            return false, fmt.Sprintf("unexpected Host value: expected %s; got %s",
+                b.Host, a.Host)
+        } else if !uint16PtrEq(b.Port, a.Port) {
+            return false, fmt.Sprintf("unexpected Port value: expected %s; got %s",
+                uint16PtrStr(b.Port), uint16PtrStr(a.Port))
+        } else if !paramsEqual(b.UriParams, a.UriParams) {
+            return false, fmt.Sprintf("unequal uri parameters: expected \"%s\"; got \"%s\"",
+                ParamsToString(b.UriParams, ';', ';'),
+                ParamsToString(a.UriParams, ';', ';'))
+        } else if !paramsEqual(b.Headers, a.Headers) {
+            return false, fmt.Sprintf("unequal uri headers; expected \"%s\"; got \"%s\"",
+                ParamsToString(b.Headers, '?', '&'),
+                ParamsToString(a.Headers, '?', '&'))
+        }
+        return true, ""
+    default:
+        return false, fmt.Sprintf("unexpected URI schema: expected URI was \"%s\"; got \"%s\"", a.String(), other.String())
+    }
+
 }
