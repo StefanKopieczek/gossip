@@ -718,6 +718,11 @@ func parseAddressValue(addressText string) (
         headerParams map[string]*string,
         err error) {
 
+    if len(addressText) == 0 {
+        err = fmt.Errorf("address-type header has empty body")
+        return
+    }
+
     addressTextCopy := addressText
     addressText = strings.TrimSpace(addressText)
 
