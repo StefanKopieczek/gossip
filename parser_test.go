@@ -256,6 +256,123 @@ func TestHeaderBlocks(t *testing.T) {
     }, t)
 }
 
+func TestToHeaders(t *testing.T) {
+    alice := "alice"
+    aliceAddr := "sip:alice@wonderland.com"
+    aliceAddrQuot := "<sip:alice@wonderland.com>"
+    aliceAddrQuotSp := "<sip: alice@wonderland.com>"
+    aliceTitle := "Alice"
+    aliceLiddell := "Alice Liddell"
+    bar := "bar"
+    fooEqBar := map[string]*string{"foo" : &bar}
+    fooSingleton := map[string]*string{"foo" : nil}
+    noParams := map[string]*string{}
+    doTests([]test {
+        test{toHeaderInput("To: \"Alice Liddell\" <sip:alice@wonderland.com>"), &toHeaderResult{pass,
+            &ToHeader{displayName:&aliceLiddell,
+                      uri:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+                      params:noParams}}},
+
+        test{toHeaderInput("To:\n  \"Alice Liddell\" \n\t<sip:alice@wonderland.com>"), &toHeaderResult{pass,
+            &ToHeader{displayName:&aliceLiddell,
+                      uri:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+                      params:noParams}}},
+
+        test{toHeaderInput("t: Alice <sip:alice@wonderland.com>"), &toHeaderResult{pass,
+            &ToHeader{displayName:&aliceTitle,
+                      uri:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+                      params:noParams}}},
+
+        test{toHeaderInput("To: Alice sip:alice@wonderland.com"), &toHeaderResult{fail,
+            &ToHeader{}}},
+
+        test{toHeaderInput("To:"), &toHeaderResult{fail,
+            &ToHeader{}}},
+
+        test{toHeaderInput("To: "), &toHeaderResult{fail,
+            &ToHeader{}}},
+
+        test{toHeaderInput("To:\t"), &toHeaderResult{fail,
+            &ToHeader{}}},
+
+        test{toHeaderInput("To: foo"), &toHeaderResult{fail,
+            &ToHeader{}}},
+
+        test{toHeaderInput("To: foo bar"), &toHeaderResult{fail,
+            &ToHeader{}}},
+
+        test{toHeaderInput("To: \"Alice\" sip:alice@wonderland.com"), &toHeaderResult{fail,
+            &ToHeader{}}},
+
+        test{toHeaderInput("To: \"<Alice>\" sip:alice@wonderland.com"), &toHeaderResult{fail,
+            &ToHeader{}}},
+
+        test{toHeaderInput("To: \"sip:alice@wonderland.com\""), &toHeaderResult{fail,
+            &ToHeader{}}},
+
+        test{toHeaderInput("To: \"sip:alice@wonderland.com\"  <sip:alice@wonderland.com>"), &toHeaderResult{pass,
+            &ToHeader{displayName:&aliceAddr,
+                      uri:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+                      params:noParams}}},
+
+        test{toHeaderInput("To: \"<sip:alice@wonderland.com>\"  <sip:alice@wonderland.com>"), &toHeaderResult{pass,
+            &ToHeader{displayName:&aliceAddrQuot,
+                      uri:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+                      params:noParams}}},
+
+        test{toHeaderInput("To: \"<sip: alice@wonderland.com>\"  <sip:alice@wonderland.com>"), &toHeaderResult{pass,
+            &ToHeader{displayName:&aliceAddrQuotSp,
+                      uri:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+                      params:noParams}}},
+
+        test{toHeaderInput("To: \"Alice Liddell\" <sip:alice@wonderland.com>;foo=bar"), &toHeaderResult{pass,
+            &ToHeader{displayName:&aliceLiddell,
+                      uri:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+                      params:fooEqBar}}},
+
+        test{toHeaderInput("To: \"Alice Liddell\" <sip:alice@wonderland.com;foo=bar>"), &toHeaderResult{pass,
+            &ToHeader{displayName:&aliceLiddell,
+                      uri:&SipUri{false, &alice, nil, "wonderland.com", nil, fooEqBar, noParams},
+                      params:noParams}}},
+
+        test{toHeaderInput("To: \"Alice Liddell\" <sip:alice@wonderland.com?foo=bar>"), &toHeaderResult{pass,
+            &ToHeader{displayName:&aliceLiddell,
+                      uri:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, fooEqBar},
+                      params:noParams}}},
+
+        test{toHeaderInput("To: \"Alice Liddell\" <sip:alice@wonderland.com>;foo"), &toHeaderResult{pass,
+            &ToHeader{displayName:&aliceLiddell,
+                      uri:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+                      params:fooSingleton}}},
+
+        test{toHeaderInput("To: \"Alice Liddell\" <sip:alice@wonderland.com;foo>"), &toHeaderResult{pass,
+            &ToHeader{displayName:&aliceLiddell,
+                      uri:&SipUri{false, &alice, nil, "wonderland.com", nil, fooSingleton, noParams},
+                      params:noParams}}},
+
+        test{toHeaderInput("To: \"Alice Liddell\" <sip:alice@wonderland.com?foo>"), &toHeaderResult{fail,
+            &ToHeader{}}},
+
+        test{toHeaderInput("To: \"Alice Liddell\" <sip:alice@wonderland.com;foo?foo=bar>;foo=bar"), &toHeaderResult{pass,
+            &ToHeader{displayName:&aliceLiddell,
+                      uri:&SipUri{false, &alice, nil, "wonderland.com", nil, fooSingleton, fooEqBar},
+                      params:fooEqBar}}},
+
+        test{toHeaderInput("To: \"Alice Liddell\" <sip:alice@wonderland.com;foo?foo=bar>;foo"), &toHeaderResult{pass,
+            &ToHeader{displayName:&aliceLiddell,
+                      uri:&SipUri{false, &alice, nil, "wonderland.com", nil, fooSingleton, fooEqBar},
+                      params:fooSingleton}}},
+
+        test{toHeaderInput("To: \"Alice Liddell\" <sip:alice@wonderland.com>"), &toHeaderResult{pass,
+            &ToHeader{displayName:&aliceLiddell,
+                      uri:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+                      params:noParams}}},
+
+        test{toHeaderInput("To: sip:alice@wonderland.com, sip:hatter@wonderland.com"), &toHeaderResult{fail,
+            &ToHeader{}}},
+    }, t)
+}
+
 type paramInput struct {
     paramString string
     start uint8
@@ -405,7 +522,11 @@ func (data toHeaderInput) String() string {
 func (data toHeaderInput) evaluate() result {
     parser := NewMessageParser().(*parserImpl)
     headers, err := parser.parseHeaderSection(string(data))
-    return &toHeaderResult{err, headers[0].(*ToHeader)}
+    if len(headers) > 0 {
+        return &toHeaderResult{err, headers[0].(*ToHeader)}
+    } else {
+        return &toHeaderResult{err, &ToHeader{}}
+    }
 }
 
 type toHeaderResult struct {
