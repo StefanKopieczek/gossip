@@ -678,9 +678,9 @@ func parseAddressValues(addresses string) (
     addresses = addresses + ","
 
     for idx, char := range(addresses) {
-        if char == '<' {
+        if char == '<' && !inQuotes {
             inBrackets = true
-        } else if char == '>' {
+        } else if char == '>' && !inQuotes {
             inBrackets = false
         } else if char == '"' {
             inQuotes = !inQuotes
@@ -721,8 +721,9 @@ func parseAddressValue(addressText string) (
     addressTextCopy := addressText
     addressText = strings.TrimSpace(addressText)
 
-    firstAngleBracket := strings.Index(addressText, "<")
-    firstSpace := strings.IndexAny(addressText, ABNF_WS)
+    firstAngleBracket := findUnescaped(addressText, '<', quotes_delim)
+    firstSpace := findAnyUnescaped(addressText, ABNF_WS, quotes_delim,
+                                   angles_delim)
     if (firstAngleBracket != -1 && firstSpace != -1 &&
         firstSpace < firstAngleBracket) {
         // There is a display name present. Let's parse it.
@@ -817,4 +818,41 @@ func getNextHeaderBlock(contents[] string) (headerText string, consumed int) {
 
     headerText = buffer.String()
     return
+}
+
+type delimiter struct {
+    start uint8
+    end uint8
+}
+
+var quotes_delim = delimiter{'"', '"'}
+var angles_delim = delimiter{'<', '>'}
+
+func findUnescaped(text string, target uint8, delims ...delimiter) int {
+    return findAnyUnescaped(text, string(target), delims...)
+}
+
+func findAnyUnescaped(text string, targets string, delims ...delimiter) int {
+    escaped := false
+    var endEscape uint8 = 0
+
+    endChars := make(map[uint8]uint8)
+    for _, delim := range(delims) {
+        endChars[delim.start] = delim.end
+    }
+
+    for idx := 0; idx < len(text); idx++ {
+        if !escaped && strings.Contains(targets, string(text[idx])) {
+            return idx
+        }
+
+        if escaped {
+            escaped = (text[idx] != endEscape)
+            continue
+        } else {
+            endEscape, escaped = endChars[text[idx]]
+        }
+    }
+
+    return -1
 }
