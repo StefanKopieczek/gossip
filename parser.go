@@ -517,11 +517,21 @@ func parseAddressHeader(headerName string, headerText string) (
         for idx := 0; idx < len(displayNames); idx++ {
             var header SipHeader
             if (headerName == "to" || headerName == "t") {
+                if idx > 0 {
+                    return nil,
+                        fmt.Errorf("Multiple to: headers in message:\n%s: %s",
+                                   headerName, headerText)
+                }
                 toHeader := ToHeader{displayNames[idx],
                                      &uris[idx],
                                      paramSets[idx]}
                 header = &toHeader
             } else if (headerName == "from" || headerName == "f") {
+                if idx > 0 {
+                    return nil,
+                        fmt.Errorf("Multiple from: headers in message:\n%s: %s",
+                                   headerName, headerText)
+                }
                 fromHeader := FromHeader{displayNames[idx],
                                          &uris[idx],
                                          paramSets[idx]}
