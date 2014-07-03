@@ -315,7 +315,7 @@ func TestToHeaders(t *testing.T) {
                       uri:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
                       params:noParams}}},
 
-        test{toHeaderInput("To: \"<sip:alice@wonderland.com>\"  <sip:alice@wonderland.com>"), &toHeaderResult{pass,
+        test{toHeaderInput("T: \"<sip:alice@wonderland.com>\"  <sip:alice@wonderland.com>"), &toHeaderResult{pass,
             &ToHeader{displayName:&aliceAddrQuot,
                       uri:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
                       params:noParams}}},
@@ -340,12 +340,12 @@ func TestToHeaders(t *testing.T) {
                       uri:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, fooEqBar},
                       params:noParams}}},
 
-        test{toHeaderInput("To: \"Alice Liddell\" <sip:alice@wonderland.com>;foo"), &toHeaderResult{pass,
+        test{toHeaderInput("to: \"Alice Liddell\" <sip:alice@wonderland.com>;foo"), &toHeaderResult{pass,
             &ToHeader{displayName:&aliceLiddell,
                       uri:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
                       params:fooSingleton}}},
 
-        test{toHeaderInput("To: \"Alice Liddell\" <sip:alice@wonderland.com;foo>"), &toHeaderResult{pass,
+        test{toHeaderInput("TO: \"Alice Liddell\" <sip:alice@wonderland.com;foo>"), &toHeaderResult{pass,
             &ToHeader{displayName:&aliceLiddell,
                       uri:&SipUri{false, &alice, nil, "wonderland.com", nil, fooSingleton, noParams},
                       params:noParams}}},
@@ -370,6 +370,124 @@ func TestToHeaders(t *testing.T) {
 
         test{toHeaderInput("To: sip:alice@wonderland.com, sip:hatter@wonderland.com"), &toHeaderResult{fail,
             &ToHeader{}}},
+    }, t)
+}
+
+func TestFromHeaders(t *testing.T) {
+    // These are identical to the To: header tests, but there's no clean way to share them :(
+    alice := "alice"
+    aliceAddr := "sip:alice@wonderland.com"
+    aliceAddrQuot := "<sip:alice@wonderland.com>"
+    aliceAddrQuotSp := "<sip: alice@wonderland.com>"
+    aliceTitle := "Alice"
+    aliceLiddell := "Alice Liddell"
+    bar := "bar"
+    fooEqBar := map[string]*string{"foo" : &bar}
+    fooSingleton := map[string]*string{"foo" : nil}
+    noParams := map[string]*string{}
+    doTests([]test {
+        test{fromHeaderInput("From: \"Alice Liddell\" <sip:alice@wonderland.com>"), &fromHeaderResult{pass,
+            &FromHeader{displayName:&aliceLiddell,
+                      uri:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+                      params:noParams}}},
+
+        test{fromHeaderInput("From:\n  \"Alice Liddell\" \n\t<sip:alice@wonderland.com>"), &fromHeaderResult{pass,
+            &FromHeader{displayName:&aliceLiddell,
+                      uri:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+                      params:noParams}}},
+
+        test{fromHeaderInput("f: Alice <sip:alice@wonderland.com>"), &fromHeaderResult{pass,
+            &FromHeader{displayName:&aliceTitle,
+                      uri:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+                      params:noParams}}},
+
+        test{fromHeaderInput("From: Alice sip:alice@wonderland.com"), &fromHeaderResult{fail,
+            &FromHeader{}}},
+
+        test{fromHeaderInput("From:"), &fromHeaderResult{fail,
+            &FromHeader{}}},
+
+        test{fromHeaderInput("From: "), &fromHeaderResult{fail,
+            &FromHeader{}}},
+
+        test{fromHeaderInput("From:\t"), &fromHeaderResult{fail,
+            &FromHeader{}}},
+
+        test{fromHeaderInput("From: foo"), &fromHeaderResult{fail,
+            &FromHeader{}}},
+
+        test{fromHeaderInput("From: foo bar"), &fromHeaderResult{fail,
+            &FromHeader{}}},
+
+        test{fromHeaderInput("From: \"Alice\" sip:alice@wonderland.com"), &fromHeaderResult{fail,
+            &FromHeader{}}},
+
+        test{fromHeaderInput("From: \"<Alice>\" sip:alice@wonderland.com"), &fromHeaderResult{fail,
+            &FromHeader{}}},
+
+        test{fromHeaderInput("From: \"sip:alice@wonderland.com\""), &fromHeaderResult{fail,
+            &FromHeader{}}},
+
+        test{fromHeaderInput("From: \"sip:alice@wonderland.com\"  <sip:alice@wonderland.com>"), &fromHeaderResult{pass,
+            &FromHeader{displayName:&aliceAddr,
+                      uri:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+                      params:noParams}}},
+
+        test{fromHeaderInput("From: \"<sip:alice@wonderland.com>\"  <sip:alice@wonderland.com>"), &fromHeaderResult{pass,
+            &FromHeader{displayName:&aliceAddrQuot,
+                      uri:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+                      params:noParams}}},
+
+        test{fromHeaderInput("From: \"<sip: alice@wonderland.com>\"  <sip:alice@wonderland.com>"), &fromHeaderResult{pass,
+            &FromHeader{displayName:&aliceAddrQuotSp,
+                      uri:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+                      params:noParams}}},
+
+        test{fromHeaderInput("FrOm: \"Alice Liddell\" <sip:alice@wonderland.com>;foo=bar"), &fromHeaderResult{pass,
+            &FromHeader{displayName:&aliceLiddell,
+                      uri:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+                      params:fooEqBar}}},
+
+        test{fromHeaderInput("from: \"Alice Liddell\" <sip:alice@wonderland.com;foo=bar>"), &fromHeaderResult{pass,
+            &FromHeader{displayName:&aliceLiddell,
+                      uri:&SipUri{false, &alice, nil, "wonderland.com", nil, fooEqBar, noParams},
+                      params:noParams}}},
+
+        test{fromHeaderInput("F: \"Alice Liddell\" <sip:alice@wonderland.com?foo=bar>"), &fromHeaderResult{pass,
+            &FromHeader{displayName:&aliceLiddell,
+                      uri:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, fooEqBar},
+                      params:noParams}}},
+
+        test{fromHeaderInput("From: \"Alice Liddell\" <sip:alice@wonderland.com>;foo"), &fromHeaderResult{pass,
+            &FromHeader{displayName:&aliceLiddell,
+                      uri:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+                      params:fooSingleton}}},
+
+        test{fromHeaderInput("From: \"Alice Liddell\" <sip:alice@wonderland.com;foo>"), &fromHeaderResult{pass,
+            &FromHeader{displayName:&aliceLiddell,
+                      uri:&SipUri{false, &alice, nil, "wonderland.com", nil, fooSingleton, noParams},
+                      params:noParams}}},
+
+        test{fromHeaderInput("From: \"Alice Liddell\" <sip:alice@wonderland.com?foo>"), &fromHeaderResult{fail,
+            &FromHeader{}}},
+
+        test{fromHeaderInput("From: \"Alice Liddell\" <sip:alice@wonderland.com;foo?foo=bar>;foo=bar"), &fromHeaderResult{pass,
+            &FromHeader{displayName:&aliceLiddell,
+                      uri:&SipUri{false, &alice, nil, "wonderland.com", nil, fooSingleton, fooEqBar},
+                      params:fooEqBar}}},
+
+        test{fromHeaderInput("From: \"Alice Liddell\" <sip:alice@wonderland.com;foo?foo=bar>;foo"), &fromHeaderResult{pass,
+            &FromHeader{displayName:&aliceLiddell,
+                      uri:&SipUri{false, &alice, nil, "wonderland.com", nil, fooSingleton, fooEqBar},
+                      params:fooSingleton}}},
+
+        test{fromHeaderInput("From: \"Alice Liddell\" <sip:alice@wonderland.com>"), &fromHeaderResult{pass,
+            &FromHeader{displayName:&aliceLiddell,
+                      uri:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+                      params:noParams}}},
+
+        test{fromHeaderInput("From: sip:alice@wonderland.com, sip:hatter@wonderland.com"), &fromHeaderResult{fail,
+            &FromHeader{}}},
     }, t)
 }
 
@@ -536,6 +654,68 @@ type toHeaderResult struct {
 
 func (expected *toHeaderResult) equals(other result) (equal bool, reason string) {
     actual := *(other.(*toHeaderResult))
+
+    if expected.err == nil && actual.err != nil {
+        return false, fmt.Sprintf("unexpected error: %s", actual.err.Error())
+    } else if expected.err != nil && actual.err == nil {
+        return false, fmt.Sprintf("unexpected success: got:\n%s\n\n", actual.header.String())
+    } else if expected.err != nil {
+        // Expected error. Return true immediately with no further checks.
+        return true, ""
+    }
+
+    if !strPtrEq(expected.header.displayName, actual.header.displayName) {
+        return false, fmt.Sprintf("unexpected display name: expected \"%s\"; got \"%s\"",
+            strPtrStr(expected.header.displayName),
+            strPtrStr(actual.header.displayName))
+    }
+
+    switch expected.header.uri.(type) {
+    case *SipUri:
+        uri := *(expected.header.uri.(*SipUri))
+        urisEqual, msg := uri.equals(actual.header.uri)
+        if !urisEqual {
+            return false, msg
+        }
+    default:
+        // If you're hitting this block, then you need to do the following:
+        // - implement a package-private 'equals' method for the URI schema being tested.
+        // - add a case block above for that schema, using the 'equals' method in the same was as the existing SipUri block above.
+        return false, fmt.Sprintf("no support for testing uri schema in uri \"%s\" - fix me!", expected.header.uri)
+    }
+
+    if !paramsEqual(expected.header.params, actual.header.params) {
+        return false, fmt.Sprintf("unexpected parameters \"%s\" (expected \"%s\")",
+            ParamsToString(actual.header.params, '$', '-'),
+            ParamsToString(expected.header.params, '$', '-'))
+    }
+
+    return true, ""
+}
+
+type fromHeaderInput string
+
+func (data fromHeaderInput) String() string {
+    return string(data)
+}
+
+func (data fromHeaderInput) evaluate() result {
+    parser := NewMessageParser().(*parserImpl)
+    headers, err := parser.parseHeaderSection(string(data))
+    if len(headers) > 0 {
+        return &fromHeaderResult{err, headers[0].(*FromHeader)}
+    } else {
+        return &fromHeaderResult{err, &FromHeader{}}
+    }
+}
+
+type fromHeaderResult struct {
+    err error
+    header *FromHeader
+}
+
+func (expected *fromHeaderResult) equals(other result) (equal bool, reason string) {
+    actual := *(other.(*fromHeaderResult))
 
     if expected.err == nil && actual.err != nil {
         return false, fmt.Sprintf("unexpected error: %s", actual.err.Error())
