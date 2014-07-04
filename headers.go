@@ -6,12 +6,18 @@ import "strconv"
 import "strings"
 
 type SipHeader interface {
-    String() (string)
+    String() string
 }
 
 type Uri interface {
-    Equals(other Uri) (bool)
-    String() (string)
+    Equals(other Uri) bool
+    String() string
+}
+
+type ContactUri interface {
+    Equals(other Uri) bool
+    String() string
+    IsWildcard() bool
 }
 
 type SipUri struct {
@@ -22,6 +28,10 @@ type SipUri struct {
     Port *uint16
     UriParams map[string]*string
     Headers map[string]*string
+}
+
+func (uri *SipUri) IsWildcard() bool {
+    return false
 }
 
 func (uri *SipUri) Equals(otherUri Uri) (bool) {
@@ -92,6 +102,25 @@ func (uri *SipUri) String() (string) {
     return buffer.String()
 }
 
+type WildcardUri struct{}
+
+func (uri *WildcardUri) IsWildcard() bool {
+    return true
+}
+
+func (uri *WildcardUri) String() string {
+    return "*"
+}
+
+func (uri *WildcardUri) Equals(other Uri) bool {
+    switch other.(type) {
+    case *WildcardUri:
+        return true
+    default:
+        return false
+    }
+}
+
 type GenericHeader struct {
     headerName string
     contents string
@@ -140,7 +169,7 @@ func (from *FromHeader) String() (string) {
 
 type ContactHeader struct  {
     displayName *string
-    uri SipUri
+    uri ContactUri
     params map[string]*string
 }
 func (contact *ContactHeader) String() (string) {
@@ -151,7 +180,13 @@ func (contact *ContactHeader) String() (string) {
         buffer.WriteString(fmt.Sprintf("\"%s\" ", *contact.displayName))
     }
 
-    buffer.WriteString(fmt.Sprintf("<%s>", contact.uri.String()))
+    switch contact.uri.(type) {
+    case *WildcardUri:
+        buffer.WriteString("*")
+    default:
+        buffer.WriteString(fmt.Sprintf("<%s>", contact.uri.String()))
+    }
+
     buffer.WriteString(ParamsToString(contact.params, ';', ';'))
 
     return buffer.String()

@@ -216,6 +216,33 @@ func parseStatusLine(statusLine string) (
     return
 }
 
+func parseUri(uriStr string) (uri Uri, err error) {
+    if strings.TrimSpace(uriStr) == "*" {
+        return &WildcardUri{}, nil
+    }
+
+    colonIdx := strings.Index(uriStr, ":")
+    if colonIdx == -1 {
+        err = fmt.Errorf("no ':' in URI %s", uriStr)
+        return
+    }
+
+    switch strings.ToLower(uriStr[:colonIdx]) {
+    case "sip":
+        var sipUri SipUri
+        sipUri, err = parseSipUri(uriStr)
+        uri = &sipUri
+    case "sips":
+        var sipUri SipUri
+        sipUri, err = parseSipUri(uriStr)
+        uri = &sipUri
+    default:
+        err = fmt.Errorf("Unsupported URI schema %s", uriStr[:colonIdx])
+    }
+
+    return
+}
+
 func parseSipUri(uriStr string) (uri SipUri, err error) {
     // Store off the original URI in case we need to print it in an error.
     uriStrCopy := uriStr
@@ -498,7 +525,7 @@ func parseAddressHeader(headerName string, headerText string) (
     switch (headerName) {
     case "to", "from", "contact", "t", "f", "m":
         var displayNames []*string
-        var uris []SipUri
+        var uris []Uri
         var paramSets []map[string]*string
         displayNames, uris, paramSets, err = parseAddressValues(headerText)
 
@@ -522,25 +549,54 @@ func parseAddressHeader(headerName string, headerText string) (
                         fmt.Errorf("Multiple to: headers in message:\n%s: %s",
                                    headerName, headerText)
                 }
-                toHeader := ToHeader{displayNames[idx],
-                                     &uris[idx],
-                                     paramSets[idx]}
-                header = &toHeader
+                switch uris[idx].(type) {
+                case *WildcardUri:
+                    err = fmt.Errorf("wildcard uri not permitted in to: " +
+                                     "header: %s", headerText)
+                    return
+                default:
+                    toHeader := ToHeader{displayNames[idx],
+                                         uris[idx],
+                                         paramSets[idx]}
+                    header = &toHeader
+                }
             } else if (headerName == "from" || headerName == "f") {
                 if idx > 0 {
                     return nil,
                         fmt.Errorf("Multiple from: headers in message:\n%s: %s",
                                    headerName, headerText)
                 }
-                fromHeader := FromHeader{displayNames[idx],
-                                         &uris[idx],
-                                         paramSets[idx]}
-                header = &fromHeader
+                switch uris[idx].(type) {
+                case *WildcardUri:
+                    err = fmt.Errorf("wildcard uri not permitted in from: " +
+                                     "header: %s", headerText)
+                    return
+                default:
+                    fromHeader := FromHeader{displayNames[idx],
+                                             uris[idx],
+                                             paramSets[idx]}
+                    header = &fromHeader
+                }
             } else if (headerName == "contact" || headerName == "m") {
-                contactHeader := ContactHeader{displayNames[idx],
-                                               uris[idx],
-                                               paramSets[idx]}
-                header = &contactHeader
+                switch uris[idx].(type) {
+                case ContactUri:
+                    if uris[idx].(ContactUri).IsWildcard() {
+                        if displayNames[idx] != nil || len(paramSets[idx]) > 0 {
+                            err = fmt.Errorf("wildcard contact header " +
+                                             "should contain only '*' in %s",
+                                             headerText)
+                            return
+                        }
+                    }
+                    contactHeader := ContactHeader{displayNames[idx],
+                                                   uris[idx].(ContactUri),
+                                                   paramSets[idx]}
+                    header = &contactHeader
+                default:
+                    return nil,
+                        fmt.Errorf("Uri %s not valid in Contact header." +
+                                   " Must be SIP uri or '*'", uris[idx].String())
+                }
             }
 
             headers = append(headers, header)
@@ -665,7 +721,7 @@ func parseContentLength(headerName string, headerText string) (
 // parseAddressValues is aware of < > bracketing and quoting, and will not
 // break on commas within these structures.
 func parseAddressValues(addresses string) (
-        displayNames []*string, uris []SipUri,
+        displayNames []*string, uris []Uri,
         headerParams []map[string]*string,
         err error) {
 
@@ -686,7 +742,7 @@ func parseAddressValues(addresses string) (
             inQuotes = !inQuotes
         } else if !inQuotes && !inBrackets && char == ',' {
             var displayName *string
-            var uri SipUri
+            var uri Uri
             var params map[string]*string
             displayName, uri, params, err =
                 parseAddressValue(addresses[prevIdx:idx])
@@ -714,7 +770,7 @@ func parseAddressValues(addresses string) (
 // Note that this method will not accept a comma-separated list of addresses;
 // addresses in this form should be handled by parseAddressValues.
 func parseAddressValue(addressText string) (
-        displayName *string, uri SipUri,
+        displayName *string, uri Uri,
         headerParams map[string]*string,
         err error) {
 
@@ -786,7 +842,7 @@ func parseAddressValue(addressText string) (
     }
 
     // Now parse the SIP URI.
-    uri, err = parseSipUri(addressText[:endOfUri])
+    uri, err = parseUri(addressText[:endOfUri])
     if (err != nil) {
         return
     }
