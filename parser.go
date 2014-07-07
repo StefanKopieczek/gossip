@@ -815,6 +815,7 @@ func parseAddressValue(addressText string) (
     // Work out where the SIP URI starts and ends.
     addressText = strings.TrimSpace(addressText)
     var endOfUri int
+    var startOfParams int
     if addressText[0] != '<' {
         if displayName != nil {
             // The address must be in <angle brackets> if a display name is
@@ -829,15 +830,17 @@ func parseAddressValue(addressText string) (
         if endOfUri == -1 {
             endOfUri = len(addressText)
         }
+        startOfParams = endOfUri
 
     } else {
         addressText = addressText[1:]
         endOfUri = strings.Index(addressText, ">")
-        if endOfUri == -1 {
+        if endOfUri == 0 {
             err = fmt.Errorf("'<' without closing '>' in address %s",
                              addressTextCopy)
             return
         }
+        startOfParams = endOfUri + 1
 
     }
 
@@ -847,12 +850,12 @@ func parseAddressValue(addressText string) (
         return
     }
 
-    if endOfUri == len(addressText) {
+    if startOfParams >= len(addressText) {
         return
     }
 
     // Finally, parse any header parameters and then return.
-    addressText = addressText[endOfUri+1:]
+    addressText = addressText[startOfParams:]
     headerParams, _, err = parseParams(addressText, ';', ';', ',', true, true)
     return
 }
