@@ -40,21 +40,28 @@ var fail error = fmt.Errorf("A bad thing happened.")
 var pass error = nil
 
 // Need to define immutable variables in order to pointer to them.
+var alice = "alice"
+var aliceAddr = "sip:alice@wonderland.com"
+var aliceAddrQuot = "<sip:alice@wonderland.com>"
+var aliceAddrQuotSp = "<sip: alice@wonderland.com>"
+var aliceTitle = "Alice"
+var aliceLiddell = "Alice Liddell"
 var bar string = "bar"
 var barQuote string = "\"bar\""
 var barQuote2 string = "\"bar"
 var barQuote3 string = "bar\""
 var barBaz string = "bar;baz"
-// var baz string = "baz"
+var baz string = "baz"
 var bob string = "bob"
 var boop string = "boop"
 var b string = "b"
 var empty string = ""
-//var hunter2 string = "Hunter2"
-//var port5060 string = uint16(5060)
-//var port9 string = uint16(9)
-//var uint16_5 uint16:= uint16(5)
-//var uint16_5060 := uint16(5060)
+var hatter = "hatter"
+var hunter2 string = "Hunter2"
+var port5060 uint16 = uint16(5060)
+var ui16_5 uint16= uint16(5)
+var ui16_5060 = uint16(5060)
+var ui16_9 uint16 = uint16(9)
 
 func TestParams(t *testing.T) {
     doTests([]test {
@@ -130,16 +137,6 @@ func TestParams(t *testing.T) {
 }
 
 func TestSipUris(t *testing.T) {
-    // Need named variables for pointer fields in SipUri struct.
-    b := "b"
-    bar := "bar"
-    baz := "baz"
-    bob := "bob"
-    emptyString := ""
-    hunter2 := "Hunter2"
-    ui16_5 := uint16(5)
-    ui16_5060 := uint16(5060)
-
     doTests([]test {
         test{sipUriInput("sip:bob@example.com"),                          &sipUriResult{pass, SipUri{User:&bob, Host:"example.com"}}},
         test{sipUriInput("sip:bob@192.168.0.1"),                          &sipUriResult{pass, SipUri{User:&bob, Host:"192.168.0.1"}}},
@@ -172,14 +169,14 @@ func TestSipUris(t *testing.T) {
         test{sipUriInput("sip:bob@example.com?foo=bar"),                  &sipUriResult{pass, SipUri{User:&bob, Host:"example.com",
                                                                                                      Headers:map[string]*string{"foo":&bar}}}},
         test{sipUriInput("sip:bob@example.com?foo="),                     &sipUriResult{pass, SipUri{User:&bob, Host:"example.com",
-                                                                                                     Headers:map[string]*string{"foo":&emptyString}}}},
+                                                                                                     Headers:map[string]*string{"foo":&empty}}}},
         test{sipUriInput("sip:bob@example.com:5060?foo=bar"),             &sipUriResult{pass, SipUri{User:&bob, Host:"example.com", Port:&ui16_5060,
                                                                                                      Headers:map[string]*string{"foo":&bar}}}},
         test{sipUriInput("sip:bob@example.com:5?foo=bar"),                &sipUriResult{pass, SipUri{User:&bob, Host:"example.com", Port:&ui16_5,
                                                                                                      Headers:map[string]*string{"foo":&bar}}}},
         test{sipUriInput("sips:bob@example.com:5?baz=bar&foo=&a=b"),      &sipUriResult{pass, SipUri{IsEncrypted:true, User:&bob, Host:"example.com", Port:&ui16_5,
                                                                                                      Headers:map[string]*string{"baz":&bar, "a":&b,
-                                                                                                                                "foo":&emptyString}}}},
+                                                                                                                                "foo":&empty}}}},
         test{sipUriInput("sip:bob@example.com:5?baz=bar&foo&a=b"),        &sipUriResult{fail, SipUri{}}},
         test{sipUriInput("sip:bob@example.com:5?foo"),                    &sipUriResult{fail, SipUri{}}},
         test{sipUriInput("sip:bob@example.com:50?foo"),                   &sipUriResult{fail, SipUri{}}},
@@ -197,7 +194,7 @@ func TestSipUris(t *testing.T) {
                                                                                                      Host:"example.com", Port:&ui16_5,
                                                                                                      UriParams:map[string]*string{"foo":nil},
                                                                                                      Headers:map[string]*string{"baz":&bar, "a":&b,
-                                                                                                                                "foo":&emptyString}}}},
+                                                                                                                                "foo":&empty}}}},
         test{sipUriInput("sip:bob@example.com:5;foo?baz=bar&foo&a=b"),    &sipUriResult{fail, SipUri{}}},
         test{sipUriInput("sip:bob@example.com:5;foo?foo"),                &sipUriResult{fail, SipUri{}}},
         test{sipUriInput("sip:bob@example.com:50;foo?foo"),               &sipUriResult{fail, SipUri{}}},
@@ -222,19 +219,16 @@ func TestSipUris(t *testing.T) {
 }
 
 func TestHostPort(t *testing.T) () {
-    port5060 := uint16(5060)
-    port9 := uint16(9)
-
     doTests([]test {
         test{hostPortInput("example.com"),      &hostPortResult{pass, "example.com", nil}},
         test{hostPortInput("192.168.0.1"),      &hostPortResult{pass, "192.168.0.1", nil}},
         test{hostPortInput("abc123"),           &hostPortResult{pass, "abc123",      nil}},
-        test{hostPortInput("example.com:5060"), &hostPortResult{pass, "example.com", &port5060}},
-        test{hostPortInput("example.com:9"),    &hostPortResult{pass, "example.com", &port9}},
-        test{hostPortInput("192.168.0.1:5060"), &hostPortResult{pass, "192.168.0.1", &port5060}},
-        test{hostPortInput("192.168.0.1:9"),    &hostPortResult{pass, "192.168.0.1", &port9}},
-        test{hostPortInput("abc123:5060"),      &hostPortResult{pass, "abc123",      &port5060}},
-        test{hostPortInput("abc123:9"),         &hostPortResult{pass, "abc123",      &port9}},
+        test{hostPortInput("example.com:5060"), &hostPortResult{pass, "example.com", &ui16_5060}},
+        test{hostPortInput("example.com:9"),    &hostPortResult{pass, "example.com", &ui16_9}},
+        test{hostPortInput("192.168.0.1:5060"), &hostPortResult{pass, "192.168.0.1", &ui16_5060}},
+        test{hostPortInput("192.168.0.1:9"),    &hostPortResult{pass, "192.168.0.1", &ui16_9}},
+        test{hostPortInput("abc123:5060"),      &hostPortResult{pass, "abc123",      &ui16_5060}},
+        test{hostPortInput("abc123:9"),         &hostPortResult{pass, "abc123",      &ui16_9}},
         // TODO IPV6, c.f. IPv6reference in RFC 3261 s25
     }, t)
 }
@@ -258,13 +252,6 @@ func TestHeaderBlocks(t *testing.T) {
 }
 
 func TestToHeaders(t *testing.T) {
-    alice := "alice"
-    aliceAddr := "sip:alice@wonderland.com"
-    aliceAddrQuot := "<sip:alice@wonderland.com>"
-    aliceAddrQuotSp := "<sip: alice@wonderland.com>"
-    aliceTitle := "Alice"
-    aliceLiddell := "Alice Liddell"
-    bar := "bar"
     fooEqBar := map[string]*string{"foo" : &bar}
     fooSingleton := map[string]*string{"foo" : nil}
     noParams := map[string]*string{}
@@ -380,13 +367,6 @@ func TestToHeaders(t *testing.T) {
 
 func TestFromHeaders(t *testing.T) {
     // These are identical to the To: header tests, but there's no clean way to share them :(
-    alice := "alice"
-    aliceAddr := "sip:alice@wonderland.com"
-    aliceAddrQuot := "<sip:alice@wonderland.com>"
-    aliceAddrQuotSp := "<sip: alice@wonderland.com>"
-    aliceTitle := "Alice"
-    aliceLiddell := "Alice Liddell"
-    bar := "bar"
     fooEqBar := map[string]*string{"foo" : &bar}
     fooSingleton := map[string]*string{"foo" : nil}
     noParams := map[string]*string{}
@@ -501,16 +481,8 @@ func TestFromHeaders(t *testing.T) {
 }
 
 func TestContactHeaders(t *testing.T) {
-    alice := "alice"
-    aliceAddr := "sip:alice@wonderland.com"
-    aliceAddrQuot := "<sip:alice@wonderland.com>"
-    aliceAddrQuotSp := "<sip: alice@wonderland.com>"
-    aliceTitle := "Alice"
-    aliceLiddell := "Alice Liddell"
-    bar := "bar"
     fooEqBar := map[string]*string{"foo" : &bar}
     fooSingleton := map[string]*string{"foo" : nil}
-    hatter := "hatter"
     noParams := map[string]*string{}
     doTests([]test {
         test{contactHeaderInput("Contact: \"Alice Liddell\" <sip:alice@wonderland.com>"), &contactHeaderResult{pass,
