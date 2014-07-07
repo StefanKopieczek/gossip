@@ -909,10 +909,12 @@ func (data toHeaderInput) String() string {
 func (data toHeaderInput) evaluate() result {
     parser := NewMessageParser().(*parserImpl)
     headers, err := parser.parseHeaderSection(string(data))
-    if len(headers) > 0 {
+    if len(headers) == 1 {
         return &toHeaderResult{err, headers[0].(*ToHeader)}
-    } else {
+    } else if len(headers) == 0 {
         return &toHeaderResult{err, &ToHeader{}}
+    } else {
+        panic(fmt.Sprintf("Multiple headers returned by To test: %s", string(data)))
     }
 }
 
@@ -971,10 +973,12 @@ func (data fromHeaderInput) String() string {
 func (data fromHeaderInput) evaluate() result {
     parser := NewMessageParser().(*parserImpl)
     headers, err := parser.parseHeaderSection(string(data))
-    if len(headers) > 0 {
+    if len(headers) == 1 {
         return &fromHeaderResult{err, headers[0].(*FromHeader)}
-    } else {
+    } else if len(headers) == 0 {
         return &fromHeaderResult{err, &FromHeader{}}
+    } else {
+        panic(fmt.Sprintf("Multiple headers returned by From test: %s", string(data)))
     }
 }
 
