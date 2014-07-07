@@ -7,6 +7,7 @@ import "strconv"
 import "testing"
 
 var testsRun int
+var testsPassed int
 
 
 type input interface{
@@ -31,6 +32,8 @@ func doTests(tests []test, t *testing.T) {
         pass, reason := test.expected.equals(output)
         if !pass {
             t.Errorf("Failure on input \"%s\" : %s", test.args.String(), reason)
+        } else {
+            testsPassed++
         }
     }
 }
@@ -1012,7 +1015,8 @@ func (expected *contactHeaderResult) equals(other result) (equal bool, reason st
 }
 
 func TestZZZCountTests (t *testing.T) {
-    fmt.Printf("\n *** %d tests run *** \n\n", testsRun)
+    fmt.Printf("\n *** %d tests run ***", testsRun)
+    fmt.Printf("\n *** %d tests passed (%.2f%%) ***\n\n", testsPassed, (float32(testsPassed) * 100.0 / float32(testsRun)))
 }
 
 func strPtrStr(strPtr *string) string {
