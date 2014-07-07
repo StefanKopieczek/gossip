@@ -61,7 +61,9 @@ var b string = "b"
 var empty string = ""
 var hatter = "hatter"
 var hunter2 string = "Hunter2"
+var madHatter string = "Madison Hatter"
 var port5060 uint16 = uint16(5060)
+var kat string = "kat"
 var ui16_5 uint16= uint16(5)
 var ui16_5060 = uint16(5060)
 var ui16_9 uint16 = uint16(9)
@@ -321,6 +323,11 @@ func TestToHeaders(t *testing.T) {
                       uri:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
                       params:fooEqBar}}},
 
+        test{toHeaderInput("To: sip:alice@wonderland.com;foo=bar"), &toHeaderResult{pass,
+            &ToHeader{displayName:nil,
+                      uri:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+                      params:fooEqBar}}},
+
         test{toHeaderInput("To: \"Alice Liddell\" <sip:alice@wonderland.com;foo=bar>"), &toHeaderResult{pass,
             &ToHeader{displayName:&aliceLiddell,
                       uri:&SipUri{false, &alice, nil, "wonderland.com", nil, fooEqBar, noParams},
@@ -433,6 +440,11 @@ func TestFromHeaders(t *testing.T) {
 
         test{fromHeaderInput("FrOm: \"Alice Liddell\" <sip:alice@wonderland.com>;foo=bar"), &fromHeaderResult{pass,
             &FromHeader{displayName:&aliceLiddell,
+                      uri:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+                      params:fooEqBar}}},
+
+        test{fromHeaderInput("FrOm: sip:alice@wonderland.com;foo=bar"), &fromHeaderResult{pass,
+            &FromHeader{displayName:nil,
                       uri:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
                       params:fooEqBar}}},
 
@@ -673,6 +685,78 @@ func TestContactHeaders(t *testing.T) {
             []*ContactHeader {
                 &ContactHeader{displayName: nil, uri:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams}, params:noParams},
                 &ContactHeader{displayName: nil, uri:&SipUri{false, &hatter, nil, "wonderland.com", nil, noParams, noParams}, params:noParams}}}},
+
+        test{contactHeaderInput("Contact: \"Alice Liddell\" <sips:alice@wonderland.com>, \"Madison Hatter\" <sip:hatter@wonderland.com>"), &contactHeaderResult{
+            pass,
+            []*ContactHeader {
+                &ContactHeader{displayName: &aliceLiddell,
+                               uri:&SipUri{true, &alice, nil, "wonderland.com", nil, noParams, noParams}},
+                &ContactHeader{displayName: &madHatter,
+                               uri:&SipUri{false, &hatter, nil, "wonderland.com", nil, noParams, noParams}}}}},
+
+        test{contactHeaderInput("Contact: <sips:alice@wonderland.com>, \"Madison Hatter\" <sip:hatter@wonderland.com>"), &contactHeaderResult{
+            pass,
+            []*ContactHeader {
+                &ContactHeader{displayName: nil,
+                               uri:&SipUri{true, &alice, nil, "wonderland.com", nil, noParams, noParams}},
+                &ContactHeader{displayName: &madHatter,
+                               uri:&SipUri{false, &hatter, nil, "wonderland.com", nil, noParams, noParams}}}}},
+
+        test{contactHeaderInput("Contact: \"Alice Liddell\" <sips:alice@wonderland.com>, <sip:hatter@wonderland.com>"), &contactHeaderResult{
+            pass,
+            []*ContactHeader {
+                &ContactHeader{displayName: &aliceLiddell,
+                               uri:&SipUri{true, &alice, nil, "wonderland.com", nil, noParams, noParams}},
+                &ContactHeader{displayName: nil,
+                               uri:&SipUri{false, &hatter, nil, "wonderland.com", nil, noParams, noParams}}}}},
+
+        test{contactHeaderInput("Contact: \"Alice Liddell\" <sips:alice@wonderland.com>, \"Madison Hatter\" <sip:hatter@wonderland.com>" +
+                                ",    sip:kat@cheshire.gov.uk"), &contactHeaderResult{
+            pass,
+            []*ContactHeader {
+                &ContactHeader{displayName: &aliceLiddell,
+                               uri:&SipUri{true, &alice, nil, "wonderland.com", nil, noParams, noParams}},
+                &ContactHeader{displayName: &madHatter,
+                               uri:&SipUri{false, &hatter, nil, "wonderland.com", nil, noParams, noParams}},
+                &ContactHeader{displayName: nil,
+                               uri:&SipUri{false, &kat, nil, "cheshire.gov.uk", nil, noParams, noParams}}}}},
+
+        test{contactHeaderInput("Contact: \"Alice Liddell\" <sips:alice@wonderland.com>;foo=bar, \"Madison Hatter\" <sip:hatter@wonderland.com>" +
+                                ",    sip:kat@cheshire.gov.uk"), &contactHeaderResult{
+            pass,
+            []*ContactHeader {
+                &ContactHeader{displayName: &aliceLiddell,
+                               uri:&SipUri{true, &alice, nil, "wonderland.com", nil, noParams, noParams},
+                               params:fooEqBar},
+                &ContactHeader{displayName: &madHatter,
+                               uri:&SipUri{false, &hatter, nil, "wonderland.com", nil, noParams, noParams}},
+                &ContactHeader{displayName: nil,
+                               uri:&SipUri{false, &kat, nil, "cheshire.gov.uk", nil, noParams, noParams}}}}},
+
+        test{contactHeaderInput("Contact: \"Alice Liddell\" <sips:alice@wonderland.com>, \"Madison Hatter\" <sip:hatter@wonderland.com>;foo=bar" +
+                                ",    sip:kat@cheshire.gov.uk"), &contactHeaderResult{
+            pass,
+            []*ContactHeader {
+                &ContactHeader{displayName: &aliceLiddell,
+                               uri:&SipUri{true, &alice, nil, "wonderland.com", nil, noParams, noParams}},
+                &ContactHeader{displayName: &madHatter,
+                               uri:&SipUri{false, &hatter, nil, "wonderland.com", nil, noParams, noParams},
+                               params:fooEqBar},
+                &ContactHeader{displayName: nil,
+                               uri:&SipUri{false, &kat, nil, "cheshire.gov.uk", nil, noParams, noParams}}}}},
+
+
+        test{contactHeaderInput("Contact: \"Alice Liddell\" <sips:alice@wonderland.com>, \"Madison Hatter\" <sip:hatter@wonderland.com>" +
+                                ",    sip:kat@cheshire.gov.uk;foo=bar"), &contactHeaderResult{
+            pass,
+            []*ContactHeader {
+                &ContactHeader{displayName: &aliceLiddell,
+                               uri:&SipUri{true, &alice, nil, "wonderland.com", nil, noParams, noParams}},
+                &ContactHeader{displayName: &madHatter,
+                               uri:&SipUri{false, &hatter, nil, "wonderland.com", nil, noParams, noParams}},
+                &ContactHeader{displayName: nil,
+                               uri:&SipUri{false, &kat, nil, "cheshire.gov.uk", nil, noParams, noParams},
+                               params:fooEqBar}}}},
     }, t)
 }
 
