@@ -485,156 +485,188 @@ func TestContactHeaders(t *testing.T) {
     fooSingleton := map[string]*string{"foo" : nil}
     noParams := map[string]*string{}
     doTests([]test {
-        test{contactHeaderInput("Contact: \"Alice Liddell\" <sip:alice@wonderland.com>"), &contactHeaderResult{pass,
+        test{contactHeaderInput("Contact: \"Alice Liddell\" <sip:alice@wonderland.com>"), &contactHeaderResult{
+            pass,
             []*ContactHeader {
                 &ContactHeader{displayName:&aliceLiddell,
                           uri:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
                           params:noParams}}}},
 
-        test{contactHeaderInput("Contact:\n  \"Alice Liddell\" \n\t<sip:alice@wonderland.com>"), &contactHeaderResult{pass,
+        test{contactHeaderInput("Contact:\n  \"Alice Liddell\" \n\t<sip:alice@wonderland.com>"), &contactHeaderResult{
+            pass,
             []*ContactHeader {
                 &ContactHeader{displayName:&aliceLiddell,
                           uri:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
                           params:noParams}}}},
 
-        test{contactHeaderInput("m: Alice <sip:alice@wonderland.com>"), &contactHeaderResult{pass,
+        test{contactHeaderInput("m: Alice <sip:alice@wonderland.com>"), &contactHeaderResult{
+            pass,
             []*ContactHeader {
                 &ContactHeader{displayName:&aliceTitle,
                           uri:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
                           params:noParams}}}},
 
-        test{contactHeaderInput("Contact: *"), &contactHeaderResult{pass,
+        test{contactHeaderInput("Contact: *"), &contactHeaderResult{
+            pass,
             []*ContactHeader {
                 &ContactHeader{uri:&WildcardUri{}}}}},
 
-        test{contactHeaderInput("Contact: \t  *"), &contactHeaderResult{pass,
+        test{contactHeaderInput("Contact: \t  *"), &contactHeaderResult{
+            pass,
             []*ContactHeader {
                 &ContactHeader{uri:&WildcardUri{}}}}},
 
-        test{contactHeaderInput("M: *"), &contactHeaderResult{pass,
+        test{contactHeaderInput("M: *"), &contactHeaderResult{
+            pass,
             []*ContactHeader {
                 &ContactHeader{uri:&WildcardUri{}}}}},
 
-        test{contactHeaderInput("Contact: *"), &contactHeaderResult{pass,
+        test{contactHeaderInput("Contact: *"), &contactHeaderResult{
+            pass,
             []*ContactHeader {
                 &ContactHeader{uri:&WildcardUri{}}}}},
 
-        test{contactHeaderInput("Contact: \"John\" *"), &contactHeaderResult{fail,
+        test{contactHeaderInput("Contact: \"John\" *"), &contactHeaderResult{
+            fail,
             []*ContactHeader {}}},
 
-        test{contactHeaderInput("Contact: \"John\" <*>"), &contactHeaderResult{fail,
+        test{contactHeaderInput("Contact: \"John\" <*>"), &contactHeaderResult{
+            fail,
             []*ContactHeader {}}},
 
-        test{contactHeaderInput("Contact: *;foo=bar"), &contactHeaderResult{fail,
+        test{contactHeaderInput("Contact: *;foo=bar"), &contactHeaderResult{
+            fail,
             []*ContactHeader {}}},
 
-        test{contactHeaderInput("Contact: Alice sip:alice@wonderland.com"), &contactHeaderResult{fail,
+        test{contactHeaderInput("Contact: Alice sip:alice@wonderland.com"), &contactHeaderResult{
+            fail,
             []*ContactHeader {
             &ContactHeader{}}}},
 
-        test{contactHeaderInput("Contact:"), &contactHeaderResult{fail,
+        test{contactHeaderInput("Contact:"), &contactHeaderResult{
+            fail,
             []*ContactHeader {
             &ContactHeader{}}}},
 
-        test{contactHeaderInput("Contact: "), &contactHeaderResult{fail,
+        test{contactHeaderInput("Contact: "), &contactHeaderResult{
+            fail,
             []*ContactHeader {
             &ContactHeader{}}}},
 
-        test{contactHeaderInput("Contact:\t"), &contactHeaderResult{fail,
+        test{contactHeaderInput("Contact:\t"), &contactHeaderResult{
+            fail,
             []*ContactHeader {
             &ContactHeader{}}}},
 
-        test{contactHeaderInput("Contact: foo"), &contactHeaderResult{fail,
+        test{contactHeaderInput("Contact: foo"), &contactHeaderResult{
+            fail,
             []*ContactHeader {
             &ContactHeader{}}}},
 
-        test{contactHeaderInput("Contact: foo bar"), &contactHeaderResult{fail,
+        test{contactHeaderInput("Contact: foo bar"), &contactHeaderResult{
+            fail,
             []*ContactHeader {
             &ContactHeader{}}}},
 
-        test{contactHeaderInput("Contact: \"Alice\" sip:alice@wonderland.com"), &contactHeaderResult{fail,
+        test{contactHeaderInput("Contact: \"Alice\" sip:alice@wonderland.com"), &contactHeaderResult{
+            fail,
             []*ContactHeader {
             &ContactHeader{}}}},
 
-        test{contactHeaderInput("Contact: \"<Alice>\" sip:alice@wonderland.com"), &contactHeaderResult{fail,
+        test{contactHeaderInput("Contact: \"<Alice>\" sip:alice@wonderland.com"), &contactHeaderResult{
+            fail,
             []*ContactHeader {
             &ContactHeader{}}}},
 
-        test{contactHeaderInput("Contact: \"sip:alice@wonderland.com\""), &contactHeaderResult{fail,
+        test{contactHeaderInput("Contact: \"sip:alice@wonderland.com\""), &contactHeaderResult{
+            fail,
             []*ContactHeader {
             &ContactHeader{}}}},
 
-        test{contactHeaderInput("Contact: \"sip:alice@wonderland.com\"  <sip:alice@wonderland.com>"), &contactHeaderResult{pass,
+        test{contactHeaderInput("Contact: \"sip:alice@wonderland.com\"  <sip:alice@wonderland.com>"), &contactHeaderResult{
+            pass,
             []*ContactHeader {
                 &ContactHeader{displayName:&aliceAddr,
                           uri:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
                           params:noParams}}}},
 
-        test{contactHeaderInput("Contact: \"<sip:alice@wonderland.com>\"  <sip:alice@wonderland.com>"), &contactHeaderResult{pass,
+        test{contactHeaderInput("Contact: \"<sip:alice@wonderland.com>\"  <sip:alice@wonderland.com>"), &contactHeaderResult{
+            pass,
             []*ContactHeader {
                 &ContactHeader{displayName:&aliceAddrQuot,
                           uri:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
                           params:noParams}}}},
 
-        test{contactHeaderInput("Contact: \"<sip: alice@wonderland.com>\"  <sip:alice@wonderland.com>"), &contactHeaderResult{pass,
+        test{contactHeaderInput("Contact: \"<sip: alice@wonderland.com>\"  <sip:alice@wonderland.com>"), &contactHeaderResult{
+            pass,
             []*ContactHeader {
                 &ContactHeader{displayName:&aliceAddrQuotSp,
                           uri:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
                           params:noParams}}}},
 
-        test{contactHeaderInput("cOntACt: \"Alice Liddell\" <sip:alice@wonderland.com>;foo=bar"), &contactHeaderResult{pass,
+        test{contactHeaderInput("cOntACt: \"Alice Liddell\" <sip:alice@wonderland.com>;foo=bar"), &contactHeaderResult{
+            pass,
             []*ContactHeader {
                 &ContactHeader{displayName:&aliceLiddell,
                           uri:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
                           params:fooEqBar}}}},
 
-        test{contactHeaderInput("contact: \"Alice Liddell\" <sip:alice@wonderland.com;foo=bar>"), &contactHeaderResult{pass,
+        test{contactHeaderInput("contact: \"Alice Liddell\" <sip:alice@wonderland.com;foo=bar>"), &contactHeaderResult{
+            pass,
             []*ContactHeader {
                 &ContactHeader{displayName:&aliceLiddell,
                           uri:&SipUri{false, &alice, nil, "wonderland.com", nil, fooEqBar, noParams},
                           params:noParams}}}},
 
-        test{contactHeaderInput("M: \"Alice Liddell\" <sip:alice@wonderland.com?foo=bar>"), &contactHeaderResult{pass,
+        test{contactHeaderInput("M: \"Alice Liddell\" <sip:alice@wonderland.com?foo=bar>"), &contactHeaderResult{
+            pass,
             []*ContactHeader {
                 &ContactHeader{displayName:&aliceLiddell,
                           uri:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, fooEqBar},
                           params:noParams}}}},
 
-        test{contactHeaderInput("Contact: \"Alice Liddell\" <sip:alice@wonderland.com>;foo"), &contactHeaderResult{pass,
+        test{contactHeaderInput("Contact: \"Alice Liddell\" <sip:alice@wonderland.com>;foo"), &contactHeaderResult{
+            pass,
             []*ContactHeader {
                 &ContactHeader{displayName:&aliceLiddell,
                           uri:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
                           params:fooSingleton}}}},
 
-        test{contactHeaderInput("Contact: \"Alice Liddell\" <sip:alice@wonderland.com;foo>"), &contactHeaderResult{pass,
+        test{contactHeaderInput("Contact: \"Alice Liddell\" <sip:alice@wonderland.com;foo>"), &contactHeaderResult{
+            pass,
             []*ContactHeader {
                 &ContactHeader{displayName:&aliceLiddell,
                           uri:&SipUri{false, &alice, nil, "wonderland.com", nil, fooSingleton, noParams},
                           params:noParams}}}},
 
-        test{contactHeaderInput("Contact: \"Alice Liddell\" <sip:alice@wonderland.com?foo>"), &contactHeaderResult{fail,
+        test{contactHeaderInput("Contact: \"Alice Liddell\" <sip:alice@wonderland.com?foo>"), &contactHeaderResult{
+            fail,
             []*ContactHeader {
             &ContactHeader{}}}},
 
-        test{contactHeaderInput("Contact: \"Alice Liddell\" <sip:alice@wonderland.com;foo?foo=bar>;foo=bar"), &contactHeaderResult{pass,
+        test{contactHeaderInput("Contact: \"Alice Liddell\" <sip:alice@wonderland.com;foo?foo=bar>;foo=bar"), &contactHeaderResult{
+            pass,
             []*ContactHeader {
                 &ContactHeader{displayName:&aliceLiddell,
                           uri:&SipUri{false, &alice, nil, "wonderland.com", nil, fooSingleton, fooEqBar},
                           params:fooEqBar}}}},
 
-        test{contactHeaderInput("Contact: \"Alice Liddell\" <sip:alice@wonderland.com;foo?foo=bar>;foo"), &contactHeaderResult{pass,
+        test{contactHeaderInput("Contact: \"Alice Liddell\" <sip:alice@wonderland.com;foo?foo=bar>;foo"), &contactHeaderResult{
+            pass,
             []*ContactHeader {
                 &ContactHeader{displayName:&aliceLiddell,
                           uri:&SipUri{false, &alice, nil, "wonderland.com", nil, fooSingleton, fooEqBar},
                           params:fooSingleton}}}},
 
-        test{contactHeaderInput("Contact: \"Alice Liddell\" <sip:alice@wonderland.com>"), &contactHeaderResult{pass,
+        test{contactHeaderInput("Contact: \"Alice Liddell\" <sip:alice@wonderland.com>"), &contactHeaderResult{
+            pass,
             []*ContactHeader {
                 &ContactHeader{displayName:&aliceLiddell,
                           uri:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
                           params:noParams}}}},
 
-        test{contactHeaderInput("Contact: sip:alice@wonderland.com, sip:hatter@wonderland.com"), &contactHeaderResult{pass,
+        test{contactHeaderInput("Contact: sip:alice@wonderland.com, sip:hatter@wonderland.com"), &contactHeaderResult{
+            pass,
             []*ContactHeader {
                 &ContactHeader{displayName: nil, uri:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams}, params:noParams},
                 &ContactHeader{displayName: nil, uri:&SipUri{false, &hatter, nil, "wonderland.com", nil, noParams, noParams}, params:noParams}}}},
