@@ -266,6 +266,21 @@ func TestToHeaders(t *testing.T) {
                       uri:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
                       params:noParams}}},
 
+        test{toHeaderInput("To : \"Alice Liddell\" <sip:alice@wonderland.com>"), &toHeaderResult{pass,
+            &ToHeader{displayName:&aliceLiddell,
+                      uri:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+                      params:noParams}}},
+
+        test{toHeaderInput("To  : \"Alice Liddell\" <sip:alice@wonderland.com>"), &toHeaderResult{pass,
+            &ToHeader{displayName:&aliceLiddell,
+                      uri:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+                      params:noParams}}},
+
+        test{toHeaderInput("To\t: \"Alice Liddell\" <sip:alice@wonderland.com>"), &toHeaderResult{pass,
+            &ToHeader{displayName:&aliceLiddell,
+                      uri:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+                      params:noParams}}},
+
         test{toHeaderInput("To:\n  \"Alice Liddell\" \n\t<sip:alice@wonderland.com>"), &toHeaderResult{pass,
             &ToHeader{displayName:&aliceLiddell,
                       uri:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
@@ -382,6 +397,21 @@ func TestFromHeaders(t *testing.T) {
     noParams := map[string]*string{}
     doTests([]test {
         test{fromHeaderInput("From: \"Alice Liddell\" <sip:alice@wonderland.com>"), &fromHeaderResult{pass,
+            &FromHeader{displayName:&aliceLiddell,
+                      uri:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+                      params:noParams}}},
+
+        test{fromHeaderInput("From : \"Alice Liddell\" <sip:alice@wonderland.com>"), &fromHeaderResult{pass,
+            &FromHeader{displayName:&aliceLiddell,
+                      uri:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+                      params:noParams}}},
+
+        test{fromHeaderInput("From   : \"Alice Liddell\" <sip:alice@wonderland.com>"), &fromHeaderResult{pass,
+            &FromHeader{displayName:&aliceLiddell,
+                      uri:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+                      params:noParams}}},
+
+        test{fromHeaderInput("From\t: \"Alice Liddell\" <sip:alice@wonderland.com>"), &fromHeaderResult{pass,
             &FromHeader{displayName:&aliceLiddell,
                       uri:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
                       params:noParams}}},
@@ -507,6 +537,24 @@ func TestContactHeaders(t *testing.T) {
                           uri:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
                           params:noParams}}}},
 
+        test{contactHeaderInput("Contact : \"Alice Liddell\" <sip:alice@wonderland.com>"), &contactHeaderResult{
+            pass,
+            []*ContactHeader {
+                &ContactHeader{displayName:&aliceLiddell,
+                          uri:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+                          params:noParams}}}},
+        test{contactHeaderInput("Contact  : \"Alice Liddell\" <sip:alice@wonderland.com>"), &contactHeaderResult{
+            pass,
+            []*ContactHeader {
+                &ContactHeader{displayName:&aliceLiddell,
+                          uri:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+                          params:noParams}}}},
+        test{contactHeaderInput("Contact\t: \"Alice Liddell\" <sip:alice@wonderland.com>"), &contactHeaderResult{
+            pass,
+            []*ContactHeader {
+                &ContactHeader{displayName:&aliceLiddell,
+                          uri:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+                          params:noParams}}}},
         test{contactHeaderInput("Contact:\n  \"Alice Liddell\" \n\t<sip:alice@wonderland.com>"), &contactHeaderResult{
             pass,
             []*ContactHeader {
@@ -763,6 +811,9 @@ func TestContactHeaders(t *testing.T) {
 func TestCSeqs(t *testing.T) {
     doTests([]test {
         test{cSeqInput("CSeq: 1 INVITE"), &cSeqResult{pass, &CSeq{1, "INVITE"}}},
+        test{cSeqInput("CSeq : 1 INVITE"), &cSeqResult{pass, &CSeq{1, "INVITE"}}},
+        test{cSeqInput("CSeq  : 1 INVITE"), &cSeqResult{pass, &CSeq{1, "INVITE"}}},
+        test{cSeqInput("CSeq\t: 1 INVITE"), &cSeqResult{pass, &CSeq{1, "INVITE"}}},
         test{cSeqInput("CSeq: 0 register"), &cSeqResult{pass, &CSeq{0, "register"}}},
         test{cSeqInput("CSeq: 10 reGister"), &cSeqResult{pass, &CSeq{10, "reGister"}}},
         test{cSeqInput("CSeq: 17 FOOBAR"), &cSeqResult{pass, &CSeq{17, "FOOBAR"}}},
@@ -783,6 +834,9 @@ func TestCSeqs(t *testing.T) {
 func TestCallIds(t *testing.T) {
     doTests([]test {
         test{callIdInput("Call-ID: fdlknfa32bse3yrbew23bf"), &callIdResult{pass, CallId("fdlknfa32bse3yrbew23bf")}},
+        test{callIdInput("Call-ID : fdlknfa32bse3yrbew23bf"), &callIdResult{pass, CallId("fdlknfa32bse3yrbew23bf")}},
+        test{callIdInput("Call-ID  : fdlknfa32bse3yrbew23bf"), &callIdResult{pass, CallId("fdlknfa32bse3yrbew23bf")}},
+        test{callIdInput("Call-ID\t: fdlknfa32bse3yrbew23bf"), &callIdResult{pass, CallId("fdlknfa32bse3yrbew23bf")}},
         test{callIdInput("Call-ID: banana"), &callIdResult{pass, CallId("banana")}},
         test{callIdInput("calL-id: banana"), &callIdResult{pass, CallId("banana")}},
         test{callIdInput("calL-id: 1banana"), &callIdResult{pass, CallId("1banana")}},
