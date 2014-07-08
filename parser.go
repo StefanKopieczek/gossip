@@ -624,7 +624,7 @@ func parseCSeq(headerName string, headerText string) (
     }
 
     cseq.SeqNo = uint32(seqno)
-    cseq.MethodName = Method(strings.TrimSpace(strings.ToUpper(parts[1])))
+    cseq.MethodName = Method(strings.TrimSpace(parts[1]))
 
     headers = []SipHeader { &cseq }
 
