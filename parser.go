@@ -8,6 +8,7 @@ import "unicode"
 import "unicode/utf8"
 
 const ABNF_WS = " \t" // TODO add all whitespace.
+const MAX_CSEQ = 2147483647
 
 type MessageParser interface {
     ParseMessage(rawData []byte) (SipMessage, error)
@@ -620,6 +621,12 @@ func parseCSeq(headerName string, headerText string) (
     var seqno uint64
     seqno, err = strconv.ParseUint(parts[0], 10, 32)
     if err != nil {
+        return
+    }
+
+    if seqno > MAX_CSEQ {
+        err = fmt.Errorf("invalid CSeq %d: exceeds maximum permitted value " +
+                         "2**31 - 1", seqno)
         return
     }
 
