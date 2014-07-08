@@ -770,6 +770,9 @@ func TestCSeqs(t *testing.T) {
         test{cSeqInput("CSeq: 2147483648 NOTIFY"), &cSeqResult{fail, &CSeq{}}},
         test{cSeqInput("CSeq: -124 ACK"), &cSeqResult{fail, &CSeq{}}},
         test{cSeqInput("CSeq: 9999999999999999999999999999999 SUBSCRIBE"), &cSeqResult{fail, &CSeq{}}},
+        test{cSeqInput("CSeq: 1 INVITE;foo=bar"), &cSeqResult{fail, &CSeq{}}},
+        test{cSeqInput("CSeq: 1 INVITE;foo"), &cSeqResult{fail, &CSeq{}}},
+        test{cSeqInput("CSeq: 1 INVITE;foo=bar;baz"), &cSeqResult{fail, &CSeq{}}},
     }, t)
 }
 

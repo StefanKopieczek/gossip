@@ -633,6 +633,11 @@ func parseCSeq(headerName string, headerText string) (
     cseq.SeqNo = uint32(seqno)
     cseq.MethodName = Method(strings.TrimSpace(parts[1]))
 
+    if strings.Contains(string(cseq.MethodName), ";") {
+        err = fmt.Errorf("unexpected ';' in CSeq body: %s", headerText)
+        return
+    }
+
     headers = []SipHeader { &cseq }
 
     return
