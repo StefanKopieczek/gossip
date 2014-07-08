@@ -760,6 +760,19 @@ func TestContactHeaders(t *testing.T) {
     }, t)
 }
 
+func TestCSeqs(t *testing.T) {
+    doTests([]test {
+        test{cSeqInput("CSeq: 1 INVITE"), &cSeqResult{pass, &CSeq{1, "INVITE"}}},
+        test{cSeqInput("CSeq: 0 register"), &cSeqResult{pass, &CSeq{0, "register"}}},
+        test{cSeqInput("CSeq: 10 reGister"), &cSeqResult{pass, &CSeq{10, "reGister"}}},
+        test{cSeqInput("CSeq: 17 FOOBAR"), &cSeqResult{pass, &CSeq{17, "FOOBAR"}}},
+        test{cSeqInput("CSeq: 2147483647 NOTIFY"), &cSeqResult{pass, &CSeq{2147483647, "NOTIFY"}}},
+        test{cSeqInput("CSeq: 2147483648 NOTIFY"), &cSeqResult{fail, &CSeq{}}},
+        test{cSeqInput("CSeq: -124 ACK"), &cSeqResult{fail, &CSeq{}}},
+        test{cSeqInput("CSeq: 9999999999999999999999999999999 SUBSCRIBE"), &cSeqResult{fail, &CSeq{}}},
+    }, t)
+}
+
 type paramInput struct {
     paramString string
     start uint8
@@ -1097,6 +1110,45 @@ func (expected *contactHeaderResult) equals(other result) (equal bool, reason st
                 ParamsToString(actual.headers[idx].params, '$', '-'),
                 ParamsToString(expected.headers[idx].params, '$', '-'))
         }
+    }
+
+    return true, ""
+}
+
+type cSeqInput string
+
+func (data cSeqInput) String() string {
+    return string(data)
+}
+
+func (data cSeqInput) evaluate() result {
+    parser := NewMessageParser().(*parserImpl)
+    headers, err := parser.parseHeaderSection(string(data))
+    if len(headers) == 1 {
+        return &cSeqResult{err, headers[0].(*CSeq)}
+    } else if len(headers) == 0 {
+        return &cSeqResult{err, &CSeq{}}
+    } else {
+        panic(fmt.Sprintf("Multiple headers returned by CSeq test: %s", string(data)))
+    }
+}
+
+type cSeqResult struct {
+    err error
+    header *CSeq
+}
+
+func (expected *cSeqResult) equals (other result) (equal bool, reason string) {
+    actual := *(other.(*cSeqResult))
+    if expected.err == nil && actual.err != nil {
+        return false, fmt.Sprintf("unexpected error: %s", actual.err.Error())
+    } else if expected.err != nil && actual.err == nil {
+        return false, fmt.Sprintf("unexpected success: got \"%s\"", actual.header.String())
+    } else if actual.err == nil && expected.header.SeqNo != actual.header.SeqNo {
+        return false, fmt.Sprintf("unexpected sequence number: expected \"%d\", got \"%d\"",
+                                  expected.header.SeqNo, actual.header.SeqNo)
+    } else if actual.err == nil && expected.header.MethodName != actual.header.MethodName {
+        return false, fmt.Sprintf("unexpected method name: expected %s, got %s", expected.header.MethodName, actual.header.MethodName)
     }
 
     return true, ""
