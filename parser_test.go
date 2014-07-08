@@ -780,6 +780,20 @@ func TestCSeqs(t *testing.T) {
     }, t)
 }
 
+func TestCallIds(t *testing.T) {
+    doTests([]test {
+        test{callIdInput("Call-ID: fdlknfa32bse3yrbew23bf"), &callIdResult{pass, CallId("fdlknfa32bse3yrbew23bf")}},
+        test{callIdInput("Call-ID: banana"), &callIdResult{pass, CallId("banana")}},
+        test{callIdInput("calL-id: banana"), &callIdResult{pass, CallId("banana")}},
+        test{callIdInput("calL-id: 1banana"), &callIdResult{pass, CallId("1banana")}},
+        test{callIdInput("Call-ID:"), &callIdResult{fail, CallId("")}},
+        test{callIdInput("Call-ID: banana spaghetti"), &callIdResult{fail, CallId("")}},
+        test{callIdInput("Call-ID: banana\tspaghetti"), &callIdResult{fail, CallId("")}},
+        test{callIdInput("Call-ID: banana;spaghetti"), &callIdResult{fail, CallId("")}},
+        test{callIdInput("Call-ID: banana;spaghetti=tasty"), &callIdResult{fail, CallId("")}},
+    }, t)
+}
+
 type paramInput struct {
     paramString string
     start uint8
@@ -1158,6 +1172,42 @@ func (expected *cSeqResult) equals (other result) (equal bool, reason string) {
         return false, fmt.Sprintf("unexpected method name: expected %s, got %s", expected.header.MethodName, actual.header.MethodName)
     }
 
+    return true, ""
+}
+
+type callIdInput string
+
+func (data callIdInput) String() string {
+    return string(data)
+}
+
+func (data callIdInput) evaluate() result {
+    parser := NewMessageParser().(*parserImpl)
+    headers, err := parser.parseHeaderSection(string(data))
+    if len(headers) == 1 {
+        return &callIdResult{err, *(headers[0].(*CallId))}
+    } else if len(headers) == 0 {
+        return &callIdResult{err, CallId("")}
+    } else {
+        panic(fmt.Sprintf("Multiple headers returned by CallId test: %s", string(data)))
+    }
+}
+
+type callIdResult struct {
+    err error
+    header CallId
+}
+
+func (expected callIdResult) equals(other result) (equal bool, reason string) {
+    actual := *(other.(*callIdResult))
+    if expected.err == nil && actual.err != nil {
+        return false, fmt.Sprintf("unexpected error: %s", actual.err.Error())
+    } else if expected.err != nil && actual.err == nil {
+        return false, fmt.Sprintf("unexpected success: got \"%s\"", actual.header.String())
+    } else if actual.err == nil && expected.header.String() != actual.header.String() {
+        return false, fmt.Sprintf("unexpected call ID string: expected \"%s\", got \"%s\"",
+                                  expected.header, actual.header)
+    }
     return true, ""
 }
 

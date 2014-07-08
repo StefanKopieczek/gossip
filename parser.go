@@ -647,6 +647,20 @@ func parseCallId(headerName string, headerText string) (
         headers []SipHeader, err error) {
     headerText = strings.TrimSpace(headerText)
     var callId CallId = CallId(headerText)
+
+    if strings.ContainsAny(string(callId), ABNF_WS) {
+        err = fmt.Errorf("unexpected whitespace in CallId header body '%s'", headerText)
+        return
+    }
+    if strings.Contains(string(callId), ";") {
+        err = fmt.Errorf("unexpected semicolon in CallId header body '%s'", headerText)
+        return
+    }
+    if len(string(callId)) == 0 {
+        err = fmt.Errorf("empty Call-Id body")
+        return
+    }
+
     headers = []SipHeader { &callId }
 
     return
