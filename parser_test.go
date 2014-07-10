@@ -1375,6 +1375,84 @@ func (expected *contentLengthResult) equals(other result) (equal bool, reason st
     return true, ""
 }
 
+type viaInput string
+
+func (data viaInput) String() string {
+    return string(data)
+}
+
+func (data viaInput) evaluate() result {
+    parser := NewMessageParser().(*parserImpl)
+    headers, err := parser.parseHeaderSection(string(data))
+    if len(headers) == 0 {
+        return &viaResult{err, []*ViaHeader{}}
+    } else {
+        viaHeaders := make([]*ViaHeader, len(headers))
+        for idx, header := range(headers) {
+            viaHeaders[idx] = header.(*ViaHeader)
+        }
+        return &viaResult{err, viaHeaders}
+    }
+}
+
+type viaResult struct {
+    err error
+    headers []*ViaHeader
+}
+
+func (res *viaResult) headersAsString() string {
+    var buffer bytes.Buffer
+    for _, header := range(res.headers) {
+        buffer.WriteString("\t")
+        buffer.WriteString(header.String())
+        buffer.WriteString("\n")
+    }
+    return buffer.String()
+}
+
+func (expected *viaResult) equals(other result) (equal bool, reason string) {
+    actual := *(other.(*viaResult))
+    if expected.err == nil && actual.err != nil {
+        return false, fmt.Sprintf("unexpected error: %s", actual.err.Error())
+    } else if expected.err != nil && actual.err == nil {
+        return false, "unexpected success - got headers:\n" + actual.headersAsString()
+    } else if expected.err != nil {
+        // Got an error, and were expecting one - return with no further checks.
+    } else if len(expected.headers) != len(actual.headers) {
+        return false,
+               fmt.Sprintf("unexpected number of headers: expected %d; got %d.\n" +
+                           "expected the following headers:\n%s" +
+                           "got the following headers:\n%s",
+                           len(expected.headers), len(actual.headers),
+                           expected.headersAsString(), actual.headersAsString())
+    }
+
+    for idx, expectedHeader := range(expected.headers) {
+        actualHeader := actual.headers[idx]
+        if expectedHeader.protocolName != actualHeader.protocolName {
+            return false, fmt.Sprint("unexpected protocol name '%s' in header %d - expected '%s'",
+                idx, actualHeader.protocolName, expectedHeader.protocolName)
+        } else if expectedHeader.protocolVersion != actualHeader.protocolVersion {
+            return false, fmt.Sprint("unexpected protocol version '%s' in header %d - expected '%s'",
+                idx, actualHeader.protocolVersion, expectedHeader.protocolVersion)
+        } else if expectedHeader.transport != actualHeader.transport {
+            return false, fmt.Sprint("unexpected transport '%s' in header %d - expected '%s'",
+                idx, actualHeader.transport, expectedHeader.transport)
+        } else if expectedHeader.host != actualHeader.host {
+            return false, fmt.Sprint("unexpected host '%s' in header %d - expected '%s'",
+                idx, actualHeader.host, expectedHeader.host)
+        } else if !uint16PtrEq(expectedHeader.port, actualHeader.port) {
+            return false, fmt.Sprint("unexpected port '%d' in header %d - expected '%d'",
+                idx, uint16PtrStr(actualHeader.port), uint16PtrStr(expectedHeader.port))
+        } else if !paramsEqual(expectedHeader.params, actualHeader.params) {
+            return false, fmt.Sprint("unexpected params '%s' in header %d - expected '%s'",
+                idx, ParamsToString(actualHeader.params, '$', '-'),
+                ParamsToString(expectedHeader.params, '$', '-'))
+        }
+    }
+
+    return true, ""
+}
 
 func TestZZZCountTests (t *testing.T) {
     fmt.Printf("\n *** %d tests run ***", testsRun)
