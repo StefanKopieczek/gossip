@@ -867,6 +867,25 @@ func TestMaxForwards(t *testing.T) {
     }, t)
 }
 
+func TestContentLength(t *testing.T) {
+    doTests([] test {
+        test{contentLengthInput("Content-Length: 9"), &contentLengthResult{pass, ContentLength(9)}},
+        test{contentLengthInput("Content-Length: 20"), &contentLengthResult{pass, ContentLength(20)}},
+        test{contentLengthInput("Content-Length: 113"), &contentLengthResult{pass, ContentLength(113)}},
+        test{contentLengthInput("Content-Length: 0"), &contentLengthResult{pass, ContentLength(0)}},
+        test{contentLengthInput("Content-Length:      0"), &contentLengthResult{pass, ContentLength(0)}},
+        test{contentLengthInput("Content-Length:\t0"), &contentLengthResult{pass, ContentLength(0)}},
+        test{contentLengthInput("Content-Length: \t 0"), &contentLengthResult{pass, ContentLength(0)}},
+        test{contentLengthInput("Content-Length:\n  0"), &contentLengthResult{pass, ContentLength(0)}},
+        test{contentLengthInput("Content-Length: -1"), &contentLengthResult{fail, ContentLength(0)}},
+        test{contentLengthInput("Content-Length:"), &contentLengthResult{fail, ContentLength(0)}},
+        test{contentLengthInput("Content-Length: "), &contentLengthResult{fail, ContentLength(0)}},
+        test{contentLengthInput("Content-Length:\t"), &contentLengthResult{fail, ContentLength(0)}},
+        test{contentLengthInput("Content-Length:\n"), &contentLengthResult{fail, ContentLength(0)}},
+        test{contentLengthInput("Content-Length: \n"), &contentLengthResult{fail, ContentLength(0)}},
+    }, t)
+}
+
 type paramInput struct {
     paramString string
     start uint8
@@ -1319,6 +1338,43 @@ func (expected *maxForwardsResult) equals(other result) (equal bool, reason stri
     }
     return true, ""
 }
+
+type contentLengthInput string
+
+func (data contentLengthInput) String() string {
+    return string(data)
+}
+
+func (data contentLengthInput) evaluate() result {
+    parser := NewMessageParser().(*parserImpl)
+    headers, err := parser.parseHeaderSection(string(data))
+    if len(headers) == 1 {
+        return &contentLengthResult{err, *(headers[0].(*ContentLength))}
+    } else if len(headers) == 0 {
+        return &contentLengthResult{err, ContentLength(0)}
+    } else {
+        panic(fmt.Sprintf("Multiple headers returned by Content-Length test: %s", string(data)))
+    }
+}
+
+type contentLengthResult struct {
+    err error
+    header ContentLength
+}
+
+func (expected *contentLengthResult) equals(other result) (equal bool, reason string) {
+    actual := *(other.(*contentLengthResult))
+    if expected.err == nil && actual.err != nil {
+        return false, fmt.Sprintf("unexpected error: %s", actual.err.Error())
+    } else if expected.err != nil && actual.err == nil {
+        return false, fmt.Sprintf("unexpected success: got \"%s\"", actual.header.String())
+    } else if actual.err == nil && expected.header != actual.header {
+        return false, fmt.Sprintf("unexpected max forwards value: expected \"%d\", got \"%d\"",
+                                  expected.header, actual.header)
+    }
+    return true, ""
+}
+
 
 func TestZZZCountTests (t *testing.T) {
     fmt.Printf("\n *** %d tests run ***", testsRun)
