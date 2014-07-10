@@ -848,6 +848,25 @@ func TestCallIds(t *testing.T) {
     }, t)
 }
 
+func TestMaxForwards(t *testing.T) {
+    doTests([] test {
+        test{maxForwardsInput("Max-Forwards: 9"), &maxForwardsResult{pass, MaxForwards(9)}},
+        test{maxForwardsInput("Max-Forwards: 70"), &maxForwardsResult{pass, MaxForwards(70)}},
+        test{maxForwardsInput("Max-Forwards: 71"), &maxForwardsResult{pass, MaxForwards(71)}},
+        test{maxForwardsInput("Max-Forwards: 0"), &maxForwardsResult{pass, MaxForwards(0)}},
+        test{maxForwardsInput("Max-Forwards:      0"), &maxForwardsResult{pass, MaxForwards(0)}},
+        test{maxForwardsInput("Max-Forwards:\t0"), &maxForwardsResult{pass, MaxForwards(0)}},
+        test{maxForwardsInput("Max-Forwards: \t 0"), &maxForwardsResult{pass, MaxForwards(0)}},
+        test{maxForwardsInput("Max-Forwards:\n  0"), &maxForwardsResult{pass, MaxForwards(0)}},
+        test{maxForwardsInput("Max-Forwards: -1"), &maxForwardsResult{fail, MaxForwards(0)}},
+        test{maxForwardsInput("Max-Forwards:"), &maxForwardsResult{fail, MaxForwards(0)}},
+        test{maxForwardsInput("Max-Forwards: "), &maxForwardsResult{fail, MaxForwards(0)}},
+        test{maxForwardsInput("Max-Forwards:\t"), &maxForwardsResult{fail, MaxForwards(0)}},
+        test{maxForwardsInput("Max-Forwards:\n"), &maxForwardsResult{fail, MaxForwards(0)}},
+        test{maxForwardsInput("Max-Forwards: \n"), &maxForwardsResult{fail, MaxForwards(0)}},
+    }, t)
+}
+
 type paramInput struct {
     paramString string
     start uint8
@@ -1260,6 +1279,42 @@ func (expected callIdResult) equals(other result) (equal bool, reason string) {
         return false, fmt.Sprintf("unexpected success: got \"%s\"", actual.header.String())
     } else if actual.err == nil && expected.header.String() != actual.header.String() {
         return false, fmt.Sprintf("unexpected call ID string: expected \"%s\", got \"%s\"",
+                                  expected.header, actual.header)
+    }
+    return true, ""
+}
+
+type maxForwardsInput string
+
+func (data maxForwardsInput) String() string {
+    return string(data)
+}
+
+func (data maxForwardsInput) evaluate() result {
+    parser := NewMessageParser().(*parserImpl)
+    headers, err := parser.parseHeaderSection(string(data))
+    if len(headers) == 1 {
+        return &maxForwardsResult{err, *(headers[0].(*MaxForwards))}
+    } else if len(headers) == 0 {
+        return &maxForwardsResult{err, MaxForwards(0)}
+    } else {
+        panic(fmt.Sprintf("Multiple headers returned by Max-Forwards test: %s", string(data)))
+    }
+}
+
+type maxForwardsResult struct {
+    err error
+    header MaxForwards
+}
+
+func (expected *maxForwardsResult) equals(other result) (equal bool, reason string) {
+    actual := *(other.(*maxForwardsResult))
+    if expected.err == nil && actual.err != nil {
+        return false, fmt.Sprintf("unexpected error: %s", actual.err.Error())
+    } else if expected.err != nil && actual.err == nil {
+        return false, fmt.Sprintf("unexpected success: got \"%s\"", actual.header.String())
+    } else if actual.err == nil && expected.header != actual.header {
+        return false, fmt.Sprintf("unexpected max forwards value: expected \"%d\", got \"%d\"",
                                   expected.header, actual.header)
     }
     return true, ""
