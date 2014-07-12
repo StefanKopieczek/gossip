@@ -886,6 +886,22 @@ func TestContentLength(t *testing.T) {
     }, t)
 }
 
+func TestViaHeaders(t *testing.T) {
+    // branch=z9hG4bKnashds8
+    noParams := map[string]*string{}
+    fooEqBar := map[string]*string{"foo" : &bar}
+    doTests([] test{
+        test{viaInput("Via: SIP/2.0/UDP pc33.atlanta.com"), &viaResult{pass, &ViaHeader{&ViaEntry{"SIP", "2.0", "UDP", "pc33.atlanta.com", nil, noParams}}}},
+        test{viaInput("Via: bAzz/fooo/BAAR pc33.atlanta.com"), &viaResult{pass, &ViaHeader{&ViaEntry{"bAzz", "fooo", "BAAR", "pc33.atlanta.com", nil, noParams}}}},
+        test{viaInput("Via: SIP/2.0/UDP pc33.atlanta.com"), &viaResult{pass, &ViaHeader{&ViaEntry{"SIP", "2.0", "UDP", "pc33.atlanta.com", nil, noParams}}}},
+        test{viaInput("Via:\tSIP/2.0/UDP pc33.atlanta.com"), &viaResult{pass, &ViaHeader{&ViaEntry{"SIP", "2.0", "UDP", "pc33.atlanta.com", nil, noParams}}}},
+        test{viaInput("Via:\n SIP/2.0/UDP pc33.atlanta.com"), &viaResult{pass, &ViaHeader{&ViaEntry{"SIP", "2.0", "UDP", "pc33.atlanta.com", nil, noParams}}}},
+        test{viaInput("Via: SIP/2.0/UDP box:5060"), &viaResult{pass, &ViaHeader{&ViaEntry{"SIP", "2.0", "UDP", "box", &ui16_5060, noParams}}}},
+        test{viaInput("Via: SIP/2.0/UDP box;foo=bar"), &viaResult{pass, &ViaHeader{&ViaEntry{"SIP", "2.0", "UDP", "box", nil, fooEqBar}}}},
+        test{viaInput("Via: SIP/2.0/UDP box:5060;foo=bar"), &viaResult{pass, &ViaHeader{&ViaEntry{"SIP", "2.0", "UDP", "box", &ui16_5060, fooEqBar}}}},
+    }, t)
+}
+
 type paramInput struct {
     paramString string
     start uint8
