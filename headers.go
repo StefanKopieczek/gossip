@@ -215,7 +215,7 @@ func (contentLength *ContentLength) String() (string) {
     return fmt.Sprintf("Content-Length: %d", ((int)(*contentLength)))
 }
 
-type ViaHeader struct {
+type ViaEntry struct {
     protocolName string
     protocolVersion string
     transport string
@@ -223,17 +223,32 @@ type ViaHeader struct {
     port *uint16
     params map[string]*string
 }
-func (via *ViaHeader) String() (string) {
+func (entry *ViaEntry) String() (string) {
     var buffer bytes.Buffer
-    buffer.WriteString(fmt.Sprintf("Via: %s/%s/%s %s",
-                                   via.protocolName, via.protocolVersion,
-                                   via.transport,
-                                   via.host))
-    if via.port != nil {
-        buffer.WriteString(fmt.Sprintf(":%d", *via.port))
+    buffer.WriteString(fmt.Sprintf("%s/%s/%s %s",
+                                   entry.protocolName, entry.protocolVersion,
+                                   entry.transport,
+                                   entry.host))
+    if entry.port != nil {
+        buffer.WriteString(fmt.Sprintf(":%d", *entry.port))
     }
 
-    buffer.WriteString(ParamsToString(via.params, ';', ';'))
+    buffer.WriteString(ParamsToString(entry.params, ';', ';'))
+
+    return buffer.String()
+}
+
+type ViaHeader []*ViaEntry
+
+func (via ViaHeader) String() string {
+    var buffer bytes.Buffer
+    buffer.WriteString("Via: ")
+    for idx, entry := range(via) {
+        buffer.WriteString(entry.String())
+        if idx != len(via) - 1 {
+            buffer.WriteString(", ")
+        }
+    }
 
     return buffer.String()
 }

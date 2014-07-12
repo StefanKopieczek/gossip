@@ -674,9 +674,10 @@ func parseContentType(headerName string, headerText string) (
 func parseViaHeader(headerName string, headerText string) (
         headers []SipHeader, err error) {
     sections := strings.Split(headerText, ",")
+    var via ViaHeader = ViaHeader{}
     for _, section := range(sections) {
         sectionCopy := section
-        var via ViaHeader
+        var entry ViaEntry
         sentByIdx := strings.IndexAny(section, ABNF_WS) + 1
         if (sentByIdx == -1) {
             err = fmt.Errorf("expected whitespace after sent-protocol part " +
@@ -692,31 +693,32 @@ func parseViaHeader(headerName string, headerText string) (
             return
         }
 
-        via.protocolName = strings.TrimSpace(sentProtocolParts[0])
-        via.protocolVersion = strings.TrimSpace(sentProtocolParts[1])
-        via.transport = strings.TrimSpace(sentProtocolParts[2])
+        entry.protocolName = strings.TrimSpace(sentProtocolParts[0])
+        entry.protocolVersion = strings.TrimSpace(sentProtocolParts[1])
+        entry.transport = strings.TrimSpace(sentProtocolParts[2])
 
         paramsIdx := strings.Index(section, ";")
         var host string
         var port *uint16
         if paramsIdx == -1 {
             host, port, err = parseHostPort(section[sentByIdx:])
-            via.host = host
-            via.port = port
+            entry.host = host
+            entry.port = port
         } else {
             host, port, err = parseHostPort(section[sentByIdx:paramsIdx])
             if err != nil {
                 return
             }
-            via.host = host
-            via.port = port
+            entry.host = host
+            entry.port = port
 
-            via.params, _, err = parseParams(section[paramsIdx:],
+            entry.params, _, err = parseParams(section[paramsIdx:],
                                              ';', ';', 0, true, true)
         }
-        headers = append(headers, &via)
+        via = append(via, &entry)
     }
 
+    headers = []SipHeader{&via}
     return
 }
 
