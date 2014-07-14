@@ -697,6 +697,17 @@ func parseViaHeader(headerName string, headerText string) (
         entry.protocolVersion = strings.TrimSpace(sentProtocolParts[1])
         entry.transport = strings.TrimSpace(sentProtocolParts[2])
 
+        if len(entry.protocolName) == 0 {
+            err = fmt.Errorf("no protocol name provided in via header '%s'", sectionCopy)
+        } else if len(entry.protocolVersion) == 0 {
+            err = fmt.Errorf("no version provided in via header '%s'", sectionCopy)
+        } else if len(entry.transport) == 0 {
+            err = fmt.Errorf("no transport provided in via header '%s'", sectionCopy)
+        }
+        if err != nil {
+            return
+        }
+
         paramsIdx := strings.Index(section, ";")
         var host string
         var port *uint16

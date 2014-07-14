@@ -872,6 +872,7 @@ func TestContentLength(t *testing.T) {
         test{contentLengthInput("Content-Length: 9"), &contentLengthResult{pass, ContentLength(9)}},
         test{contentLengthInput("Content-Length: 20"), &contentLengthResult{pass, ContentLength(20)}},
         test{contentLengthInput("Content-Length: 113"), &contentLengthResult{pass, ContentLength(113)}},
+        test{contentLengthInput("l: 113"), &contentLengthResult{pass, ContentLength(113)}},
         test{contentLengthInput("Content-Length: 0"), &contentLengthResult{pass, ContentLength(0)}},
         test{contentLengthInput("Content-Length:      0"), &contentLengthResult{pass, ContentLength(0)}},
         test{contentLengthInput("Content-Length:\t0"), &contentLengthResult{pass, ContentLength(0)}},
@@ -899,6 +900,15 @@ func TestViaHeaders(t *testing.T) {
         test{viaInput("Via: SIP/2.0/UDP box:5060"), &viaResult{pass, &ViaHeader{&ViaEntry{"SIP", "2.0", "UDP", "box", &ui16_5060, noParams}}}},
         test{viaInput("Via: SIP/2.0/UDP box;foo=bar"), &viaResult{pass, &ViaHeader{&ViaEntry{"SIP", "2.0", "UDP", "box", nil, fooEqBar}}}},
         test{viaInput("Via: SIP/2.0/UDP box:5060;foo=bar"), &viaResult{pass, &ViaHeader{&ViaEntry{"SIP", "2.0", "UDP", "box", &ui16_5060, fooEqBar}}}},
+        test{viaInput("Via: /2.0/UDP box:5060;foo=bar"), &viaResult{fail, &ViaHeader{}}},
+        test{viaInput("Via: SIP//UDP box:5060;foo=bar"), &viaResult{fail, &ViaHeader{}}},
+        test{viaInput("Via: SIP/2.0/ box:5060;foo=bar"), &viaResult{fail, &ViaHeader{}}},
+        test{viaInput("Via:  /2.0/UDP box:5060;foo=bar"), &viaResult{fail, &ViaHeader{}}},
+        test{viaInput("Via: SIP/ /UDP box:5060;foo=bar"), &viaResult{fail, &ViaHeader{}}},
+        test{viaInput("Via: SIP/2.0/  box:5060;foo=bar"), &viaResult{fail, &ViaHeader{}}},
+        test{viaInput("Via: \t/2.0/UDP box:5060;foo=bar"), &viaResult{fail, &ViaHeader{}}},
+        test{viaInput("Via: SIP/\t/UDP box:5060;foo=bar"), &viaResult{fail, &ViaHeader{}}},
+        test{viaInput("Via: SIP/2.0/\t  box:5060;foo=bar"), &viaResult{fail, &ViaHeader{}}},
     }, t)
 }
 
