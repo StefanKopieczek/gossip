@@ -916,6 +916,11 @@ func TestViaHeaders(t *testing.T) {
         test{viaInput("Via: \t/2.0/UDP box:5060;foo=bar"), &viaResult{fail, &ViaHeader{}}},
         test{viaInput("Via: SIP/\t/UDP box:5060;foo=bar"), &viaResult{fail, &ViaHeader{}}},
         test{viaInput("Via: SIP/2.0/\t  box:5060;foo=bar"), &viaResult{fail, &ViaHeader{}}},
+        test{viaInput("Via:"), &viaResult{fail, &ViaHeader{}}},
+        test{viaInput("Via: "), &viaResult{fail, &ViaHeader{}}},
+        test{viaInput("Via:\t"), &viaResult{fail, &ViaHeader{}}},
+        test{viaInput("Via: box:5060"), &viaResult{fail, &ViaHeader{}}},
+        test{viaInput("Via: box:5060;foo=bar"), &viaResult{fail, &ViaHeader{}}},
     }, t)
 }
 
