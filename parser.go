@@ -678,24 +678,34 @@ func parseViaHeader(headerName string, headerText string) (
     for _, section := range(sections) {
         sectionCopy := section
         var entry ViaEntry
-        sentByIdx := strings.IndexAny(section, ABNF_WS) + 1
-        if (sentByIdx == -1) {
+        parts := strings.Split(section, "/")
+
+        if len(parts) < 3 {
+            err = fmt.Errorf("not enough protocol parts in via header: '%s'",
+                             parts)
+            return
+        }
+
+        parts[2] = strings.Join(parts[2:], "/")
+
+        // The transport part ends when whitespace is reached, but may also start with
+        // whitespace.
+        // So the end of the transport part is the first whitespace char following the
+        // first non-whitespace char.
+        initialSpaces := len(parts[2]) - len(strings.TrimLeft(parts[2], ABNF_WS))
+        sentByIdx := strings.IndexAny(parts[2][initialSpaces:], ABNF_WS) + initialSpaces + 1
+        if (sentByIdx == 0) {
             err = fmt.Errorf("expected whitespace after sent-protocol part " +
                              "in via header '%s'", sectionCopy)
             return
-        }
-
-        sentProtocolParts := strings.Split(section[:sentByIdx-1], "/")
-        if len(sentProtocolParts) != 3 {
-            err = fmt.Errorf("unexpected number of protocol parts in via " +
-            "header; expected 3, got %d: '%s'", len(sentProtocolParts),
-            sectionCopy)
+        } else if (sentByIdx == 1) {
+            err = fmt.Errorf("empty transport field in via header '%s'", sectionCopy)
             return
         }
 
-        entry.protocolName = strings.TrimSpace(sentProtocolParts[0])
-        entry.protocolVersion = strings.TrimSpace(sentProtocolParts[1])
-        entry.transport = strings.TrimSpace(sentProtocolParts[2])
+        entry.protocolName = strings.TrimSpace(parts[0])
+        entry.protocolVersion = strings.TrimSpace(parts[1])
+        entry.transport = strings.TrimSpace(parts[2][:sentByIdx-1])
 
         if len(entry.protocolName) == 0 {
             err = fmt.Errorf("no protocol name provided in via header '%s'", sectionCopy)
@@ -708,23 +718,25 @@ func parseViaHeader(headerName string, headerText string) (
             return
         }
 
-        paramsIdx := strings.Index(section, ";")
+        viaBody := parts[2][sentByIdx:]
+
+        paramsIdx := strings.Index(viaBody, ";")
         var host string
         var port *uint16
         if paramsIdx == -1 {
-            host, port, err = parseHostPort(section[sentByIdx:])
+            host, port, err = parseHostPort(viaBody)
             entry.host = host
             entry.port = port
         } else {
-            host, port, err = parseHostPort(section[sentByIdx:paramsIdx])
+            host, port, err = parseHostPort(viaBody[:paramsIdx])
             if err != nil {
                 return
             }
             entry.host = host
             entry.port = port
 
-            entry.params, _, err = parseParams(section[paramsIdx:],
-                                             ';', ';', 0, true, true)
+            entry.params, _, err = parseParams(viaBody[paramsIdx:],
+                                               ';', ';', 0, true, true)
         }
         via = append(via, &entry)
     }
