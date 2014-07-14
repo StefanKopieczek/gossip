@@ -893,6 +893,7 @@ func TestViaHeaders(t *testing.T) {
     noParams := map[string]*string{}
     fooEqBar := map[string]*string{"foo" : &bar}
     fooEqSlashBar := map[string]*string{"foo" : &slashBar}
+    singleFoo := map[string]*string{"foo" : nil}
     doTests([] test{
         test{viaInput("Via: SIP/2.0/UDP pc33.atlanta.com"), &viaResult{pass, &ViaHeader{&ViaEntry{"SIP", "2.0", "UDP", "pc33.atlanta.com", nil, noParams}}}},
         test{viaInput("Via: bAzz/fooo/BAAR pc33.atlanta.com"), &viaResult{pass, &ViaHeader{&ViaEntry{"bAzz", "fooo", "BAAR", "pc33.atlanta.com", nil, noParams}}}},
@@ -904,6 +905,7 @@ func TestViaHeaders(t *testing.T) {
         test{viaInput("Via: SIP/2.0/UDP box:5060"), &viaResult{pass, &ViaHeader{&ViaEntry{"SIP", "2.0", "UDP", "box", &ui16_5060, noParams}}}},
         test{viaInput("Via: SIP/2.0/UDP box;foo=bar"), &viaResult{pass, &ViaHeader{&ViaEntry{"SIP", "2.0", "UDP", "box", nil, fooEqBar}}}},
         test{viaInput("Via: SIP/2.0/UDP box:5060;foo=bar"), &viaResult{pass, &ViaHeader{&ViaEntry{"SIP", "2.0", "UDP", "box", &ui16_5060, fooEqBar}}}},
+        test{viaInput("Via: SIP/2.0/UDP box:5060;foo"), &viaResult{pass, &ViaHeader{&ViaEntry{"SIP", "2.0", "UDP", "box", &ui16_5060, singleFoo}}}},
         test{viaInput("Via: SIP/2.0/UDP box:5060;foo=//bar"), &viaResult{pass, &ViaHeader{&ViaEntry{"SIP", "2.0", "UDP", "box", &ui16_5060, fooEqSlashBar}}}},
         test{viaInput("Via: /2.0/UDP box:5060;foo=bar"), &viaResult{fail, &ViaHeader{}}},
         test{viaInput("Via: SIP//UDP box:5060;foo=bar"), &viaResult{fail, &ViaHeader{}}},
