@@ -127,6 +127,8 @@ func TestParams(t *testing.T) {
         test{&paramInput{";foo\"=bar",             ';', ';',  0,  false, true},  &paramResult{pass,  map[string]*string{"foo\"":&bar},                        9}},
         test{&paramInput{";\"foo=bar",             ';', ';',  0,  false, true},  &paramResult{pass,  map[string]*string{"\"foo":&bar},                        9}},
         test{&paramInput{";foo=\"bar\"",           ';', ';',  0,  true, true},   &paramResult{pass,  map[string]*string{"foo":&bar},                         10}},
+        test{&paramInput{";foo=\"ba\"r",           ';', ';',  0,  true, true},   &paramResult{fail, map[string]*string{},                                     0}},
+        test{&paramInput{";foo=ba\"r",             ';', ';',  0,  true, true},   &paramResult{fail, map[string]*string{},                                     0}},
         test{&paramInput{";foo=bar\"",             ';', ';',  0,  true, true},   &paramResult{fail, map[string]*string{},                                     0}},
         test{&paramInput{";foo=\"bar",             ';', ';',  0,  true, true},   &paramResult{fail, map[string]*string{},                                     0}},
         test{&paramInput{";\"foo\"=bar",           ';', ';',  0,  true, true},   &paramResult{fail, map[string]*string{},                                     0}},
@@ -967,7 +969,7 @@ func (data sipUriInput) String() string {
     return string(data)
 }
 func (data sipUriInput) evaluate() result {
-    output, err := parseSipUri(string(data))
+    output, err := ParseSipUri(string(data))
     return &sipUriResult{err, output}
 }
 
@@ -1042,7 +1044,7 @@ func (data headerBlockInput) String() string {
 }
 
 func (data headerBlockInput) evaluate() result {
-    contents, linesConsumed := getNextHeaderBlock([]string(data))
+    contents, linesConsumed := getNextHeaderLine([]string(data))
     return &headerBlockResult{contents, linesConsumed}
 }
 
@@ -1072,7 +1074,7 @@ func (data toHeaderInput) String() string {
 
 func (data toHeaderInput) evaluate() result {
     parser := NewMessageParser().(*parserImpl)
-    headers, err := parser.parseHeaderSection(string(data))
+    headers, err := parser.parseHeader(string(data))
     if len(headers) == 1 {
         return &toHeaderResult{err, headers[0].(*ToHeader)}
     } else if len(headers) == 0 {
@@ -1136,7 +1138,7 @@ func (data fromHeaderInput) String() string {
 
 func (data fromHeaderInput) evaluate() result {
     parser := NewMessageParser().(*parserImpl)
-    headers, err := parser.parseHeaderSection(string(data))
+    headers, err := parser.parseHeader(string(data))
     if len(headers) == 1 {
         return &fromHeaderResult{err, headers[0].(*FromHeader)}
     } else if len(headers) == 0 {
@@ -1200,7 +1202,7 @@ func (data contactHeaderInput) String() string {
 
 func (data contactHeaderInput) evaluate() result {
     parser := NewMessageParser().(*parserImpl)
-    headers, err := parser.parseHeaderSection(string(data))
+    headers, err := parser.parseHeader(string(data))
     contactHeaders := make([]*ContactHeader, len(headers))
     if len(headers) > 0 {
         for idx, header := range(headers) {
@@ -1274,7 +1276,7 @@ func (data cSeqInput) String() string {
 
 func (data cSeqInput) evaluate() result {
     parser := NewMessageParser().(*parserImpl)
-    headers, err := parser.parseHeaderSection(string(data))
+    headers, err := parser.parseHeader(string(data))
     if len(headers) == 1 {
         return &cSeqResult{err, headers[0].(*CSeq)}
     } else if len(headers) == 0 {
@@ -1313,7 +1315,7 @@ func (data callIdInput) String() string {
 
 func (data callIdInput) evaluate() result {
     parser := NewMessageParser().(*parserImpl)
-    headers, err := parser.parseHeaderSection(string(data))
+    headers, err := parser.parseHeader(string(data))
     if len(headers) == 1 {
         return &callIdResult{err, *(headers[0].(*CallId))}
     } else if len(headers) == 0 {
@@ -1349,7 +1351,7 @@ func (data maxForwardsInput) String() string {
 
 func (data maxForwardsInput) evaluate() result {
     parser := NewMessageParser().(*parserImpl)
-    headers, err := parser.parseHeaderSection(string(data))
+    headers, err := parser.parseHeader(string(data))
     if len(headers) == 1 {
         return &maxForwardsResult{err, *(headers[0].(*MaxForwards))}
     } else if len(headers) == 0 {
@@ -1385,7 +1387,7 @@ func (data contentLengthInput) String() string {
 
 func (data contentLengthInput) evaluate() result {
     parser := NewMessageParser().(*parserImpl)
-    headers, err := parser.parseHeaderSection(string(data))
+    headers, err := parser.parseHeader(string(data))
     if len(headers) == 1 {
         return &contentLengthResult{err, *(headers[0].(*ContentLength))}
     } else if len(headers) == 0 {
@@ -1421,7 +1423,7 @@ func (data viaInput) String() string {
 
 func (data viaInput) evaluate() result {
     parser := NewMessageParser().(*parserImpl)
-    headers, err := parser.parseHeaderSection(string(data))
+    headers, err := parser.parseHeader(string(data))
     if len(headers) == 0 {
         return &viaResult{err, &ViaHeader{}}
     } else if len(headers) == 1 {
