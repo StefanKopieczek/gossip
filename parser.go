@@ -747,7 +747,7 @@ func parseViaHeader(headerName string, headerText string) (
 	sections := strings.Split(headerText, ",")
 	var via ViaHeader = ViaHeader{}
 	for _, section := range sections {
-		var entry ViaEntry
+		var entry ViaHop
 		parts := strings.Split(section, "/")
 
 		if len(parts) < 3 {
