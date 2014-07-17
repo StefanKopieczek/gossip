@@ -1,25 +1,23 @@
 package gossip
 
-func strPtrEq(a *string, b *string) (bool) {
-    if a == nil && b == nil {
-        return true
-    }
+// Check two string pointers for equality as follows:
+// - If neither pointer is nil, check equality of the underlying strings.
+// - If either pointer is nil, return true if and only if they both are.
+func strPtrEq(a *string, b *string) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
 
-    if a == nil || b == nil {
-        return false
-    }
-
-    return *a == *b
+	return *a == *b
 }
 
-func uint16PtrEq(a *uint16, b *uint16) (bool) {
-    if a == nil && b == nil {
-        return true
-    }
+// Check two uint16 pointers for equality as follows:
+// - If neither pointer is nil, check equality of the underlying uint16s.
+// - If either pointer is nil, return true if and only if they both are.
+func uint16PtrEq(a *uint16, b *uint16) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
 
-    if a == nil || b == nil {
-        return false
-    }
-
-    return *a == *b
+	return *a == *b
 }
