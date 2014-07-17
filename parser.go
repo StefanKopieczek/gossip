@@ -119,7 +119,7 @@ func (parser *parserImpl) parseRequest(contents []string) (*Request, error) {
 	var err error
 
 	// Parse the Request Line of the message.
-	request.Method, request.Uri, request.SipVersion, err = parseRequestLine(contents[0])
+	request.Method, request.Recipient, request.SipVersion, err = parseRequestLine(contents[0])
 	if err != nil {
 		return nil, err
 	}
@@ -197,7 +197,7 @@ func (parser *parserImpl) parseResponse(contents []string) (*Response, error) {
 //   INVITE bob@example.com SIP/2.0
 //   REGISTER jane@telco.com SIP/1.0
 func parseRequestLine(requestLine string) (
-	method Method, uri SipUri, sipVersion string, err error) {
+	method Method, recipient Uri, sipVersion string, err error) {
 	parts := strings.Split(requestLine, " ")
 	if len(parts) != 3 {
 		err = fmt.Errorf("request line should have 2 spaces: '%s'", requestLine)
@@ -205,8 +205,13 @@ func parseRequestLine(requestLine string) (
 	}
 
 	method = Method(strings.ToUpper(parts[0]))
-	uri, err = ParseSipUri(parts[1])
+	recipient, err = ParseUri(parts[1])
 	sipVersion = parts[2]
+
+    switch recipient.(type) {
+    case *WildcardUri:
+        err = fmt.Errorf("wildcard URI '*' not permitted in request line: '%s'", requestLine)
+    }
 
 	return
 }
