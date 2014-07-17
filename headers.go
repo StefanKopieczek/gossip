@@ -175,93 +175,93 @@ func (uri *WildcardUri) Equals(other Uri) bool {
 // This allows header data that is not understood to be parsed by gossip and relayed to the parent application.
 type GenericHeader struct {
 	// The name of the header.
-	headerName string
+	HeaderName string
 
 	// The contents of the header, including any parameters.
 	// This is transparent data that is not natively understood by gossip.
-	contents string
+	Contents string
 }
 
 // Convert the header to a flat string representation.
 func (header *GenericHeader) String() string {
-	return header.headerName + ": " + header.contents
+	return header.HeaderName + ": " + header.Contents
 }
 
 type ToHeader struct {
 	// The display name from the header - this is a pointer type as it is optional.
-	displayName *string
+	DisplayName *string
 
-	uri Uri
+	Address Uri
 
 	// Any parameters present in the header.
-	params map[string]*string
+	Params map[string]*string
 }
 
 func (to *ToHeader) String() string {
 	var buffer bytes.Buffer
 	buffer.WriteString("To: ")
 
-	if to.displayName != nil {
-		buffer.WriteString(fmt.Sprintf("\"%s\" ", *to.displayName))
+	if to.DisplayName != nil {
+		buffer.WriteString(fmt.Sprintf("\"%s\" ", *to.DisplayName))
 	}
 
-	buffer.WriteString(fmt.Sprintf("<%s>", to.uri))
-	buffer.WriteString(ParamsToString(to.params, ';', ';'))
+	buffer.WriteString(fmt.Sprintf("<%s>", to.Address))
+	buffer.WriteString(ParamsToString(to.Params, ';', ';'))
 
 	return buffer.String()
 }
 
 type FromHeader struct {
 	// The display name from the header - this is a pointer type as it is optional.
-	displayName *string
+	DisplayName *string
 
-	uri Uri
+	Address Uri
 
 	// Any parameters present in the header.
-	params map[string]*string
+	Params map[string]*string
 }
 
 func (from *FromHeader) String() string {
 	var buffer bytes.Buffer
 	buffer.WriteString("From: ")
 
-	if from.displayName != nil {
-		buffer.WriteString(fmt.Sprintf("\"%s\" ", *from.displayName))
+	if from.DisplayName != nil {
+		buffer.WriteString(fmt.Sprintf("\"%s\" ", *from.DisplayName))
 	}
 
-	buffer.WriteString(fmt.Sprintf("<%s>", from.uri))
-	buffer.WriteString(ParamsToString(from.params, ';', ';'))
+	buffer.WriteString(fmt.Sprintf("<%s>", from.Address))
+	buffer.WriteString(ParamsToString(from.Params, ';', ';'))
 
 	return buffer.String()
 }
 
 type ContactHeader struct {
 	// The display name from the header - this is a pointer type as it is optional.
-	displayName *string
+	DisplayName *string
 
-	uri ContactUri
+	Address ContactUri
 
 	// Any parameters present in the header.
-	params map[string]*string
+	Params map[string]*string
 }
 
 func (contact *ContactHeader) String() string {
 	var buffer bytes.Buffer
 	buffer.WriteString("Contact: ")
 
-	if contact.displayName != nil {
-		buffer.WriteString(fmt.Sprintf("\"%s\" ", *contact.displayName))
+	if contact.DisplayName != nil {
+		buffer.WriteString(fmt.Sprintf("\"%s\" ", *contact.DisplayName))
 	}
 
-	switch contact.uri.(type) {
+	switch contact.Address.(type) {
 	case *WildcardUri:
 		// Treat the Wildcard URI separately as it must not be contained in < > angle brackets.
 		buffer.WriteString("*")
 	default:
-		buffer.WriteString(fmt.Sprintf("<%s>", contact.uri.String()))
+		buffer.WriteString(fmt.Sprintf("<%s>", contact.Address.String()))
 	}
 
-	buffer.WriteString(ParamsToString(contact.params, ';', ';'))
+	buffer.WriteString(ParamsToString(contact.Params, ';', ';'))
 
 	return buffer.String()
 }
@@ -330,8 +330,8 @@ func (hop *ViaHop) String() string {
 func (via ViaHeader) String() string {
 	var buffer bytes.Buffer
 	buffer.WriteString("Via: ")
-	for idx, entry := range via {
-		buffer.WriteString(entry.String())
+	for idx, hop := range via {
+		buffer.WriteString(hop.String())
 		if idx != len(via)-1 {
 			buffer.WriteString(", ")
 		}
@@ -341,41 +341,41 @@ func (via ViaHeader) String() string {
 }
 
 type RequireHeader struct {
-	options []string
+	Options []string
 }
 
 func (header *RequireHeader) String() string {
 	return fmt.Sprintf("Require: %s",
-		strings.Join(header.options, ", "))
+		strings.Join(header.Options, ", "))
 }
 
 type SupportedHeader struct {
-	options []string
+	Options []string
 }
 
 func (header *SupportedHeader) String() string {
 	return fmt.Sprintf("Supported: %s",
-		strings.Join(header.options, ", "))
+		strings.Join(header.Options, ", "))
 }
 
 type ProxyRequireHeader struct {
-	options []string
+	Options []string
 }
 
 func (header *ProxyRequireHeader) String() string {
 	return fmt.Sprintf("Proxy-Require: %s",
-		strings.Join(header.options, ", "))
+		strings.Join(header.Options, ", "))
 }
 
 // 'Unsupported:' is a SIP header type - this doesn't indicate that the
 // header itself is not supported by gossip!
 type UnsupportedHeader struct {
-	options []string
+	Options []string
 }
 
 func (header *UnsupportedHeader) String() string {
 	return fmt.Sprintf("Unsupported: %s",
-		strings.Join(header.options, ", "))
+		strings.Join(header.Options, ", "))
 }
 
 // Utility method for converting a map of parameters to a flat string representation.
