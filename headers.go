@@ -346,7 +346,7 @@ type RequireHeader struct {
 
 func (header *RequireHeader) String() string {
 	return fmt.Sprintf("Require: %s",
-		joinStrings(", ", header.options...))
+		strings.Join(header.options, ", "))
 }
 
 type SupportedHeader struct {
@@ -355,7 +355,7 @@ type SupportedHeader struct {
 
 func (header *SupportedHeader) String() string {
 	return fmt.Sprintf("Supported: %s",
-		joinStrings(", ", header.options...))
+		strings.Join(header.options, ", "))
 }
 
 type ProxyRequireHeader struct {
@@ -364,7 +364,7 @@ type ProxyRequireHeader struct {
 
 func (header *ProxyRequireHeader) String() string {
 	return fmt.Sprintf("Proxy-Require: %s",
-		joinStrings(", ", header.options...))
+		strings.Join(header.options, ", "))
 }
 
 // 'Unsupported:' is a SIP header type - this doesn't indicate that the
@@ -375,7 +375,7 @@ type UnsupportedHeader struct {
 
 func (header *UnsupportedHeader) String() string {
 	return fmt.Sprintf("Unsupported: %s",
-		joinStrings(", ", header.options...))
+		strings.Join(header.options, ", "))
 }
 
 // Utility method for converting a map of parameters to a flat string representation.
