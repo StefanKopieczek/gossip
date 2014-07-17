@@ -299,30 +299,30 @@ type ViaHeader []*ViaHop
 // Via headers are composed of several segments of the same structure, added by successive nodes in a routing chain.
 type ViaHop struct {
 	// E.g. 'SIP'.
-	protocolName string
+	ProtocolName string
 
 	// E.g. '2.0'.
-	protocolVersion string
-	transport       string
-	host            string
+	ProtocolVersion string
+	Transport       string
+	Host            string
 
 	// The port for this via hop. This is stored as a pointer type, since it is an optional field.
-	port *uint16
+	Port *uint16
 
-	params map[string]*string
+	Params map[string]*string
 }
 
-func (entry *ViaHop) String() string {
+func (hop *ViaHop) String() string {
 	var buffer bytes.Buffer
 	buffer.WriteString(fmt.Sprintf("%s/%s/%s %s",
-		entry.protocolName, entry.protocolVersion,
-		entry.transport,
-		entry.host))
-	if entry.port != nil {
-		buffer.WriteString(fmt.Sprintf(":%d", *entry.port))
+		hop.ProtocolName, hop.ProtocolVersion,
+		hop.Transport,
+		hop.Host))
+	if hop.Port != nil {
+		buffer.WriteString(fmt.Sprintf(":%d", *hop.Port))
 	}
 
-	buffer.WriteString(ParamsToString(entry.params, ';', ';'))
+	buffer.WriteString(ParamsToString(hop.Params, ';', ';'))
 
 	return buffer.String()
 }

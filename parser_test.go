@@ -1455,28 +1455,28 @@ func (expected *viaResult) equals(other result) (equal bool, reason string) {
                            expected.header.String(), actual.header.String())
     }
 
-    for idx, expectedEntry := range(*expected.header) {
-        actualEntry := (*actual.header)[idx]
-        if expectedEntry.protocolName != actualEntry.protocolName {
+    for idx, expectedHop := range(*expected.header) {
+        actualHop := (*actual.header)[idx]
+        if expectedHop.ProtocolName != actualHop.ProtocolName {
             return false, fmt.Sprintf("unexpected protocol name '%s' in via entry %d - expected '%s'",
-                actualEntry.protocolName, idx, expectedEntry.protocolName)
-        } else if expectedEntry.protocolVersion != actualEntry.protocolVersion {
+                actualHop.ProtocolName, idx, expectedHop.ProtocolName)
+        } else if expectedHop.ProtocolVersion != actualHop.ProtocolVersion {
             return false, fmt.Sprintf("unexpected protocol version '%s' in via entry %d - expected '%s'",
-                actualEntry.protocolVersion, idx, expectedEntry.protocolVersion)
-        } else if expectedEntry.transport != actualEntry.transport {
+                actualHop.ProtocolVersion, idx, expectedHop.ProtocolVersion)
+        } else if expectedHop.Transport != actualHop.Transport {
             return false, fmt.Sprintf("unexpected transport '%s' in via entry %d - expected '%s'",
-                actualEntry.transport, idx, expectedEntry.transport)
-        } else if expectedEntry.host != actualEntry.host {
+                actualHop.Transport, idx, expectedHop.Transport)
+        } else if expectedHop.Host != actualHop.Host {
             return false, fmt.Sprintf("unexpected host '%s' in via entry %d - expected '%s'",
-                actualEntry.host, idx, expectedEntry.host)
-        } else if !uint16PtrEq(expectedEntry.port, actualEntry.port) {
+                actualHop.Host, idx, expectedHop.Host)
+        } else if !uint16PtrEq(expectedHop.Port, actualHop.Port) {
             return false, fmt.Sprintf("unexpected port '%d' in via entry %d - expected '%d'",
-                uint16PtrStr(actualEntry.port), idx, uint16PtrStr(expectedEntry.port))
-        } else if !paramsEqual(expectedEntry.params, actualEntry.params) {
+                uint16PtrStr(actualHop.Port), idx, uint16PtrStr(expectedHop.Port))
+        } else if !paramsEqual(expectedHop.Params, actualHop.Params) {
             return false, fmt.Sprintf("unexpected params '%s' in via entry %d - expected '%s'",
-                ParamsToString(actualEntry.params, '$', '-'),
+                ParamsToString(actualHop.Params, '$', '-'),
                 idx,
-                ParamsToString(expectedEntry.params, '$', '-'))
+                ParamsToString(expectedHop.Params, '$', '-'))
         }
     }
 

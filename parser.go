@@ -752,7 +752,7 @@ func parseViaHeader(headerName string, headerText string) (
 	sections := strings.Split(headerText, ",")
 	var via ViaHeader = ViaHeader{}
 	for _, section := range sections {
-		var entry ViaHop
+		var hop ViaHop
 		parts := strings.Split(section, "/")
 
 		if len(parts) < 3 {
@@ -778,15 +778,15 @@ func parseViaHeader(headerName string, headerText string) (
 			return
 		}
 
-		entry.protocolName = strings.TrimSpace(parts[0])
-		entry.protocolVersion = strings.TrimSpace(parts[1])
-		entry.transport = strings.TrimSpace(parts[2][:sentByIdx-1])
+		hop.ProtocolName = strings.TrimSpace(parts[0])
+		hop.ProtocolVersion = strings.TrimSpace(parts[1])
+		hop.Transport = strings.TrimSpace(parts[2][:sentByIdx-1])
 
-		if len(entry.protocolName) == 0 {
+		if len(hop.ProtocolName) == 0 {
 			err = fmt.Errorf("no protocol name provided in via header '%s'", section)
-		} else if len(entry.protocolVersion) == 0 {
+		} else if len(hop.ProtocolVersion) == 0 {
 			err = fmt.Errorf("no version provided in via header '%s'", section)
-		} else if len(entry.transport) == 0 {
+		} else if len(hop.Transport) == 0 {
 			err = fmt.Errorf("no transport provided in via header '%s'", section)
 		}
 		if err != nil {
@@ -801,8 +801,8 @@ func parseViaHeader(headerName string, headerText string) (
 		if paramsIdx == -1 {
 			// There are no header parameters, so the rest of the Via body is part of the host[:post].
 			host, port, err = parseHostPort(viaBody)
-			entry.host = host
-			entry.port = port
+			hop.Host = host
+			hop.Port = port
 			if err != nil {
 				return
 			}
@@ -811,13 +811,13 @@ func parseViaHeader(headerName string, headerText string) (
 			if err != nil {
 				return
 			}
-			entry.host = host
-			entry.port = port
+			hop.Host = host
+			hop.Port = port
 
-			entry.params, _, err = parseParams(viaBody[paramsIdx:],
+			hop.Params, _, err = parseParams(viaBody[paramsIdx:],
 				';', ';', 0, true, true)
 		}
-		via = append(via, &entry)
+		via = append(via, &hop)
 	}
 
 	headers = []SipHeader{&via}
