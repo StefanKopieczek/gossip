@@ -1,9 +1,16 @@
-package gossip
+package base
+
+import (
+    "github.com/stefankopieczek/gossip/utils"
+)
 
 import "bytes"
 import "fmt"
 import "strconv"
 import "strings"
+
+// Whitespace recognised by SIP protocol.
+const c_ABNF_WS = " \t"
 
 // A single logical header from a SIP message.
 type SipHeader interface {
@@ -87,20 +94,20 @@ func (uri *SipUri) Equals(otherUri Uri) bool {
 
 	other := *otherPtr
 	result := uri.IsEncrypted == other.IsEncrypted &&
-		strPtrEq(uri.User, other.User) &&
-		strPtrEq(uri.Password, other.Password) &&
+		utils.StrPtrEq(uri.User, other.User) &&
+		utils.StrPtrEq(uri.Password, other.Password) &&
 		uri.Host == other.Host &&
-		uint16PtrEq(uri.Port, other.Port)
+		utils.Uint16PtrEq(uri.Port, other.Port)
 
 	if !result {
 		return false
 	}
 
-	if !paramsEqual(uri.UriParams, other.UriParams) {
+	if !ParamsEqual(uri.UriParams, other.UriParams) {
 		return false
 	}
 
-	if !paramsEqual(uri.Headers, other.Headers) {
+	if !ParamsEqual(uri.Headers, other.Headers) {
 		return false
 	}
 
@@ -394,7 +401,7 @@ func ParamsToString(params map[string]*string, start uint8, sep uint8) string {
 		}
 		if value == nil {
 			buffer.WriteString(fmt.Sprintf("%s", key))
-		} else if strings.ContainsAny(*value, ABNF_WS) {
+		} else if strings.ContainsAny(*value, c_ABNF_WS) {
 			buffer.WriteString(fmt.Sprintf("%s=\"%s\"", key, *value))
 		} else {
 			buffer.WriteString(fmt.Sprintf("%s=%s", key, *value))
@@ -406,7 +413,7 @@ func ParamsToString(params map[string]*string, start uint8, sep uint8) string {
 
 // Check if two maps of parameters are equal in the sense of having the same keys with the same values.
 // This does not rely on any ordering of the keys of the map in memory.
-func paramsEqual(a map[string]*string, b map[string]*string) bool {
+func ParamsEqual(a map[string]*string, b map[string]*string) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -416,7 +423,7 @@ func paramsEqual(a map[string]*string, b map[string]*string) bool {
 		if !ok {
 			return false
 		}
-		if !strPtrEq(a_val, b_val) {
+		if !utils.StrPtrEq(a_val, b_val) {
 			return false
 		}
 	}

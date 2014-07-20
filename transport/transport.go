@@ -1,8 +1,15 @@
-package gossip
+package transport
 
-import "fmt"
-import "net"
-import "sync"
+import (
+    "github.com/stefankopieczek/gossip/base"
+    "github.com/stefankopieczek/gossip/parser"
+)
+
+import (
+    "fmt"
+    "net"
+    "sync"
+)
 
 /**
   Temporary implementation of a transport layer for SIP messages using UDP.
@@ -11,17 +18,17 @@ import "sync"
 
 type SipTransportManager interface {
 	Start()
-	Send(message *SipMessage)
+	Send(message *base.SipMessage)
 	GetChannel()
 	Stop()
 }
 
-type listener chan SipMessage
+type listener chan base.SipMessage
 
 // notify tries to send a message to the listener.
 // If the underlying channel has been closed by the receiver, return 'false';
 // otherwise, return true.
-func (l listener) notify(message SipMessage) (ok bool) {
+func (l listener) notify(message base.SipMessage) (ok bool) {
 	defer func() { recover() }()
 	l <- message
 	return true
@@ -52,8 +59,8 @@ func (transport *UdpTransportManager) Start() error {
 	return err
 }
 
-func (transport *UdpTransportManager) GetChannel() (c chan SipMessage) {
-	c = make(chan SipMessage)
+func (transport *UdpTransportManager) GetChannel() (c chan base.SipMessage) {
+	c = make(chan base.SipMessage)
 
 	transport.listenerLock.Lock()
 	transport.listeners[c] = true
@@ -64,7 +71,7 @@ func (transport *UdpTransportManager) GetChannel() (c chan SipMessage) {
 
 func (transport *UdpTransportManager) listen() {
 	fmt.Printf("Listening.\n")
-	parser := NewMessageParser()
+	parser := parser.NewMessageParser()
 	buffer := make([]byte, 65507)
 	for {
 		num, _, err := transport.conn.ReadFromUDP(buffer) // TODO: Do this properly.
@@ -77,7 +84,7 @@ func (transport *UdpTransportManager) listen() {
 	}
 }
 
-func (transport *UdpTransportManager) handlePacket(pkt []byte, parser MessageParser) {
+func (transport *UdpTransportManager) handlePacket(pkt []byte, parser parser.MessageParser) {
 	message, err := parser.ParseMessage(pkt)
 
 	// TODO: Test hack
@@ -88,7 +95,7 @@ func (transport *UdpTransportManager) handlePacket(pkt []byte, parser MessagePar
 
 	// Dispatch the message to all registered listeners.
 	// If the listener is a closed channel, remove it from the list.
-	deadListeners := make([]chan SipMessage, 0)
+	deadListeners := make([]chan base.SipMessage, 0)
 	transport.listenerLock.Lock()
 	for listener := range transport.listeners {
 		sent := listener.notify(message)

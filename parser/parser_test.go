@@ -1,10 +1,17 @@
-package gossip
+package parser
 
-import "bytes"
-import "fmt"
-import "strings"
-import "strconv"
-import "testing"
+import (
+    "github.com/stefankopieczek/gossip/base"
+    "github.com/stefankopieczek/gossip/utils"
+)
+
+import (
+    "bytes"
+    "fmt"
+    "strings"
+    "strconv"
+    "testing"
+)
 
 var testsRun int
 var testsPassed int
@@ -145,83 +152,83 @@ func TestParams(t *testing.T) {
 
 func TestSipUris(t *testing.T) {
     doTests([]test {
-        test{sipUriInput("sip:bob@example.com"),                          &sipUriResult{pass, SipUri{User:&bob, Host:"example.com"}}},
-        test{sipUriInput("sip:bob@192.168.0.1"),                          &sipUriResult{pass, SipUri{User:&bob, Host:"192.168.0.1"}}},
-        test{sipUriInput("sip:bob:Hunter2@example.com"),                  &sipUriResult{pass, SipUri{User:&bob, Password:&hunter2, Host:"example.com"}}},
-        test{sipUriInput("sips:bob:Hunter2@example.com"),                 &sipUriResult{pass, SipUri{IsEncrypted:true, User:&bob, Password:&hunter2,
+        test{sipUriInput("sip:bob@example.com"),                          &sipUriResult{pass, base.SipUri{User:&bob, Host:"example.com"}}},
+        test{sipUriInput("sip:bob@192.168.0.1"),                          &sipUriResult{pass, base.SipUri{User:&bob, Host:"192.168.0.1"}}},
+        test{sipUriInput("sip:bob:Hunter2@example.com"),                  &sipUriResult{pass, base.SipUri{User:&bob, Password:&hunter2, Host:"example.com"}}},
+        test{sipUriInput("sips:bob:Hunter2@example.com"),                 &sipUriResult{pass, base.SipUri{IsEncrypted:true, User:&bob, Password:&hunter2,
                                                                                                      Host:"example.com"}}},
-        test{sipUriInput("sips:bob@example.com"),                         &sipUriResult{pass, SipUri{IsEncrypted:true, User:&bob, Host:"example.com"}}},
-        test{sipUriInput("sip:example.com"),                              &sipUriResult{pass, SipUri{Host:"example.com"}}},
-        test{sipUriInput("example.com"),                                  &sipUriResult{fail, SipUri{}}},
-        test{sipUriInput("bob@example.com"),                              &sipUriResult{fail, SipUri{}}},
-        test{sipUriInput("sip:bob@example.com:5060"),                     &sipUriResult{pass, SipUri{User:&bob, Host:"example.com", Port:&ui16_5060}}},
-        test{sipUriInput("sip:bob@88.88.88.88:5060"),                     &sipUriResult{pass, SipUri{User:&bob, Host:"88.88.88.88", Port:&ui16_5060}}},
-        test{sipUriInput("sip:bob:Hunter2@example.com:5060"),             &sipUriResult{pass, SipUri{User:&bob, Password:&hunter2,
+        test{sipUriInput("sips:bob@example.com"),                         &sipUriResult{pass, base.SipUri{IsEncrypted:true, User:&bob, Host:"example.com"}}},
+        test{sipUriInput("sip:example.com"),                              &sipUriResult{pass, base.SipUri{Host:"example.com"}}},
+        test{sipUriInput("example.com"),                                  &sipUriResult{fail, base.SipUri{}}},
+        test{sipUriInput("bob@example.com"),                              &sipUriResult{fail, base.SipUri{}}},
+        test{sipUriInput("sip:bob@example.com:5060"),                     &sipUriResult{pass, base.SipUri{User:&bob, Host:"example.com", Port:&ui16_5060}}},
+        test{sipUriInput("sip:bob@88.88.88.88:5060"),                     &sipUriResult{pass, base.SipUri{User:&bob, Host:"88.88.88.88", Port:&ui16_5060}}},
+        test{sipUriInput("sip:bob:Hunter2@example.com:5060"),             &sipUriResult{pass, base.SipUri{User:&bob, Password:&hunter2,
                                                                                                      Host:"example.com", Port:&ui16_5060}}},
-        test{sipUriInput("sip:bob@example.com:5"),                        &sipUriResult{pass, SipUri{User:&bob, Host:"example.com", Port:&ui16_5}}},
-        test{sipUriInput("sip:bob@example.com;foo=bar"),                  &sipUriResult{pass, SipUri{User:&bob, Host:"example.com",
+        test{sipUriInput("sip:bob@example.com:5"),                        &sipUriResult{pass, base.SipUri{User:&bob, Host:"example.com", Port:&ui16_5}}},
+        test{sipUriInput("sip:bob@example.com;foo=bar"),                  &sipUriResult{pass, base.SipUri{User:&bob, Host:"example.com",
                                                                                                      UriParams:map[string]*string{"foo":&bar}}}},
-        test{sipUriInput("sip:bob@example.com:5060;foo=bar"),             &sipUriResult{pass, SipUri{User:&bob, Host:"example.com", Port:&ui16_5060,
+        test{sipUriInput("sip:bob@example.com:5060;foo=bar"),             &sipUriResult{pass, base.SipUri{User:&bob, Host:"example.com", Port:&ui16_5060,
                                                                                                      UriParams:map[string]*string{"foo":&bar}}}},
-        test{sipUriInput("sip:bob@example.com:5;foo"),                    &sipUriResult{pass, SipUri{User:&bob, Host:"example.com", Port:&ui16_5,
+        test{sipUriInput("sip:bob@example.com:5;foo"),                    &sipUriResult{pass, base.SipUri{User:&bob, Host:"example.com", Port:&ui16_5,
                                                                                                      UriParams:map[string]*string{"foo":nil}}}},
-        test{sipUriInput("sip:bob@example.com:5;foo;baz=bar"),            &sipUriResult{pass, SipUri{User:&bob, Host:"example.com", Port:&ui16_5,
+        test{sipUriInput("sip:bob@example.com:5;foo;baz=bar"),            &sipUriResult{pass, base.SipUri{User:&bob, Host:"example.com", Port:&ui16_5,
                                                                                                      UriParams:map[string]*string{"foo":nil, "baz":&bar}}}},
-        test{sipUriInput("sip:bob@example.com:5;baz=bar;foo"),            &sipUriResult{pass, SipUri{User:&bob, Host:"example.com", Port:&ui16_5,
+        test{sipUriInput("sip:bob@example.com:5;baz=bar;foo"),            &sipUriResult{pass, base.SipUri{User:&bob, Host:"example.com", Port:&ui16_5,
                                                                                                      UriParams:map[string]*string{"foo":nil, "baz":&bar}}}},
-        test{sipUriInput("sip:bob@example.com:5;foo;baz=bar;a=b"),        &sipUriResult{pass, SipUri{User:&bob, Host:"example.com", Port:&ui16_5,
+        test{sipUriInput("sip:bob@example.com:5;foo;baz=bar;a=b"),        &sipUriResult{pass, base.SipUri{User:&bob, Host:"example.com", Port:&ui16_5,
                                                                                                      UriParams:map[string]*string{"foo":nil, "baz":&bar, "a":&b}}}},
-        test{sipUriInput("sip:bob@example.com:5;baz=bar;foo;a=b"),        &sipUriResult{pass, SipUri{User:&bob, Host:"example.com", Port:&ui16_5,
+        test{sipUriInput("sip:bob@example.com:5;baz=bar;foo;a=b"),        &sipUriResult{pass, base.SipUri{User:&bob, Host:"example.com", Port:&ui16_5,
                                                                                                      UriParams:map[string]*string{"foo":nil, "baz":&bar, "a":&b}}}},
-        test{sipUriInput("sip:bob@example.com?foo=bar"),                  &sipUriResult{pass, SipUri{User:&bob, Host:"example.com",
+        test{sipUriInput("sip:bob@example.com?foo=bar"),                  &sipUriResult{pass, base.SipUri{User:&bob, Host:"example.com",
                                                                                                      Headers:map[string]*string{"foo":&bar}}}},
-        test{sipUriInput("sip:bob@example.com?foo="),                     &sipUriResult{pass, SipUri{User:&bob, Host:"example.com",
+        test{sipUriInput("sip:bob@example.com?foo="),                     &sipUriResult{pass, base.SipUri{User:&bob, Host:"example.com",
                                                                                                      Headers:map[string]*string{"foo":&empty}}}},
-        test{sipUriInput("sip:bob@example.com:5060?foo=bar"),             &sipUriResult{pass, SipUri{User:&bob, Host:"example.com", Port:&ui16_5060,
+        test{sipUriInput("sip:bob@example.com:5060?foo=bar"),             &sipUriResult{pass, base.SipUri{User:&bob, Host:"example.com", Port:&ui16_5060,
                                                                                                      Headers:map[string]*string{"foo":&bar}}}},
-        test{sipUriInput("sip:bob@example.com:5?foo=bar"),                &sipUriResult{pass, SipUri{User:&bob, Host:"example.com", Port:&ui16_5,
+        test{sipUriInput("sip:bob@example.com:5?foo=bar"),                &sipUriResult{pass, base.SipUri{User:&bob, Host:"example.com", Port:&ui16_5,
                                                                                                      Headers:map[string]*string{"foo":&bar}}}},
-        test{sipUriInput("sips:bob@example.com:5?baz=bar&foo=&a=b"),      &sipUriResult{pass, SipUri{IsEncrypted:true, User:&bob, Host:"example.com", Port:&ui16_5,
+        test{sipUriInput("sips:bob@example.com:5?baz=bar&foo=&a=b"),      &sipUriResult{pass, base.SipUri{IsEncrypted:true, User:&bob, Host:"example.com", Port:&ui16_5,
                                                                                                      Headers:map[string]*string{"baz":&bar, "a":&b,
                                                                                                                                 "foo":&empty}}}},
-        test{sipUriInput("sip:bob@example.com:5?baz=bar&foo&a=b"),        &sipUriResult{fail, SipUri{}}},
-        test{sipUriInput("sip:bob@example.com:5?foo"),                    &sipUriResult{fail, SipUri{}}},
-        test{sipUriInput("sip:bob@example.com:50?foo"),                   &sipUriResult{fail, SipUri{}}},
-        test{sipUriInput("sip:bob@example.com:50?foo=bar&baz"),           &sipUriResult{fail, SipUri{}}},
-        test{sipUriInput("sip:bob@example.com;foo?foo=bar"),              &sipUriResult{pass, SipUri{User:&bob, Host:"example.com",
+        test{sipUriInput("sip:bob@example.com:5?baz=bar&foo&a=b"),        &sipUriResult{fail, base.SipUri{}}},
+        test{sipUriInput("sip:bob@example.com:5?foo"),                    &sipUriResult{fail, base.SipUri{}}},
+        test{sipUriInput("sip:bob@example.com:50?foo"),                   &sipUriResult{fail, base.SipUri{}}},
+        test{sipUriInput("sip:bob@example.com:50?foo=bar&baz"),           &sipUriResult{fail, base.SipUri{}}},
+        test{sipUriInput("sip:bob@example.com;foo?foo=bar"),              &sipUriResult{pass, base.SipUri{User:&bob, Host:"example.com",
                                                                                                      UriParams:map[string]*string{"foo":nil},
                                                                                                      Headers:map[string]*string{"foo":&bar}}}},
-        test{sipUriInput("sip:bob@example.com:5060;foo?foo=bar"),         &sipUriResult{pass, SipUri{User:&bob, Host:"example.com", Port:&ui16_5060,
+        test{sipUriInput("sip:bob@example.com:5060;foo?foo=bar"),         &sipUriResult{pass, base.SipUri{User:&bob, Host:"example.com", Port:&ui16_5060,
                                                                                                      UriParams:map[string]*string{"foo":nil},
                                                                                                      Headers:map[string]*string{"foo":&bar}}}},
-        test{sipUriInput("sip:bob@example.com:5;foo?foo=bar"),            &sipUriResult{pass, SipUri{User:&bob, Host:"example.com", Port:&ui16_5,
+        test{sipUriInput("sip:bob@example.com:5;foo?foo=bar"),            &sipUriResult{pass, base.SipUri{User:&bob, Host:"example.com", Port:&ui16_5,
                                                                                                      UriParams:map[string]*string{"foo":nil},
                                                                                                      Headers:map[string]*string{"foo":&bar}}}},
-        test{sipUriInput("sips:bob@example.com:5;foo?baz=bar&a=b&foo="),  &sipUriResult{pass, SipUri{IsEncrypted:true, User:&bob,
+        test{sipUriInput("sips:bob@example.com:5;foo?baz=bar&a=b&foo="),  &sipUriResult{pass, base.SipUri{IsEncrypted:true, User:&bob,
                                                                                                      Host:"example.com", Port:&ui16_5,
                                                                                                      UriParams:map[string]*string{"foo":nil},
                                                                                                      Headers:map[string]*string{"baz":&bar, "a":&b,
                                                                                                                                 "foo":&empty}}}},
-        test{sipUriInput("sip:bob@example.com:5;foo?baz=bar&foo&a=b"),    &sipUriResult{fail, SipUri{}}},
-        test{sipUriInput("sip:bob@example.com:5;foo?foo"),                &sipUriResult{fail, SipUri{}}},
-        test{sipUriInput("sip:bob@example.com:50;foo?foo"),               &sipUriResult{fail, SipUri{}}},
-        test{sipUriInput("sip:bob@example.com:50;foo?foo=bar&baz"),       &sipUriResult{fail, SipUri{}}},
-        test{sipUriInput("sip:bob@example.com;foo=baz?foo=bar"),          &sipUriResult{pass, SipUri{User:&bob, Host:"example.com",
+        test{sipUriInput("sip:bob@example.com:5;foo?baz=bar&foo&a=b"),    &sipUriResult{fail, base.SipUri{}}},
+        test{sipUriInput("sip:bob@example.com:5;foo?foo"),                &sipUriResult{fail, base.SipUri{}}},
+        test{sipUriInput("sip:bob@example.com:50;foo?foo"),               &sipUriResult{fail, base.SipUri{}}},
+        test{sipUriInput("sip:bob@example.com:50;foo?foo=bar&baz"),       &sipUriResult{fail, base.SipUri{}}},
+        test{sipUriInput("sip:bob@example.com;foo=baz?foo=bar"),          &sipUriResult{pass, base.SipUri{User:&bob, Host:"example.com",
                                                                                                      UriParams:map[string]*string{"foo":&baz},
                                                                                                      Headers:map[string]*string{"foo":&bar}}}},
-        test{sipUriInput("sip:bob@example.com:5060;foo=baz?foo=bar"),     &sipUriResult{pass, SipUri{User:&bob, Host:"example.com", Port:&ui16_5060,
+        test{sipUriInput("sip:bob@example.com:5060;foo=baz?foo=bar"),     &sipUriResult{pass, base.SipUri{User:&bob, Host:"example.com", Port:&ui16_5060,
                                                                                                      UriParams:map[string]*string{"foo":&baz},
                                                                                                      Headers:map[string]*string{"foo":&bar}}}},
-        test{sipUriInput("sip:bob@example.com:5;foo=baz?foo=bar"),        &sipUriResult{pass, SipUri{User:&bob, Host:"example.com", Port:&ui16_5,
+        test{sipUriInput("sip:bob@example.com:5;foo=baz?foo=bar"),        &sipUriResult{pass, base.SipUri{User:&bob, Host:"example.com", Port:&ui16_5,
                                                                                                      UriParams:map[string]*string{"foo":&baz},
                                                                                                      Headers:map[string]*string{"foo":&bar}}}},
-        test{sipUriInput("sips:bob@example.com:5;foo=baz?baz=bar&a=b"),   &sipUriResult{pass, SipUri{IsEncrypted:true, User:&bob, Host:"example.com", Port:&ui16_5,
+        test{sipUriInput("sips:bob@example.com:5;foo=baz?baz=bar&a=b"),   &sipUriResult{pass, base.SipUri{IsEncrypted:true, User:&bob, Host:"example.com", Port:&ui16_5,
                                                                                                      UriParams:map[string]*string{"foo":&baz},
                                                                                                      Headers:map[string]*string{"baz":&bar, "a":&b}}}},
-        test{sipUriInput("sip:bob@example.com:5;foo=baz?baz=bar&foo&a=b"),&sipUriResult{fail, SipUri{}}},
-        test{sipUriInput("sip:bob@example.com:5;foo=baz?foo"),            &sipUriResult{fail, SipUri{}}},
-        test{sipUriInput("sip:bob@example.com:50;foo=baz?foo"),           &sipUriResult{fail, SipUri{}}},
-        test{sipUriInput("sip:bob@example.com:50;foo=baz?foo=bar&baz"),   &sipUriResult{fail, SipUri{}}},
+        test{sipUriInput("sip:bob@example.com:5;foo=baz?baz=bar&foo&a=b"),&sipUriResult{fail, base.SipUri{}}},
+        test{sipUriInput("sip:bob@example.com:5;foo=baz?foo"),            &sipUriResult{fail, base.SipUri{}}},
+        test{sipUriInput("sip:bob@example.com:50;foo=baz?foo"),           &sipUriResult{fail, base.SipUri{}}},
+        test{sipUriInput("sip:bob@example.com:50;foo=baz?foo=bar&baz"),   &sipUriResult{fail, base.SipUri{}}},
     }, t)
 }
 
@@ -264,131 +271,131 @@ func TestToHeaders(t *testing.T) {
     noParams := map[string]*string{}
     doTests([]test {
         test{toHeaderInput("To: \"Alice Liddell\" <sip:alice@wonderland.com>"), &toHeaderResult{pass,
-            &ToHeader{DisplayName:&aliceLiddell,
-                      Address:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+            &base.ToHeader{DisplayName:&aliceLiddell,
+                      Address:&base.SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
                       Params:noParams}}},
 
         test{toHeaderInput("To : \"Alice Liddell\" <sip:alice@wonderland.com>"), &toHeaderResult{pass,
-            &ToHeader{DisplayName:&aliceLiddell,
-                      Address:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+            &base.ToHeader{DisplayName:&aliceLiddell,
+                      Address:&base.SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
                       Params:noParams}}},
 
         test{toHeaderInput("To  : \"Alice Liddell\" <sip:alice@wonderland.com>"), &toHeaderResult{pass,
-            &ToHeader{DisplayName:&aliceLiddell,
-                      Address:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+            &base.ToHeader{DisplayName:&aliceLiddell,
+                      Address:&base.SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
                       Params:noParams}}},
 
         test{toHeaderInput("To\t: \"Alice Liddell\" <sip:alice@wonderland.com>"), &toHeaderResult{pass,
-            &ToHeader{DisplayName:&aliceLiddell,
-                      Address:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+            &base.ToHeader{DisplayName:&aliceLiddell,
+                      Address:&base.SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
                       Params:noParams}}},
 
         test{toHeaderInput("To:\n  \"Alice Liddell\" \n\t<sip:alice@wonderland.com>"), &toHeaderResult{pass,
-            &ToHeader{DisplayName:&aliceLiddell,
-                      Address:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+            &base.ToHeader{DisplayName:&aliceLiddell,
+                      Address:&base.SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
                       Params:noParams}}},
 
         test{toHeaderInput("t: Alice <sip:alice@wonderland.com>"), &toHeaderResult{pass,
-            &ToHeader{DisplayName:&aliceTitle,
-                      Address:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+            &base.ToHeader{DisplayName:&aliceTitle,
+                      Address:&base.SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
                       Params:noParams}}},
 
         test{toHeaderInput("To: Alice sip:alice@wonderland.com"), &toHeaderResult{fail,
-            &ToHeader{}}},
+            &base.ToHeader{}}},
 
         test{toHeaderInput("To:"), &toHeaderResult{fail,
-            &ToHeader{}}},
+            &base.ToHeader{}}},
 
         test{toHeaderInput("To: "), &toHeaderResult{fail,
-            &ToHeader{}}},
+            &base.ToHeader{}}},
 
         test{toHeaderInput("To:\t"), &toHeaderResult{fail,
-            &ToHeader{}}},
+            &base.ToHeader{}}},
 
         test{toHeaderInput("To: foo"), &toHeaderResult{fail,
-            &ToHeader{}}},
+            &base.ToHeader{}}},
 
         test{toHeaderInput("To: foo bar"), &toHeaderResult{fail,
-            &ToHeader{}}},
+            &base.ToHeader{}}},
 
         test{toHeaderInput("To: \"Alice\" sip:alice@wonderland.com"), &toHeaderResult{fail,
-            &ToHeader{}}},
+            &base.ToHeader{}}},
 
         test{toHeaderInput("To: \"<Alice>\" sip:alice@wonderland.com"), &toHeaderResult{fail,
-            &ToHeader{}}},
+            &base.ToHeader{}}},
 
         test{toHeaderInput("To: \"sip:alice@wonderland.com\""), &toHeaderResult{fail,
-            &ToHeader{}}},
+            &base.ToHeader{}}},
 
         test{toHeaderInput("To: \"sip:alice@wonderland.com\"  <sip:alice@wonderland.com>"), &toHeaderResult{pass,
-            &ToHeader{DisplayName:&aliceAddr,
-                      Address:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+            &base.ToHeader{DisplayName:&aliceAddr,
+                      Address:&base.SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
                       Params:noParams}}},
 
         test{toHeaderInput("T: \"<sip:alice@wonderland.com>\"  <sip:alice@wonderland.com>"), &toHeaderResult{pass,
-            &ToHeader{DisplayName:&aliceAddrQuot,
-                      Address:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+            &base.ToHeader{DisplayName:&aliceAddrQuot,
+                      Address:&base.SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
                       Params:noParams}}},
 
         test{toHeaderInput("To: \"<sip: alice@wonderland.com>\"  <sip:alice@wonderland.com>"), &toHeaderResult{pass,
-            &ToHeader{DisplayName:&aliceAddrQuotSp,
-                      Address:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+            &base.ToHeader{DisplayName:&aliceAddrQuotSp,
+                      Address:&base.SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
                       Params:noParams}}},
 
         test{toHeaderInput("To: \"Alice Liddell\" <sip:alice@wonderland.com>;foo=bar"), &toHeaderResult{pass,
-            &ToHeader{DisplayName:&aliceLiddell,
-                      Address:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+            &base.ToHeader{DisplayName:&aliceLiddell,
+                      Address:&base.SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
                       Params:fooEqBar}}},
 
         test{toHeaderInput("To: sip:alice@wonderland.com;foo=bar"), &toHeaderResult{pass,
-            &ToHeader{DisplayName:nil,
-                      Address:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+            &base.ToHeader{DisplayName:nil,
+                      Address:&base.SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
                       Params:fooEqBar}}},
 
         test{toHeaderInput("To: \"Alice Liddell\" <sip:alice@wonderland.com;foo=bar>"), &toHeaderResult{pass,
-            &ToHeader{DisplayName:&aliceLiddell,
-                      Address:&SipUri{false, &alice, nil, "wonderland.com", nil, fooEqBar, noParams},
+            &base.ToHeader{DisplayName:&aliceLiddell,
+                      Address:&base.SipUri{false, &alice, nil, "wonderland.com", nil, fooEqBar, noParams},
                       Params:noParams}}},
 
         test{toHeaderInput("To: \"Alice Liddell\" <sip:alice@wonderland.com?foo=bar>"), &toHeaderResult{pass,
-            &ToHeader{DisplayName:&aliceLiddell,
-                      Address:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, fooEqBar},
+            &base.ToHeader{DisplayName:&aliceLiddell,
+                      Address:&base.SipUri{false, &alice, nil, "wonderland.com", nil, noParams, fooEqBar},
                       Params:noParams}}},
 
         test{toHeaderInput("to: \"Alice Liddell\" <sip:alice@wonderland.com>;foo"), &toHeaderResult{pass,
-            &ToHeader{DisplayName:&aliceLiddell,
-                      Address:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+            &base.ToHeader{DisplayName:&aliceLiddell,
+                      Address:&base.SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
                       Params:fooSingleton}}},
 
         test{toHeaderInput("TO: \"Alice Liddell\" <sip:alice@wonderland.com;foo>"), &toHeaderResult{pass,
-            &ToHeader{DisplayName:&aliceLiddell,
-                      Address:&SipUri{false, &alice, nil, "wonderland.com", nil, fooSingleton, noParams},
+            &base.ToHeader{DisplayName:&aliceLiddell,
+                      Address:&base.SipUri{false, &alice, nil, "wonderland.com", nil, fooSingleton, noParams},
                       Params:noParams}}},
 
         test{toHeaderInput("To: \"Alice Liddell\" <sip:alice@wonderland.com?foo>"), &toHeaderResult{fail,
-            &ToHeader{}}},
+            &base.ToHeader{}}},
 
         test{toHeaderInput("To: \"Alice Liddell\" <sip:alice@wonderland.com;foo?foo=bar>;foo=bar"), &toHeaderResult{pass,
-            &ToHeader{DisplayName:&aliceLiddell,
-                      Address:&SipUri{false, &alice, nil, "wonderland.com", nil, fooSingleton, fooEqBar},
+            &base.ToHeader{DisplayName:&aliceLiddell,
+                      Address:&base.SipUri{false, &alice, nil, "wonderland.com", nil, fooSingleton, fooEqBar},
                       Params:fooEqBar}}},
 
         test{toHeaderInput("To: \"Alice Liddell\" <sip:alice@wonderland.com;foo?foo=bar>;foo"), &toHeaderResult{pass,
-            &ToHeader{DisplayName:&aliceLiddell,
-                      Address:&SipUri{false, &alice, nil, "wonderland.com", nil, fooSingleton, fooEqBar},
+            &base.ToHeader{DisplayName:&aliceLiddell,
+                      Address:&base.SipUri{false, &alice, nil, "wonderland.com", nil, fooSingleton, fooEqBar},
                       Params:fooSingleton}}},
 
         test{toHeaderInput("To: \"Alice Liddell\" <sip:alice@wonderland.com>"), &toHeaderResult{pass,
-            &ToHeader{DisplayName:&aliceLiddell,
-                      Address:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+            &base.ToHeader{DisplayName:&aliceLiddell,
+                      Address:&base.SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
                       Params:noParams}}},
 
         test{toHeaderInput("To: sip:alice@wonderland.com, sip:hatter@wonderland.com"), &toHeaderResult{fail,
-            &ToHeader{}}},
+            &base.ToHeader{}}},
 
-        test{toHeaderInput("To: *"), &toHeaderResult{fail, &ToHeader{}}},
+        test{toHeaderInput("To: *"), &toHeaderResult{fail, &base.ToHeader{}}},
 
-        test{toHeaderInput("To: <*>"), &toHeaderResult{fail, &ToHeader{}}},
+        test{toHeaderInput("To: <*>"), &toHeaderResult{fail, &base.ToHeader{}}},
     }, t)
 }
 
@@ -399,131 +406,131 @@ func TestFromHeaders(t *testing.T) {
     noParams := map[string]*string{}
     doTests([]test {
         test{fromHeaderInput("From: \"Alice Liddell\" <sip:alice@wonderland.com>"), &fromHeaderResult{pass,
-            &FromHeader{DisplayName:&aliceLiddell,
-                      Address:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+            &base.FromHeader{DisplayName:&aliceLiddell,
+                      Address:&base.SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
                       Params:noParams}}},
 
         test{fromHeaderInput("From : \"Alice Liddell\" <sip:alice@wonderland.com>"), &fromHeaderResult{pass,
-            &FromHeader{DisplayName:&aliceLiddell,
-                      Address:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+            &base.FromHeader{DisplayName:&aliceLiddell,
+                      Address:&base.SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
                       Params:noParams}}},
 
         test{fromHeaderInput("From   : \"Alice Liddell\" <sip:alice@wonderland.com>"), &fromHeaderResult{pass,
-            &FromHeader{DisplayName:&aliceLiddell,
-                      Address:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+            &base.FromHeader{DisplayName:&aliceLiddell,
+                      Address:&base.SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
                       Params:noParams}}},
 
         test{fromHeaderInput("From\t: \"Alice Liddell\" <sip:alice@wonderland.com>"), &fromHeaderResult{pass,
-            &FromHeader{DisplayName:&aliceLiddell,
-                      Address:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+            &base.FromHeader{DisplayName:&aliceLiddell,
+                      Address:&base.SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
                       Params:noParams}}},
 
         test{fromHeaderInput("From:\n  \"Alice Liddell\" \n\t<sip:alice@wonderland.com>"), &fromHeaderResult{pass,
-            &FromHeader{DisplayName:&aliceLiddell,
-                      Address:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+            &base.FromHeader{DisplayName:&aliceLiddell,
+                      Address:&base.SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
                       Params:noParams}}},
 
         test{fromHeaderInput("f: Alice <sip:alice@wonderland.com>"), &fromHeaderResult{pass,
-            &FromHeader{DisplayName:&aliceTitle,
-                      Address:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+            &base.FromHeader{DisplayName:&aliceTitle,
+                      Address:&base.SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
                       Params:noParams}}},
 
         test{fromHeaderInput("From: Alice sip:alice@wonderland.com"), &fromHeaderResult{fail,
-            &FromHeader{}}},
+            &base.FromHeader{}}},
 
         test{fromHeaderInput("From:"), &fromHeaderResult{fail,
-            &FromHeader{}}},
+            &base.FromHeader{}}},
 
         test{fromHeaderInput("From: "), &fromHeaderResult{fail,
-            &FromHeader{}}},
+            &base.FromHeader{}}},
 
         test{fromHeaderInput("From:\t"), &fromHeaderResult{fail,
-            &FromHeader{}}},
+            &base.FromHeader{}}},
 
         test{fromHeaderInput("From: foo"), &fromHeaderResult{fail,
-            &FromHeader{}}},
+            &base.FromHeader{}}},
 
         test{fromHeaderInput("From: foo bar"), &fromHeaderResult{fail,
-            &FromHeader{}}},
+            &base.FromHeader{}}},
 
         test{fromHeaderInput("From: \"Alice\" sip:alice@wonderland.com"), &fromHeaderResult{fail,
-            &FromHeader{}}},
+            &base.FromHeader{}}},
 
         test{fromHeaderInput("From: \"<Alice>\" sip:alice@wonderland.com"), &fromHeaderResult{fail,
-            &FromHeader{}}},
+            &base.FromHeader{}}},
 
         test{fromHeaderInput("From: \"sip:alice@wonderland.com\""), &fromHeaderResult{fail,
-            &FromHeader{}}},
+            &base.FromHeader{}}},
 
         test{fromHeaderInput("From: \"sip:alice@wonderland.com\"  <sip:alice@wonderland.com>"), &fromHeaderResult{pass,
-            &FromHeader{DisplayName:&aliceAddr,
-                      Address:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+            &base.FromHeader{DisplayName:&aliceAddr,
+                      Address:&base.SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
                       Params:noParams}}},
 
         test{fromHeaderInput("From: \"<sip:alice@wonderland.com>\"  <sip:alice@wonderland.com>"), &fromHeaderResult{pass,
-            &FromHeader{DisplayName:&aliceAddrQuot,
-                      Address:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+            &base.FromHeader{DisplayName:&aliceAddrQuot,
+                      Address:&base.SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
                       Params:noParams}}},
 
         test{fromHeaderInput("From: \"<sip: alice@wonderland.com>\"  <sip:alice@wonderland.com>"), &fromHeaderResult{pass,
-            &FromHeader{DisplayName:&aliceAddrQuotSp,
-                      Address:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+            &base.FromHeader{DisplayName:&aliceAddrQuotSp,
+                      Address:&base.SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
                       Params:noParams}}},
 
         test{fromHeaderInput("FrOm: \"Alice Liddell\" <sip:alice@wonderland.com>;foo=bar"), &fromHeaderResult{pass,
-            &FromHeader{DisplayName:&aliceLiddell,
-                      Address:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+            &base.FromHeader{DisplayName:&aliceLiddell,
+                      Address:&base.SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
                       Params:fooEqBar}}},
 
         test{fromHeaderInput("FrOm: sip:alice@wonderland.com;foo=bar"), &fromHeaderResult{pass,
-            &FromHeader{DisplayName:nil,
-                      Address:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+            &base.FromHeader{DisplayName:nil,
+                      Address:&base.SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
                       Params:fooEqBar}}},
 
         test{fromHeaderInput("from: \"Alice Liddell\" <sip:alice@wonderland.com;foo=bar>"), &fromHeaderResult{pass,
-            &FromHeader{DisplayName:&aliceLiddell,
-                      Address:&SipUri{false, &alice, nil, "wonderland.com", nil, fooEqBar, noParams},
+            &base.FromHeader{DisplayName:&aliceLiddell,
+                      Address:&base.SipUri{false, &alice, nil, "wonderland.com", nil, fooEqBar, noParams},
                       Params:noParams}}},
 
         test{fromHeaderInput("F: \"Alice Liddell\" <sip:alice@wonderland.com?foo=bar>"), &fromHeaderResult{pass,
-            &FromHeader{DisplayName:&aliceLiddell,
-                      Address:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, fooEqBar},
+            &base.FromHeader{DisplayName:&aliceLiddell,
+                      Address:&base.SipUri{false, &alice, nil, "wonderland.com", nil, noParams, fooEqBar},
                       Params:noParams}}},
 
         test{fromHeaderInput("From: \"Alice Liddell\" <sip:alice@wonderland.com>;foo"), &fromHeaderResult{pass,
-            &FromHeader{DisplayName:&aliceLiddell,
-                      Address:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+            &base.FromHeader{DisplayName:&aliceLiddell,
+                      Address:&base.SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
                       Params:fooSingleton}}},
 
         test{fromHeaderInput("From: \"Alice Liddell\" <sip:alice@wonderland.com;foo>"), &fromHeaderResult{pass,
-            &FromHeader{DisplayName:&aliceLiddell,
-                      Address:&SipUri{false, &alice, nil, "wonderland.com", nil, fooSingleton, noParams},
+            &base.FromHeader{DisplayName:&aliceLiddell,
+                      Address:&base.SipUri{false, &alice, nil, "wonderland.com", nil, fooSingleton, noParams},
                       Params:noParams}}},
 
         test{fromHeaderInput("From: \"Alice Liddell\" <sip:alice@wonderland.com?foo>"), &fromHeaderResult{fail,
-            &FromHeader{}}},
+            &base.FromHeader{}}},
 
         test{fromHeaderInput("From: \"Alice Liddell\" <sip:alice@wonderland.com;foo?foo=bar>;foo=bar"), &fromHeaderResult{pass,
-            &FromHeader{DisplayName:&aliceLiddell,
-                      Address:&SipUri{false, &alice, nil, "wonderland.com", nil, fooSingleton, fooEqBar},
+            &base.FromHeader{DisplayName:&aliceLiddell,
+                      Address:&base.SipUri{false, &alice, nil, "wonderland.com", nil, fooSingleton, fooEqBar},
                       Params:fooEqBar}}},
 
         test{fromHeaderInput("From: \"Alice Liddell\" <sip:alice@wonderland.com;foo?foo=bar>;foo"), &fromHeaderResult{pass,
-            &FromHeader{DisplayName:&aliceLiddell,
-                      Address:&SipUri{false, &alice, nil, "wonderland.com", nil, fooSingleton, fooEqBar},
+            &base.FromHeader{DisplayName:&aliceLiddell,
+                      Address:&base.SipUri{false, &alice, nil, "wonderland.com", nil, fooSingleton, fooEqBar},
                       Params:fooSingleton}}},
 
         test{fromHeaderInput("From: \"Alice Liddell\" <sip:alice@wonderland.com>"), &fromHeaderResult{pass,
-            &FromHeader{DisplayName:&aliceLiddell,
-                      Address:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+            &base.FromHeader{DisplayName:&aliceLiddell,
+                      Address:&base.SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
                       Params:noParams}}},
 
         test{fromHeaderInput("From: sip:alice@wonderland.com, sip:hatter@wonderland.com"), &fromHeaderResult{fail,
-            &FromHeader{}}},
+            &base.FromHeader{}}},
 
-        test{fromHeaderInput("From: *"), &fromHeaderResult{fail, &FromHeader{}}},
+        test{fromHeaderInput("From: *"), &fromHeaderResult{fail, &base.FromHeader{}}},
 
-        test{fromHeaderInput("From: <*>"), &fromHeaderResult{fail, &FromHeader{}}},
+        test{fromHeaderInput("From: <*>"), &fromHeaderResult{fail, &base.FromHeader{}}},
     }, t)
 }
 
@@ -534,358 +541,358 @@ func TestContactHeaders(t *testing.T) {
     doTests([]test {
         test{contactHeaderInput("Contact: \"Alice Liddell\" <sip:alice@wonderland.com>"), &contactHeaderResult{
             pass,
-            []*ContactHeader {
-                &ContactHeader{DisplayName:&aliceLiddell,
-                          Address:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+            []*base.ContactHeader {
+                &base.ContactHeader{DisplayName:&aliceLiddell,
+                          Address:&base.SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
                           Params:noParams}}}},
 
         test{contactHeaderInput("Contact : \"Alice Liddell\" <sip:alice@wonderland.com>"), &contactHeaderResult{
             pass,
-            []*ContactHeader {
-                &ContactHeader{DisplayName:&aliceLiddell,
-                          Address:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+            []*base.ContactHeader {
+                &base.ContactHeader{DisplayName:&aliceLiddell,
+                          Address:&base.SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
                           Params:noParams}}}},
         test{contactHeaderInput("Contact  : \"Alice Liddell\" <sip:alice@wonderland.com>"), &contactHeaderResult{
             pass,
-            []*ContactHeader {
-                &ContactHeader{DisplayName:&aliceLiddell,
-                          Address:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+            []*base.ContactHeader {
+                &base.ContactHeader{DisplayName:&aliceLiddell,
+                          Address:&base.SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
                           Params:noParams}}}},
         test{contactHeaderInput("Contact\t: \"Alice Liddell\" <sip:alice@wonderland.com>"), &contactHeaderResult{
             pass,
-            []*ContactHeader {
-                &ContactHeader{DisplayName:&aliceLiddell,
-                          Address:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+            []*base.ContactHeader {
+                &base.ContactHeader{DisplayName:&aliceLiddell,
+                          Address:&base.SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
                           Params:noParams}}}},
         test{contactHeaderInput("Contact:\n  \"Alice Liddell\" \n\t<sip:alice@wonderland.com>"), &contactHeaderResult{
             pass,
-            []*ContactHeader {
-                &ContactHeader{DisplayName:&aliceLiddell,
-                          Address:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+            []*base.ContactHeader {
+                &base.ContactHeader{DisplayName:&aliceLiddell,
+                          Address:&base.SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
                           Params:noParams}}}},
 
         test{contactHeaderInput("m: Alice <sip:alice@wonderland.com>"), &contactHeaderResult{
             pass,
-            []*ContactHeader {
-                &ContactHeader{DisplayName:&aliceTitle,
-                          Address:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+            []*base.ContactHeader {
+                &base.ContactHeader{DisplayName:&aliceTitle,
+                          Address:&base.SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
                           Params:noParams}}}},
 
         test{contactHeaderInput("Contact: *"), &contactHeaderResult{
             pass,
-            []*ContactHeader {
-                &ContactHeader{Address:&WildcardUri{}}}}},
+            []*base.ContactHeader {
+                &base.ContactHeader{Address:&base.WildcardUri{}}}}},
 
         test{contactHeaderInput("Contact: \t  *"), &contactHeaderResult{
             pass,
-            []*ContactHeader {
-                &ContactHeader{Address:&WildcardUri{}}}}},
+            []*base.ContactHeader {
+                &base.ContactHeader{Address:&base.WildcardUri{}}}}},
 
         test{contactHeaderInput("M: *"), &contactHeaderResult{
             pass,
-            []*ContactHeader {
-                &ContactHeader{Address:&WildcardUri{}}}}},
+            []*base.ContactHeader {
+                &base.ContactHeader{Address:&base.WildcardUri{}}}}},
 
         test{contactHeaderInput("Contact: *"), &contactHeaderResult{
             pass,
-            []*ContactHeader {
-                &ContactHeader{Address:&WildcardUri{}}}}},
+            []*base.ContactHeader {
+                &base.ContactHeader{Address:&base.WildcardUri{}}}}},
 
         test{contactHeaderInput("Contact: \"John\" *"), &contactHeaderResult{
             fail,
-            []*ContactHeader {}}},
+            []*base.ContactHeader {}}},
 
         test{contactHeaderInput("Contact: \"John\" <*>"), &contactHeaderResult{
             fail,
-            []*ContactHeader {}}},
+            []*base.ContactHeader {}}},
 
         test{contactHeaderInput("Contact: *;foo=bar"), &contactHeaderResult{
             fail,
-            []*ContactHeader {}}},
+            []*base.ContactHeader {}}},
 
         test{contactHeaderInput("Contact: Alice sip:alice@wonderland.com"), &contactHeaderResult{
             fail,
-            []*ContactHeader {
-            &ContactHeader{}}}},
+            []*base.ContactHeader {
+            &base.ContactHeader{}}}},
 
         test{contactHeaderInput("Contact:"), &contactHeaderResult{
             fail,
-            []*ContactHeader {
-            &ContactHeader{}}}},
+            []*base.ContactHeader {
+            &base.ContactHeader{}}}},
 
         test{contactHeaderInput("Contact: "), &contactHeaderResult{
             fail,
-            []*ContactHeader {
-            &ContactHeader{}}}},
+            []*base.ContactHeader {
+            &base.ContactHeader{}}}},
 
         test{contactHeaderInput("Contact:\t"), &contactHeaderResult{
             fail,
-            []*ContactHeader {
-            &ContactHeader{}}}},
+            []*base.ContactHeader {
+            &base.ContactHeader{}}}},
 
         test{contactHeaderInput("Contact: foo"), &contactHeaderResult{
             fail,
-            []*ContactHeader {
-            &ContactHeader{}}}},
+            []*base.ContactHeader {
+            &base.ContactHeader{}}}},
 
         test{contactHeaderInput("Contact: foo bar"), &contactHeaderResult{
             fail,
-            []*ContactHeader {
-            &ContactHeader{}}}},
+            []*base.ContactHeader {
+            &base.ContactHeader{}}}},
 
         test{contactHeaderInput("Contact: \"Alice\" sip:alice@wonderland.com"), &contactHeaderResult{
             fail,
-            []*ContactHeader {
-            &ContactHeader{}}}},
+            []*base.ContactHeader {
+            &base.ContactHeader{}}}},
 
         test{contactHeaderInput("Contact: \"<Alice>\" sip:alice@wonderland.com"), &contactHeaderResult{
             fail,
-            []*ContactHeader {
-            &ContactHeader{}}}},
+            []*base.ContactHeader {
+            &base.ContactHeader{}}}},
 
         test{contactHeaderInput("Contact: \"sip:alice@wonderland.com\""), &contactHeaderResult{
             fail,
-            []*ContactHeader {
-            &ContactHeader{}}}},
+            []*base.ContactHeader {
+            &base.ContactHeader{}}}},
 
         test{contactHeaderInput("Contact: \"sip:alice@wonderland.com\"  <sip:alice@wonderland.com>"), &contactHeaderResult{
             pass,
-            []*ContactHeader {
-                &ContactHeader{DisplayName:&aliceAddr,
-                          Address:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+            []*base.ContactHeader {
+                &base.ContactHeader{DisplayName:&aliceAddr,
+                          Address:&base.SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
                           Params:noParams}}}},
 
         test{contactHeaderInput("Contact: \"<sip:alice@wonderland.com>\"  <sip:alice@wonderland.com>"), &contactHeaderResult{
             pass,
-            []*ContactHeader {
-                &ContactHeader{DisplayName:&aliceAddrQuot,
-                          Address:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+            []*base.ContactHeader {
+                &base.ContactHeader{DisplayName:&aliceAddrQuot,
+                          Address:&base.SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
                           Params:noParams}}}},
 
         test{contactHeaderInput("Contact: \"<sip: alice@wonderland.com>\"  <sip:alice@wonderland.com>"), &contactHeaderResult{
             pass,
-            []*ContactHeader {
-                &ContactHeader{DisplayName:&aliceAddrQuotSp,
-                          Address:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+            []*base.ContactHeader {
+                &base.ContactHeader{DisplayName:&aliceAddrQuotSp,
+                          Address:&base.SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
                           Params:noParams}}}},
 
         test{contactHeaderInput("cOntACt: \"Alice Liddell\" <sip:alice@wonderland.com>;foo=bar"), &contactHeaderResult{
             pass,
-            []*ContactHeader {
-                &ContactHeader{DisplayName:&aliceLiddell,
-                          Address:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+            []*base.ContactHeader {
+                &base.ContactHeader{DisplayName:&aliceLiddell,
+                          Address:&base.SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
                           Params:fooEqBar}}}},
 
         test{contactHeaderInput("contact: \"Alice Liddell\" <sip:alice@wonderland.com;foo=bar>"), &contactHeaderResult{
             pass,
-            []*ContactHeader {
-                &ContactHeader{DisplayName:&aliceLiddell,
-                          Address:&SipUri{false, &alice, nil, "wonderland.com", nil, fooEqBar, noParams},
+            []*base.ContactHeader {
+                &base.ContactHeader{DisplayName:&aliceLiddell,
+                          Address:&base.SipUri{false, &alice, nil, "wonderland.com", nil, fooEqBar, noParams},
                           Params:noParams}}}},
 
         test{contactHeaderInput("M: \"Alice Liddell\" <sip:alice@wonderland.com?foo=bar>"), &contactHeaderResult{
             pass,
-            []*ContactHeader {
-                &ContactHeader{DisplayName:&aliceLiddell,
-                          Address:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, fooEqBar},
+            []*base.ContactHeader {
+                &base.ContactHeader{DisplayName:&aliceLiddell,
+                          Address:&base.SipUri{false, &alice, nil, "wonderland.com", nil, noParams, fooEqBar},
                           Params:noParams}}}},
 
         test{contactHeaderInput("Contact: \"Alice Liddell\" <sip:alice@wonderland.com>;foo"), &contactHeaderResult{
             pass,
-            []*ContactHeader {
-                &ContactHeader{DisplayName:&aliceLiddell,
-                          Address:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+            []*base.ContactHeader {
+                &base.ContactHeader{DisplayName:&aliceLiddell,
+                          Address:&base.SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
                           Params:fooSingleton}}}},
 
         test{contactHeaderInput("Contact: \"Alice Liddell\" <sip:alice@wonderland.com;foo>"), &contactHeaderResult{
             pass,
-            []*ContactHeader {
-                &ContactHeader{DisplayName:&aliceLiddell,
-                          Address:&SipUri{false, &alice, nil, "wonderland.com", nil, fooSingleton, noParams},
+            []*base.ContactHeader {
+                &base.ContactHeader{DisplayName:&aliceLiddell,
+                          Address:&base.SipUri{false, &alice, nil, "wonderland.com", nil, fooSingleton, noParams},
                           Params:noParams}}}},
 
         test{contactHeaderInput("Contact: \"Alice Liddell\" <sip:alice@wonderland.com?foo>"), &contactHeaderResult{
             fail,
-            []*ContactHeader {
-            &ContactHeader{}}}},
+            []*base.ContactHeader {
+            &base.ContactHeader{}}}},
 
         test{contactHeaderInput("Contact: \"Alice Liddell\" <sip:alice@wonderland.com;foo?foo=bar>;foo=bar"), &contactHeaderResult{
             pass,
-            []*ContactHeader {
-                &ContactHeader{DisplayName:&aliceLiddell,
-                          Address:&SipUri{false, &alice, nil, "wonderland.com", nil, fooSingleton, fooEqBar},
+            []*base.ContactHeader {
+                &base.ContactHeader{DisplayName:&aliceLiddell,
+                          Address:&base.SipUri{false, &alice, nil, "wonderland.com", nil, fooSingleton, fooEqBar},
                           Params:fooEqBar}}}},
 
         test{contactHeaderInput("Contact: \"Alice Liddell\" <sip:alice@wonderland.com;foo?foo=bar>;foo"), &contactHeaderResult{
             pass,
-            []*ContactHeader {
-                &ContactHeader{DisplayName:&aliceLiddell,
-                          Address:&SipUri{false, &alice, nil, "wonderland.com", nil, fooSingleton, fooEqBar},
+            []*base.ContactHeader {
+                &base.ContactHeader{DisplayName:&aliceLiddell,
+                          Address:&base.SipUri{false, &alice, nil, "wonderland.com", nil, fooSingleton, fooEqBar},
                           Params:fooSingleton}}}},
 
         test{contactHeaderInput("Contact: \"Alice Liddell\" <sip:alice@wonderland.com>"), &contactHeaderResult{
             pass,
-            []*ContactHeader {
-                &ContactHeader{DisplayName:&aliceLiddell,
-                          Address:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
+            []*base.ContactHeader {
+                &base.ContactHeader{DisplayName:&aliceLiddell,
+                          Address:&base.SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams},
                           Params:noParams}}}},
 
         test{contactHeaderInput("Contact: sip:alice@wonderland.com, sip:hatter@wonderland.com"), &contactHeaderResult{
             pass,
-            []*ContactHeader {
-                &ContactHeader{DisplayName: nil, Address:&SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams}, Params:noParams},
-                &ContactHeader{DisplayName: nil, Address:&SipUri{false, &hatter, nil, "wonderland.com", nil, noParams, noParams}, Params:noParams}}}},
+            []*base.ContactHeader {
+                &base.ContactHeader{DisplayName: nil, Address:&base.SipUri{false, &alice, nil, "wonderland.com", nil, noParams, noParams}, Params:noParams},
+                &base.ContactHeader{DisplayName: nil, Address:&base.SipUri{false, &hatter, nil, "wonderland.com", nil, noParams, noParams}, Params:noParams}}}},
 
         test{contactHeaderInput("Contact: \"Alice Liddell\" <sips:alice@wonderland.com>, \"Madison Hatter\" <sip:hatter@wonderland.com>"), &contactHeaderResult{
             pass,
-            []*ContactHeader {
-                &ContactHeader{DisplayName: &aliceLiddell,
-                               Address:&SipUri{true, &alice, nil, "wonderland.com", nil, noParams, noParams}},
-                &ContactHeader{DisplayName: &madHatter,
-                               Address:&SipUri{false, &hatter, nil, "wonderland.com", nil, noParams, noParams}}}}},
+            []*base.ContactHeader {
+                &base.ContactHeader{DisplayName: &aliceLiddell,
+                               Address:&base.SipUri{true, &alice, nil, "wonderland.com", nil, noParams, noParams}},
+                &base.ContactHeader{DisplayName: &madHatter,
+                               Address:&base.SipUri{false, &hatter, nil, "wonderland.com", nil, noParams, noParams}}}}},
 
         test{contactHeaderInput("Contact: <sips:alice@wonderland.com>, \"Madison Hatter\" <sip:hatter@wonderland.com>"), &contactHeaderResult{
             pass,
-            []*ContactHeader {
-                &ContactHeader{DisplayName: nil,
-                               Address:&SipUri{true, &alice, nil, "wonderland.com", nil, noParams, noParams}},
-                &ContactHeader{DisplayName: &madHatter,
-                               Address:&SipUri{false, &hatter, nil, "wonderland.com", nil, noParams, noParams}}}}},
+            []*base.ContactHeader {
+                &base.ContactHeader{DisplayName: nil,
+                               Address:&base.SipUri{true, &alice, nil, "wonderland.com", nil, noParams, noParams}},
+                &base.ContactHeader{DisplayName: &madHatter,
+                               Address:&base.SipUri{false, &hatter, nil, "wonderland.com", nil, noParams, noParams}}}}},
 
         test{contactHeaderInput("Contact: \"Alice Liddell\" <sips:alice@wonderland.com>, <sip:hatter@wonderland.com>"), &contactHeaderResult{
             pass,
-            []*ContactHeader {
-                &ContactHeader{DisplayName: &aliceLiddell,
-                               Address:&SipUri{true, &alice, nil, "wonderland.com", nil, noParams, noParams}},
-                &ContactHeader{DisplayName: nil,
-                               Address:&SipUri{false, &hatter, nil, "wonderland.com", nil, noParams, noParams}}}}},
+            []*base.ContactHeader {
+                &base.ContactHeader{DisplayName: &aliceLiddell,
+                               Address:&base.SipUri{true, &alice, nil, "wonderland.com", nil, noParams, noParams}},
+                &base.ContactHeader{DisplayName: nil,
+                               Address:&base.SipUri{false, &hatter, nil, "wonderland.com", nil, noParams, noParams}}}}},
 
         test{contactHeaderInput("Contact: \"Alice Liddell\" <sips:alice@wonderland.com>, \"Madison Hatter\" <sip:hatter@wonderland.com>" +
                                 ",    sip:kat@cheshire.gov.uk"), &contactHeaderResult{
             pass,
-            []*ContactHeader {
-                &ContactHeader{DisplayName: &aliceLiddell,
-                               Address:&SipUri{true, &alice, nil, "wonderland.com", nil, noParams, noParams}},
-                &ContactHeader{DisplayName: &madHatter,
-                               Address:&SipUri{false, &hatter, nil, "wonderland.com", nil, noParams, noParams}},
-                &ContactHeader{DisplayName: nil,
-                               Address:&SipUri{false, &kat, nil, "cheshire.gov.uk", nil, noParams, noParams}}}}},
+            []*base.ContactHeader {
+                &base.ContactHeader{DisplayName: &aliceLiddell,
+                               Address:&base.SipUri{true, &alice, nil, "wonderland.com", nil, noParams, noParams}},
+                &base.ContactHeader{DisplayName: &madHatter,
+                               Address:&base.SipUri{false, &hatter, nil, "wonderland.com", nil, noParams, noParams}},
+                &base.ContactHeader{DisplayName: nil,
+                               Address:&base.SipUri{false, &kat, nil, "cheshire.gov.uk", nil, noParams, noParams}}}}},
 
         test{contactHeaderInput("Contact: \"Alice Liddell\" <sips:alice@wonderland.com>;foo=bar, \"Madison Hatter\" <sip:hatter@wonderland.com>" +
                                 ",    sip:kat@cheshire.gov.uk"), &contactHeaderResult{
             pass,
-            []*ContactHeader {
-                &ContactHeader{DisplayName: &aliceLiddell,
-                               Address:&SipUri{true, &alice, nil, "wonderland.com", nil, noParams, noParams},
+            []*base.ContactHeader {
+                &base.ContactHeader{DisplayName: &aliceLiddell,
+                               Address:&base.SipUri{true, &alice, nil, "wonderland.com", nil, noParams, noParams},
                                Params:fooEqBar},
-                &ContactHeader{DisplayName: &madHatter,
-                               Address:&SipUri{false, &hatter, nil, "wonderland.com", nil, noParams, noParams}},
-                &ContactHeader{DisplayName: nil,
-                               Address:&SipUri{false, &kat, nil, "cheshire.gov.uk", nil, noParams, noParams}}}}},
+                &base.ContactHeader{DisplayName: &madHatter,
+                               Address:&base.SipUri{false, &hatter, nil, "wonderland.com", nil, noParams, noParams}},
+                &base.ContactHeader{DisplayName: nil,
+                               Address:&base.SipUri{false, &kat, nil, "cheshire.gov.uk", nil, noParams, noParams}}}}},
 
         test{contactHeaderInput("Contact: \"Alice Liddell\" <sips:alice@wonderland.com>, \"Madison Hatter\" <sip:hatter@wonderland.com>;foo=bar" +
                                 ",    sip:kat@cheshire.gov.uk"), &contactHeaderResult{
             pass,
-            []*ContactHeader {
-                &ContactHeader{DisplayName: &aliceLiddell,
-                               Address:&SipUri{true, &alice, nil, "wonderland.com", nil, noParams, noParams}},
-                &ContactHeader{DisplayName: &madHatter,
-                               Address:&SipUri{false, &hatter, nil, "wonderland.com", nil, noParams, noParams},
+            []*base.ContactHeader {
+                &base.ContactHeader{DisplayName: &aliceLiddell,
+                               Address:&base.SipUri{true, &alice, nil, "wonderland.com", nil, noParams, noParams}},
+                &base.ContactHeader{DisplayName: &madHatter,
+                               Address:&base.SipUri{false, &hatter, nil, "wonderland.com", nil, noParams, noParams},
                                Params:fooEqBar},
-                &ContactHeader{DisplayName: nil,
-                               Address:&SipUri{false, &kat, nil, "cheshire.gov.uk", nil, noParams, noParams}}}}},
+                &base.ContactHeader{DisplayName: nil,
+                               Address:&base.SipUri{false, &kat, nil, "cheshire.gov.uk", nil, noParams, noParams}}}}},
 
 
         test{contactHeaderInput("Contact: \"Alice Liddell\" <sips:alice@wonderland.com>, \"Madison Hatter\" <sip:hatter@wonderland.com>" +
                                 ",    sip:kat@cheshire.gov.uk;foo=bar"), &contactHeaderResult{
             pass,
-            []*ContactHeader {
-                &ContactHeader{DisplayName: &aliceLiddell,
-                               Address:&SipUri{true, &alice, nil, "wonderland.com", nil, noParams, noParams}},
-                &ContactHeader{DisplayName: &madHatter,
-                               Address:&SipUri{false, &hatter, nil, "wonderland.com", nil, noParams, noParams}},
-                &ContactHeader{DisplayName: nil,
-                               Address:&SipUri{false, &kat, nil, "cheshire.gov.uk", nil, noParams, noParams},
+            []*base.ContactHeader {
+                &base.ContactHeader{DisplayName: &aliceLiddell,
+                               Address:&base.SipUri{true, &alice, nil, "wonderland.com", nil, noParams, noParams}},
+                &base.ContactHeader{DisplayName: &madHatter,
+                               Address:&base.SipUri{false, &hatter, nil, "wonderland.com", nil, noParams, noParams}},
+                &base.ContactHeader{DisplayName: nil,
+                               Address:&base.SipUri{false, &kat, nil, "cheshire.gov.uk", nil, noParams, noParams},
                                Params:fooEqBar}}}},
     }, t)
 }
 
 func TestCSeqs(t *testing.T) {
     doTests([]test {
-        test{cSeqInput("CSeq: 1 INVITE"), &cSeqResult{pass, &CSeq{1, "INVITE"}}},
-        test{cSeqInput("CSeq : 1 INVITE"), &cSeqResult{pass, &CSeq{1, "INVITE"}}},
-        test{cSeqInput("CSeq  : 1 INVITE"), &cSeqResult{pass, &CSeq{1, "INVITE"}}},
-        test{cSeqInput("CSeq\t: 1 INVITE"), &cSeqResult{pass, &CSeq{1, "INVITE"}}},
-        test{cSeqInput("CSeq: 0 register"), &cSeqResult{pass, &CSeq{0, "register"}}},
-        test{cSeqInput("CSeq: 10 reGister"), &cSeqResult{pass, &CSeq{10, "reGister"}}},
-        test{cSeqInput("CSeq: 17 FOOBAR"), &cSeqResult{pass, &CSeq{17, "FOOBAR"}}},
-        test{cSeqInput("CSeq: 2147483647 NOTIFY"), &cSeqResult{pass, &CSeq{2147483647, "NOTIFY"}}},
-        test{cSeqInput("CSeq: 2147483648 NOTIFY"), &cSeqResult{fail, &CSeq{}}},
-        test{cSeqInput("CSeq: -124 ACK"), &cSeqResult{fail, &CSeq{}}},
-        test{cSeqInput("CSeq: 1"), &cSeqResult{fail, &CSeq{}}},
-        test{cSeqInput("CSeq: ACK"), &cSeqResult{fail, &CSeq{}}},
-        test{cSeqInput("CSeq:"), &cSeqResult{fail, &CSeq{}}},
-        test{cSeqInput("CSeq: FOO ACK"), &cSeqResult{fail, &CSeq{}}},
-        test{cSeqInput("CSeq: 9999999999999999999999999999999 SUBSCRIBE"), &cSeqResult{fail, &CSeq{}}},
-        test{cSeqInput("CSeq: 1 INVITE;foo=bar"), &cSeqResult{fail, &CSeq{}}},
-        test{cSeqInput("CSeq: 1 INVITE;foo"), &cSeqResult{fail, &CSeq{}}},
-        test{cSeqInput("CSeq: 1 INVITE;foo=bar;baz"), &cSeqResult{fail, &CSeq{}}},
+        test{cSeqInput("CSeq: 1 INVITE"), &cSeqResult{pass, &base.CSeq{1, "INVITE"}}},
+        test{cSeqInput("CSeq : 1 INVITE"), &cSeqResult{pass, &base.CSeq{1, "INVITE"}}},
+        test{cSeqInput("CSeq  : 1 INVITE"), &cSeqResult{pass, &base.CSeq{1, "INVITE"}}},
+        test{cSeqInput("CSeq\t: 1 INVITE"), &cSeqResult{pass, &base.CSeq{1, "INVITE"}}},
+        test{cSeqInput("CSeq: 0 register"), &cSeqResult{pass, &base.CSeq{0, "register"}}},
+        test{cSeqInput("CSeq: 10 reGister"), &cSeqResult{pass, &base.CSeq{10, "reGister"}}},
+        test{cSeqInput("CSeq: 17 FOOBAR"), &cSeqResult{pass, &base.CSeq{17, "FOOBAR"}}},
+        test{cSeqInput("CSeq: 2147483647 NOTIFY"), &cSeqResult{pass, &base.CSeq{2147483647, "NOTIFY"}}},
+        test{cSeqInput("CSeq: 2147483648 NOTIFY"), &cSeqResult{fail, &base.CSeq{}}},
+        test{cSeqInput("CSeq: -124 ACK"), &cSeqResult{fail, &base.CSeq{}}},
+        test{cSeqInput("CSeq: 1"), &cSeqResult{fail, &base.CSeq{}}},
+        test{cSeqInput("CSeq: ACK"), &cSeqResult{fail, &base.CSeq{}}},
+        test{cSeqInput("CSeq:"), &cSeqResult{fail, &base.CSeq{}}},
+        test{cSeqInput("CSeq: FOO ACK"), &cSeqResult{fail, &base.CSeq{}}},
+        test{cSeqInput("CSeq: 9999999999999999999999999999999 SUBSCRIBE"), &cSeqResult{fail, &base.CSeq{}}},
+        test{cSeqInput("CSeq: 1 INVITE;foo=bar"), &cSeqResult{fail, &base.CSeq{}}},
+        test{cSeqInput("CSeq: 1 INVITE;foo"), &cSeqResult{fail, &base.CSeq{}}},
+        test{cSeqInput("CSeq: 1 INVITE;foo=bar;baz"), &cSeqResult{fail, &base.CSeq{}}},
     }, t)
 }
 
 func TestCallIds(t *testing.T) {
     doTests([]test {
-        test{callIdInput("Call-ID: fdlknfa32bse3yrbew23bf"), &callIdResult{pass, CallId("fdlknfa32bse3yrbew23bf")}},
-        test{callIdInput("Call-ID : fdlknfa32bse3yrbew23bf"), &callIdResult{pass, CallId("fdlknfa32bse3yrbew23bf")}},
-        test{callIdInput("Call-ID  : fdlknfa32bse3yrbew23bf"), &callIdResult{pass, CallId("fdlknfa32bse3yrbew23bf")}},
-        test{callIdInput("Call-ID\t: fdlknfa32bse3yrbew23bf"), &callIdResult{pass, CallId("fdlknfa32bse3yrbew23bf")}},
-        test{callIdInput("Call-ID: banana"), &callIdResult{pass, CallId("banana")}},
-        test{callIdInput("calL-id: banana"), &callIdResult{pass, CallId("banana")}},
-        test{callIdInput("calL-id: 1banana"), &callIdResult{pass, CallId("1banana")}},
-        test{callIdInput("Call-ID:"), &callIdResult{fail, CallId("")}},
-        test{callIdInput("Call-ID: banana spaghetti"), &callIdResult{fail, CallId("")}},
-        test{callIdInput("Call-ID: banana\tspaghetti"), &callIdResult{fail, CallId("")}},
-        test{callIdInput("Call-ID: banana;spaghetti"), &callIdResult{fail, CallId("")}},
-        test{callIdInput("Call-ID: banana;spaghetti=tasty"), &callIdResult{fail, CallId("")}},
+        test{callIdInput("Call-ID: fdlknfa32bse3yrbew23bf"), &callIdResult{pass, base.CallId("fdlknfa32bse3yrbew23bf")}},
+        test{callIdInput("Call-ID : fdlknfa32bse3yrbew23bf"), &callIdResult{pass, base.CallId("fdlknfa32bse3yrbew23bf")}},
+        test{callIdInput("Call-ID  : fdlknfa32bse3yrbew23bf"), &callIdResult{pass, base.CallId("fdlknfa32bse3yrbew23bf")}},
+        test{callIdInput("Call-ID\t: fdlknfa32bse3yrbew23bf"), &callIdResult{pass, base.CallId("fdlknfa32bse3yrbew23bf")}},
+        test{callIdInput("Call-ID: banana"), &callIdResult{pass, base.CallId("banana")}},
+        test{callIdInput("calL-id: banana"), &callIdResult{pass, base.CallId("banana")}},
+        test{callIdInput("calL-id: 1banana"), &callIdResult{pass, base.CallId("1banana")}},
+        test{callIdInput("Call-ID:"), &callIdResult{fail, base.CallId("")}},
+        test{callIdInput("Call-ID: banana spaghetti"), &callIdResult{fail, base.CallId("")}},
+        test{callIdInput("Call-ID: banana\tspaghetti"), &callIdResult{fail, base.CallId("")}},
+        test{callIdInput("Call-ID: banana;spaghetti"), &callIdResult{fail, base.CallId("")}},
+        test{callIdInput("Call-ID: banana;spaghetti=tasty"), &callIdResult{fail, base.CallId("")}},
     }, t)
 }
 
 func TestMaxForwards(t *testing.T) {
     doTests([] test {
-        test{maxForwardsInput("Max-Forwards: 9"), &maxForwardsResult{pass, MaxForwards(9)}},
-        test{maxForwardsInput("Max-Forwards: 70"), &maxForwardsResult{pass, MaxForwards(70)}},
-        test{maxForwardsInput("Max-Forwards: 71"), &maxForwardsResult{pass, MaxForwards(71)}},
-        test{maxForwardsInput("Max-Forwards: 0"), &maxForwardsResult{pass, MaxForwards(0)}},
-        test{maxForwardsInput("Max-Forwards:      0"), &maxForwardsResult{pass, MaxForwards(0)}},
-        test{maxForwardsInput("Max-Forwards:\t0"), &maxForwardsResult{pass, MaxForwards(0)}},
-        test{maxForwardsInput("Max-Forwards: \t 0"), &maxForwardsResult{pass, MaxForwards(0)}},
-        test{maxForwardsInput("Max-Forwards:\n  0"), &maxForwardsResult{pass, MaxForwards(0)}},
-        test{maxForwardsInput("Max-Forwards: -1"), &maxForwardsResult{fail, MaxForwards(0)}},
-        test{maxForwardsInput("Max-Forwards:"), &maxForwardsResult{fail, MaxForwards(0)}},
-        test{maxForwardsInput("Max-Forwards: "), &maxForwardsResult{fail, MaxForwards(0)}},
-        test{maxForwardsInput("Max-Forwards:\t"), &maxForwardsResult{fail, MaxForwards(0)}},
-        test{maxForwardsInput("Max-Forwards:\n"), &maxForwardsResult{fail, MaxForwards(0)}},
-        test{maxForwardsInput("Max-Forwards: \n"), &maxForwardsResult{fail, MaxForwards(0)}},
+        test{maxForwardsInput("Max-Forwards: 9"), &maxForwardsResult{pass, base.MaxForwards(9)}},
+        test{maxForwardsInput("Max-Forwards: 70"), &maxForwardsResult{pass, base.MaxForwards(70)}},
+        test{maxForwardsInput("Max-Forwards: 71"), &maxForwardsResult{pass, base.MaxForwards(71)}},
+        test{maxForwardsInput("Max-Forwards: 0"), &maxForwardsResult{pass, base.MaxForwards(0)}},
+        test{maxForwardsInput("Max-Forwards:      0"), &maxForwardsResult{pass, base.MaxForwards(0)}},
+        test{maxForwardsInput("Max-Forwards:\t0"), &maxForwardsResult{pass, base.MaxForwards(0)}},
+        test{maxForwardsInput("Max-Forwards: \t 0"), &maxForwardsResult{pass, base.MaxForwards(0)}},
+        test{maxForwardsInput("Max-Forwards:\n  0"), &maxForwardsResult{pass, base.MaxForwards(0)}},
+        test{maxForwardsInput("Max-Forwards: -1"), &maxForwardsResult{fail, base.MaxForwards(0)}},
+        test{maxForwardsInput("Max-Forwards:"), &maxForwardsResult{fail, base.MaxForwards(0)}},
+        test{maxForwardsInput("Max-Forwards: "), &maxForwardsResult{fail, base.MaxForwards(0)}},
+        test{maxForwardsInput("Max-Forwards:\t"), &maxForwardsResult{fail, base.MaxForwards(0)}},
+        test{maxForwardsInput("Max-Forwards:\n"), &maxForwardsResult{fail, base.MaxForwards(0)}},
+        test{maxForwardsInput("Max-Forwards: \n"), &maxForwardsResult{fail, base.MaxForwards(0)}},
     }, t)
 }
 
 func TestContentLength(t *testing.T) {
     doTests([] test {
-        test{contentLengthInput("Content-Length: 9"), &contentLengthResult{pass, ContentLength(9)}},
-        test{contentLengthInput("Content-Length: 20"), &contentLengthResult{pass, ContentLength(20)}},
-        test{contentLengthInput("Content-Length: 113"), &contentLengthResult{pass, ContentLength(113)}},
-        test{contentLengthInput("l: 113"), &contentLengthResult{pass, ContentLength(113)}},
-        test{contentLengthInput("Content-Length: 0"), &contentLengthResult{pass, ContentLength(0)}},
-        test{contentLengthInput("Content-Length:      0"), &contentLengthResult{pass, ContentLength(0)}},
-        test{contentLengthInput("Content-Length:\t0"), &contentLengthResult{pass, ContentLength(0)}},
-        test{contentLengthInput("Content-Length: \t 0"), &contentLengthResult{pass, ContentLength(0)}},
-        test{contentLengthInput("Content-Length:\n  0"), &contentLengthResult{pass, ContentLength(0)}},
-        test{contentLengthInput("Content-Length: -1"), &contentLengthResult{fail, ContentLength(0)}},
-        test{contentLengthInput("Content-Length:"), &contentLengthResult{fail, ContentLength(0)}},
-        test{contentLengthInput("Content-Length: "), &contentLengthResult{fail, ContentLength(0)}},
-        test{contentLengthInput("Content-Length:\t"), &contentLengthResult{fail, ContentLength(0)}},
-        test{contentLengthInput("Content-Length:\n"), &contentLengthResult{fail, ContentLength(0)}},
-        test{contentLengthInput("Content-Length: \n"), &contentLengthResult{fail, ContentLength(0)}},
+        test{contentLengthInput("Content-Length: 9"), &contentLengthResult{pass, base.ContentLength(9)}},
+        test{contentLengthInput("Content-Length: 20"), &contentLengthResult{pass, base.ContentLength(20)}},
+        test{contentLengthInput("Content-Length: 113"), &contentLengthResult{pass, base.ContentLength(113)}},
+        test{contentLengthInput("l: 113"), &contentLengthResult{pass, base.ContentLength(113)}},
+        test{contentLengthInput("Content-Length: 0"), &contentLengthResult{pass, base.ContentLength(0)}},
+        test{contentLengthInput("Content-Length:      0"), &contentLengthResult{pass, base.ContentLength(0)}},
+        test{contentLengthInput("Content-Length:\t0"), &contentLengthResult{pass, base.ContentLength(0)}},
+        test{contentLengthInput("Content-Length: \t 0"), &contentLengthResult{pass, base.ContentLength(0)}},
+        test{contentLengthInput("Content-Length:\n  0"), &contentLengthResult{pass, base.ContentLength(0)}},
+        test{contentLengthInput("Content-Length: -1"), &contentLengthResult{fail, base.ContentLength(0)}},
+        test{contentLengthInput("Content-Length:"), &contentLengthResult{fail, base.ContentLength(0)}},
+        test{contentLengthInput("Content-Length: "), &contentLengthResult{fail, base.ContentLength(0)}},
+        test{contentLengthInput("Content-Length:\t"), &contentLengthResult{fail, base.ContentLength(0)}},
+        test{contentLengthInput("Content-Length:\n"), &contentLengthResult{fail, base.ContentLength(0)}},
+        test{contentLengthInput("Content-Length: \n"), &contentLengthResult{fail, base.ContentLength(0)}},
     }, t)
 }
 
@@ -897,32 +904,32 @@ func TestViaHeaders(t *testing.T) {
     fooEqSlashBar := map[string]*string{"foo" : &slashBar}
     singleFoo := map[string]*string{"foo" : nil}
     doTests([] test{
-        test{viaInput("Via: SIP/2.0/UDP pc33.atlanta.com"), &viaResult{pass, &ViaHeader{&ViaHop{"SIP", "2.0", "UDP", "pc33.atlanta.com", nil, noParams}}}},
-        test{viaInput("Via: bAzz/fooo/BAAR pc33.atlanta.com"), &viaResult{pass, &ViaHeader{&ViaHop{"bAzz", "fooo", "BAAR", "pc33.atlanta.com", nil, noParams}}}},
-        test{viaInput("Via: SIP/2.0/UDP pc33.atlanta.com"), &viaResult{pass, &ViaHeader{&ViaHop{"SIP", "2.0", "UDP", "pc33.atlanta.com", nil, noParams}}}},
-        test{viaInput("Via: SIP /\t2.0 / UDP pc33.atlanta.com"), &viaResult{pass, &ViaHeader{&ViaHop{"SIP", "2.0", "UDP", "pc33.atlanta.com", nil, noParams}}}},
-        test{viaInput("Via: SIP /\n 2.0 / UDP pc33.atlanta.com"), &viaResult{pass, &ViaHeader{&ViaHop{"SIP", "2.0", "UDP", "pc33.atlanta.com", nil, noParams}}}},
-        test{viaInput("Via:\tSIP/2.0/UDP pc33.atlanta.com"), &viaResult{pass, &ViaHeader{&ViaHop{"SIP", "2.0", "UDP", "pc33.atlanta.com", nil, noParams}}}},
-        test{viaInput("Via:\n SIP/2.0/UDP pc33.atlanta.com"), &viaResult{pass, &ViaHeader{&ViaHop{"SIP", "2.0", "UDP", "pc33.atlanta.com", nil, noParams}}}},
-        test{viaInput("Via: SIP/2.0/UDP box:5060"), &viaResult{pass, &ViaHeader{&ViaHop{"SIP", "2.0", "UDP", "box", &ui16_5060, noParams}}}},
-        test{viaInput("Via: SIP/2.0/UDP box;foo=bar"), &viaResult{pass, &ViaHeader{&ViaHop{"SIP", "2.0", "UDP", "box", nil, fooEqBar}}}},
-        test{viaInput("Via: SIP/2.0/UDP box:5060;foo=bar"), &viaResult{pass, &ViaHeader{&ViaHop{"SIP", "2.0", "UDP", "box", &ui16_5060, fooEqBar}}}},
-        test{viaInput("Via: SIP/2.0/UDP box:5060;foo"), &viaResult{pass, &ViaHeader{&ViaHop{"SIP", "2.0", "UDP", "box", &ui16_5060, singleFoo}}}},
-        test{viaInput("Via: SIP/2.0/UDP box:5060;foo=//bar"), &viaResult{pass, &ViaHeader{&ViaHop{"SIP", "2.0", "UDP", "box", &ui16_5060, fooEqSlashBar}}}},
-        test{viaInput("Via: /2.0/UDP box:5060;foo=bar"), &viaResult{fail, &ViaHeader{}}},
-        test{viaInput("Via: SIP//UDP box:5060;foo=bar"), &viaResult{fail, &ViaHeader{}}},
-        test{viaInput("Via: SIP/2.0/ box:5060;foo=bar"), &viaResult{fail, &ViaHeader{}}},
-        test{viaInput("Via:  /2.0/UDP box:5060;foo=bar"), &viaResult{fail, &ViaHeader{}}},
-        test{viaInput("Via: SIP/ /UDP box:5060;foo=bar"), &viaResult{fail, &ViaHeader{}}},
-        test{viaInput("Via: SIP/2.0/  box:5060;foo=bar"), &viaResult{fail, &ViaHeader{}}},
-        test{viaInput("Via: \t/2.0/UDP box:5060;foo=bar"), &viaResult{fail, &ViaHeader{}}},
-        test{viaInput("Via: SIP/\t/UDP box:5060;foo=bar"), &viaResult{fail, &ViaHeader{}}},
-        test{viaInput("Via: SIP/2.0/\t  box:5060;foo=bar"), &viaResult{fail, &ViaHeader{}}},
-        test{viaInput("Via:"), &viaResult{fail, &ViaHeader{}}},
-        test{viaInput("Via: "), &viaResult{fail, &ViaHeader{}}},
-        test{viaInput("Via:\t"), &viaResult{fail, &ViaHeader{}}},
-        test{viaInput("Via: box:5060"), &viaResult{fail, &ViaHeader{}}},
-        test{viaInput("Via: box:5060;foo=bar"), &viaResult{fail, &ViaHeader{}}},
+        test{viaInput("Via: SIP/2.0/UDP pc33.atlanta.com"), &viaResult{pass, &base.ViaHeader{&base.ViaHop{"SIP", "2.0", "UDP", "pc33.atlanta.com", nil, noParams}}}},
+        test{viaInput("Via: bAzz/fooo/BAAR pc33.atlanta.com"), &viaResult{pass, &base.ViaHeader{&base.ViaHop{"bAzz", "fooo", "BAAR", "pc33.atlanta.com", nil, noParams}}}},
+        test{viaInput("Via: SIP/2.0/UDP pc33.atlanta.com"), &viaResult{pass, &base.ViaHeader{&base.ViaHop{"SIP", "2.0", "UDP", "pc33.atlanta.com", nil, noParams}}}},
+        test{viaInput("Via: SIP /\t2.0 / UDP pc33.atlanta.com"), &viaResult{pass, &base.ViaHeader{&base.ViaHop{"SIP", "2.0", "UDP", "pc33.atlanta.com", nil, noParams}}}},
+        test{viaInput("Via: SIP /\n 2.0 / UDP pc33.atlanta.com"), &viaResult{pass, &base.ViaHeader{&base.ViaHop{"SIP", "2.0", "UDP", "pc33.atlanta.com", nil, noParams}}}},
+        test{viaInput("Via:\tSIP/2.0/UDP pc33.atlanta.com"), &viaResult{pass, &base.ViaHeader{&base.ViaHop{"SIP", "2.0", "UDP", "pc33.atlanta.com", nil, noParams}}}},
+        test{viaInput("Via:\n SIP/2.0/UDP pc33.atlanta.com"), &viaResult{pass, &base.ViaHeader{&base.ViaHop{"SIP", "2.0", "UDP", "pc33.atlanta.com", nil, noParams}}}},
+        test{viaInput("Via: SIP/2.0/UDP box:5060"), &viaResult{pass, &base.ViaHeader{&base.ViaHop{"SIP", "2.0", "UDP", "box", &ui16_5060, noParams}}}},
+        test{viaInput("Via: SIP/2.0/UDP box;foo=bar"), &viaResult{pass, &base.ViaHeader{&base.ViaHop{"SIP", "2.0", "UDP", "box", nil, fooEqBar}}}},
+        test{viaInput("Via: SIP/2.0/UDP box:5060;foo=bar"), &viaResult{pass, &base.ViaHeader{&base.ViaHop{"SIP", "2.0", "UDP", "box", &ui16_5060, fooEqBar}}}},
+        test{viaInput("Via: SIP/2.0/UDP box:5060;foo"), &viaResult{pass, &base.ViaHeader{&base.ViaHop{"SIP", "2.0", "UDP", "box", &ui16_5060, singleFoo}}}},
+        test{viaInput("Via: SIP/2.0/UDP box:5060;foo=//bar"), &viaResult{pass, &base.ViaHeader{&base.ViaHop{"SIP", "2.0", "UDP", "box", &ui16_5060, fooEqSlashBar}}}},
+        test{viaInput("Via: /2.0/UDP box:5060;foo=bar"), &viaResult{fail, &base.ViaHeader{}}},
+        test{viaInput("Via: SIP//UDP box:5060;foo=bar"), &viaResult{fail, &base.ViaHeader{}}},
+        test{viaInput("Via: SIP/2.0/ box:5060;foo=bar"), &viaResult{fail, &base.ViaHeader{}}},
+        test{viaInput("Via:  /2.0/UDP box:5060;foo=bar"), &viaResult{fail, &base.ViaHeader{}}},
+        test{viaInput("Via: SIP/ /UDP box:5060;foo=bar"), &viaResult{fail, &base.ViaHeader{}}},
+        test{viaInput("Via: SIP/2.0/  box:5060;foo=bar"), &viaResult{fail, &base.ViaHeader{}}},
+        test{viaInput("Via: \t/2.0/UDP box:5060;foo=bar"), &viaResult{fail, &base.ViaHeader{}}},
+        test{viaInput("Via: SIP/\t/UDP box:5060;foo=bar"), &viaResult{fail, &base.ViaHeader{}}},
+        test{viaInput("Via: SIP/2.0/\t  box:5060;foo=bar"), &viaResult{fail, &base.ViaHeader{}}},
+        test{viaInput("Via:"), &viaResult{fail, &base.ViaHeader{}}},
+        test{viaInput("Via: "), &viaResult{fail, &base.ViaHeader{}}},
+        test{viaInput("Via:\t"), &viaResult{fail, &base.ViaHeader{}}},
+        test{viaInput("Via: box:5060"), &viaResult{fail, &base.ViaHeader{}}},
+        test{viaInput("Via: box:5060;foo=bar"), &viaResult{fail, &base.ViaHeader{}}},
     }, t)
 }
 
@@ -953,10 +960,10 @@ func (expected *paramResult) equals (other result) (equal bool, reason string) {
     if expected.err == nil && actual.err != nil {
         return false, fmt.Sprintf("unexpected error: %s", actual.err.Error())
     } else if expected.err != nil && actual.err == nil {
-        return false, fmt.Sprintf("unexpected success: got \"%s\"", ParamsToString(actual.params, '$', '-'))
-    } else if actual.err == nil && !paramsEqual(expected.params, actual.params) {
+        return false, fmt.Sprintf("unexpected success: got \"%s\"", base.ParamsToString(actual.params, '$', '-'))
+    } else if actual.err == nil && !base.ParamsEqual(expected.params, actual.params) {
         return false, fmt.Sprintf("unexpected result: expected \"%s\", got \"%s\"",
-            ParamsToString(expected.params, '$', '-'), ParamsToString(actual.params, '$', '-'))
+            base.ParamsToString(expected.params, '$', '-'), base.ParamsToString(actual.params, '$', '-'))
     } else if actual.err == nil && expected.consumed != actual.consumed {
         return false, fmt.Sprintf("unexpected consumed value: expected %d, got %d", expected.consumed, actual.consumed)
     }
@@ -975,7 +982,7 @@ func (data sipUriInput) evaluate() result {
 
 type sipUriResult struct {
     err error
-    uri SipUri
+    uri base.SipUri
 }
 func (expected *sipUriResult) equals(other result) (equal bool, reason string) {
     actual := *(other.(*sipUriResult))
@@ -988,7 +995,11 @@ func (expected *sipUriResult) equals(other result) (equal bool, reason string) {
         return true, ""
     }
 
-    return expected.uri.equals(&actual.uri)
+    equal = expected.uri.Equals(&actual.uri)
+    if !equal {
+        reason = fmt.Sprintf("expected result %s, but got %s", expected.uri.String(), actual.uri.String())
+    }
+    return
 }
 
 type hostPortInput string
@@ -1076,9 +1087,9 @@ func (data toHeaderInput) evaluate() result {
     parser := NewMessageParser().(*parserImpl)
     headers, err := parser.parseHeader(string(data))
     if len(headers) == 1 {
-        return &toHeaderResult{err, headers[0].(*ToHeader)}
+        return &toHeaderResult{err, headers[0].(*base.ToHeader)}
     } else if len(headers) == 0 {
-        return &toHeaderResult{err, &ToHeader{}}
+        return &toHeaderResult{err, &base.ToHeader{}}
     } else {
         panic(fmt.Sprintf("Multiple headers returned by To test: %s", string(data)))
     }
@@ -1086,7 +1097,7 @@ func (data toHeaderInput) evaluate() result {
 
 type toHeaderResult struct {
     err error
-    header *ToHeader
+    header *base.ToHeader
 }
 
 func (expected *toHeaderResult) equals(other result) (equal bool, reason string) {
@@ -1101,30 +1112,35 @@ func (expected *toHeaderResult) equals(other result) (equal bool, reason string)
         return true, ""
     }
 
-    if !strPtrEq(expected.header.DisplayName, actual.header.DisplayName) {
+    if !utils.StrPtrEq(expected.header.DisplayName, actual.header.DisplayName) {
         return false, fmt.Sprintf("unexpected display name: expected \"%s\"; got \"%s\"",
             strPtrStr(expected.header.DisplayName),
             strPtrStr(actual.header.DisplayName))
     }
 
     switch expected.header.Address.(type) {
-    case *SipUri:
-        Uri := *(expected.header.Address.(*SipUri))
-        UrisEqual, msg := Uri.equals(actual.header.Address)
-        if !UrisEqual {
+    case *base.SipUri:
+        uri := *(expected.header.Address.(*base.SipUri))
+        urisEqual := uri.Equals(actual.header.Address)
+        msg := ""
+        if !urisEqual {
+            msg = fmt.Sprintf("unexpected result: expected %s, got %s",
+                               expected.header.Address.String(), actual.header.Address.String())
+        }
+        if !urisEqual {
             return false, msg
         }
     default:
         // If you're hitting this block, then you need to do the following:
         // - implement a package-private 'equals' method for the URI schema being tested.
-        // - add a case block above for that schema, using the 'equals' method in the same was as the existing SipUri block above.
+        // - add a case block above for that schema, using the 'equals' method in the same was as the existing base.SipUri block above.
         return false, fmt.Sprintf("no support for testing Uri schema in Uri \"%s\" - fix me!", expected.header.Address)
     }
 
-    if !paramsEqual(expected.header.Params, actual.header.Params) {
+    if !base.ParamsEqual(expected.header.Params, actual.header.Params) {
         return false, fmt.Sprintf("unexpected parameters \"%s\" (expected \"%s\")",
-            ParamsToString(actual.header.Params, '$', '-'),
-            ParamsToString(expected.header.Params, '$', '-'))
+            base.ParamsToString(actual.header.Params, '$', '-'),
+            base.ParamsToString(expected.header.Params, '$', '-'))
     }
 
     return true, ""
@@ -1140,9 +1156,9 @@ func (data fromHeaderInput) evaluate() result {
     parser := NewMessageParser().(*parserImpl)
     headers, err := parser.parseHeader(string(data))
     if len(headers) == 1 {
-        return &fromHeaderResult{err, headers[0].(*FromHeader)}
+        return &fromHeaderResult{err, headers[0].(*base.FromHeader)}
     } else if len(headers) == 0 {
-        return &fromHeaderResult{err, &FromHeader{}}
+        return &fromHeaderResult{err, &base.FromHeader{}}
     } else {
         panic(fmt.Sprintf("Multiple headers returned by From test: %s", string(data)))
     }
@@ -1150,7 +1166,7 @@ func (data fromHeaderInput) evaluate() result {
 
 type fromHeaderResult struct {
     err error
-    header *FromHeader
+    header *base.FromHeader
 }
 
 func (expected *fromHeaderResult) equals(other result) (equal bool, reason string) {
@@ -1165,30 +1181,35 @@ func (expected *fromHeaderResult) equals(other result) (equal bool, reason strin
         return true, ""
     }
 
-    if !strPtrEq(expected.header.DisplayName, actual.header.DisplayName) {
+    if !utils.StrPtrEq(expected.header.DisplayName, actual.header.DisplayName) {
         return false, fmt.Sprintf("unexpected display name: expected \"%s\"; got \"%s\"",
             strPtrStr(expected.header.DisplayName),
             strPtrStr(actual.header.DisplayName))
     }
 
     switch expected.header.Address.(type) {
-    case *SipUri:
-        Uri := *(expected.header.Address.(*SipUri))
-        UrisEqual, msg := Uri.equals(actual.header.Address)
-        if !UrisEqual {
+    case *base.SipUri:
+        uri := *(expected.header.Address.(*base.SipUri))
+        urisEqual := uri.Equals(actual.header.Address)
+        msg := ""
+        if !urisEqual {
+            msg = fmt.Sprintf("unexpected result: expected %s, got %s",
+                               expected.header.Address.String(), actual.header.Address.String())
+        }
+        if !urisEqual {
             return false, msg
         }
     default:
         // If you're hitting this block, then you need to do the following:
         // - implement a package-private 'equals' method for the URI schema being tested.
-        // - add a case block above for that schema, using the 'equals' method in the same was as the existing SipUri block above.
+        // - add a case block above for that schema, using the 'equals' method in the same was as the existing base.SipUri block above.
         return false, fmt.Sprintf("no support for testing Uri schema in Uri \"%s\" - fix me!", expected.header.Address)
     }
 
-    if !paramsEqual(expected.header.Params, actual.header.Params) {
+    if !base.ParamsEqual(expected.header.Params, actual.header.Params) {
         return false, fmt.Sprintf("unexpected parameters \"%s\" (expected \"%s\")",
-            ParamsToString(actual.header.Params, '$', '-'),
-            ParamsToString(expected.header.Params, '$', '-'))
+            base.ParamsToString(actual.header.Params, '$', '-'),
+            base.ParamsToString(expected.header.Params, '$', '-'))
     }
 
     return true, ""
@@ -1203,10 +1224,10 @@ func (data contactHeaderInput) String() string {
 func (data contactHeaderInput) evaluate() result {
     parser := NewMessageParser().(*parserImpl)
     headers, err := parser.parseHeader(string(data))
-    contactHeaders := make([]*ContactHeader, len(headers))
+    contactHeaders := make([]*base.ContactHeader, len(headers))
     if len(headers) > 0 {
         for idx, header := range(headers) {
-            contactHeaders[idx] = header.(*ContactHeader)
+            contactHeaders[idx] = header.(*base.ContactHeader)
         }
         return &contactHeaderResult{err, contactHeaders}
     } else {
@@ -1216,7 +1237,7 @@ func (data contactHeaderInput) evaluate() result {
 
 type contactHeaderResult struct {
     err error
-    headers []*ContactHeader
+    headers []*base.ContactHeader
 }
 
 func (expected *contactHeaderResult) equals(other result) (equal bool, reason string) {
@@ -1247,7 +1268,7 @@ func (expected *contactHeaderResult) equals(other result) (equal bool, reason st
     }
 
     for idx := range(expected.headers) {
-        if !strPtrEq(expected.headers[idx].DisplayName, actual.headers[idx].DisplayName) {
+        if !utils.StrPtrEq(expected.headers[idx].DisplayName, actual.headers[idx].DisplayName) {
             return false, fmt.Sprintf("unexpected display name: expected \"%s\"; got \"%s\"",
                 strPtrStr(expected.headers[idx].DisplayName),
                 strPtrStr(actual.headers[idx].DisplayName))
@@ -1258,10 +1279,10 @@ func (expected *contactHeaderResult) equals(other result) (equal bool, reason st
             return false, fmt.Sprintf("expected Uri %s; got Uri %s", expected.headers[idx].Address.String(), actual.headers[idx].Address.String())
         }
 
-        if !paramsEqual(expected.headers[idx].Params, actual.headers[idx].Params) {
+        if !base.ParamsEqual(expected.headers[idx].Params, actual.headers[idx].Params) {
             return false, fmt.Sprintf("unexpected parameters \"%s\" (expected \"%s\")",
-                ParamsToString(actual.headers[idx].Params, '$', '-'),
-                ParamsToString(expected.headers[idx].Params, '$', '-'))
+                base.ParamsToString(actual.headers[idx].Params, '$', '-'),
+                base.ParamsToString(expected.headers[idx].Params, '$', '-'))
         }
     }
 
@@ -1278,17 +1299,17 @@ func (data cSeqInput) evaluate() result {
     parser := NewMessageParser().(*parserImpl)
     headers, err := parser.parseHeader(string(data))
     if len(headers) == 1 {
-        return &cSeqResult{err, headers[0].(*CSeq)}
+        return &cSeqResult{err, headers[0].(*base.CSeq)}
     } else if len(headers) == 0 {
-        return &cSeqResult{err, &CSeq{}}
+        return &cSeqResult{err, &base.CSeq{}}
     } else {
-        panic(fmt.Sprintf("Multiple headers returned by CSeq test: %s", string(data)))
+        panic(fmt.Sprintf("Multiple headers returned by base.CSeq test: %s", string(data)))
     }
 }
 
 type cSeqResult struct {
     err error
-    header *CSeq
+    header *base.CSeq
 }
 
 func (expected *cSeqResult) equals (other result) (equal bool, reason string) {
@@ -1317,17 +1338,17 @@ func (data callIdInput) evaluate() result {
     parser := NewMessageParser().(*parserImpl)
     headers, err := parser.parseHeader(string(data))
     if len(headers) == 1 {
-        return &callIdResult{err, *(headers[0].(*CallId))}
+        return &callIdResult{err, *(headers[0].(*base.CallId))}
     } else if len(headers) == 0 {
-        return &callIdResult{err, CallId("")}
+        return &callIdResult{err, base.CallId("")}
     } else {
-        panic(fmt.Sprintf("Multiple headers returned by CallId test: %s", string(data)))
+        panic(fmt.Sprintf("Multiple headers returned by base.CallId test: %s", string(data)))
     }
 }
 
 type callIdResult struct {
     err error
-    header CallId
+    header base.CallId
 }
 
 func (expected callIdResult) equals(other result) (equal bool, reason string) {
@@ -1353,9 +1374,9 @@ func (data maxForwardsInput) evaluate() result {
     parser := NewMessageParser().(*parserImpl)
     headers, err := parser.parseHeader(string(data))
     if len(headers) == 1 {
-        return &maxForwardsResult{err, *(headers[0].(*MaxForwards))}
+        return &maxForwardsResult{err, *(headers[0].(*base.MaxForwards))}
     } else if len(headers) == 0 {
-        return &maxForwardsResult{err, MaxForwards(0)}
+        return &maxForwardsResult{err, base.MaxForwards(0)}
     } else {
         panic(fmt.Sprintf("Multiple headers returned by Max-Forwards test: %s", string(data)))
     }
@@ -1363,7 +1384,7 @@ func (data maxForwardsInput) evaluate() result {
 
 type maxForwardsResult struct {
     err error
-    header MaxForwards
+    header base.MaxForwards
 }
 
 func (expected *maxForwardsResult) equals(other result) (equal bool, reason string) {
@@ -1389,9 +1410,9 @@ func (data contentLengthInput) evaluate() result {
     parser := NewMessageParser().(*parserImpl)
     headers, err := parser.parseHeader(string(data))
     if len(headers) == 1 {
-        return &contentLengthResult{err, *(headers[0].(*ContentLength))}
+        return &contentLengthResult{err, *(headers[0].(*base.ContentLength))}
     } else if len(headers) == 0 {
-        return &contentLengthResult{err, ContentLength(0)}
+        return &contentLengthResult{err, base.ContentLength(0)}
     } else {
         panic(fmt.Sprintf("Multiple headers returned by Content-Length test: %s", string(data)))
     }
@@ -1399,7 +1420,7 @@ func (data contentLengthInput) evaluate() result {
 
 type contentLengthResult struct {
     err error
-    header ContentLength
+    header base.ContentLength
 }
 
 func (expected *contentLengthResult) equals(other result) (equal bool, reason string) {
@@ -1425,9 +1446,9 @@ func (data viaInput) evaluate() result {
     parser := NewMessageParser().(*parserImpl)
     headers, err := parser.parseHeader(string(data))
     if len(headers) == 0 {
-        return &viaResult{err, &ViaHeader{}}
+        return &viaResult{err, &base.ViaHeader{}}
     } else if len(headers) == 1 {
-        return &viaResult{err, headers[0].(*ViaHeader)}
+        return &viaResult{err, headers[0].(*base.ViaHeader)}
     } else {
         panic("got more than one via header on test " + data)
     }
@@ -1435,7 +1456,7 @@ func (data viaInput) evaluate() result {
 
 type viaResult struct {
     err error
-    header *ViaHeader
+    header *base.ViaHeader
 }
 
 func (expected *viaResult) equals(other result) (equal bool, reason string) {
@@ -1469,14 +1490,14 @@ func (expected *viaResult) equals(other result) (equal bool, reason string) {
         } else if expectedHop.Host != actualHop.Host {
             return false, fmt.Sprintf("unexpected host '%s' in via entry %d - expected '%s'",
                 actualHop.Host, idx, expectedHop.Host)
-        } else if !uint16PtrEq(expectedHop.Port, actualHop.Port) {
+        } else if !utils.Uint16PtrEq(expectedHop.Port, actualHop.Port) {
             return false, fmt.Sprintf("unexpected port '%d' in via entry %d - expected '%d'",
                 uint16PtrStr(actualHop.Port), idx, uint16PtrStr(expectedHop.Port))
-        } else if !paramsEqual(expectedHop.Params, actualHop.Params) {
+        } else if !base.ParamsEqual(expectedHop.Params, actualHop.Params) {
             return false, fmt.Sprintf("unexpected params '%s' in via entry %d - expected '%s'",
-                ParamsToString(actualHop.Params, '$', '-'),
+                base.ParamsToString(actualHop.Params, '$', '-'),
                 idx,
-                ParamsToString(expectedHop.Params, '$', '-'))
+                base.ParamsToString(expectedHop.Params, '$', '-'))
         }
     }
 
@@ -1504,37 +1525,3 @@ func uint16PtrStr(uint16Ptr *uint16) string {
     }
 }
 
-func (a *SipUri) equals(other Uri) (equal bool, reason string) {
-    switch other.(type) {
-    case *SipUri:
-        b := *(other.(*SipUri))
-        if a.IsEncrypted != b.IsEncrypted {
-            return false, fmt.Sprintf("unexpected IsEncrypted value: expected %b; got %b",
-                b.IsEncrypted, a.IsEncrypted)
-        } else if !strPtrEq(b.User, a.User) {
-            return false, fmt.Sprintf("unexpected User value: expected %s; got %s",
-                strPtrStr(b.User), strPtrStr(a.User))
-        } else if !strPtrEq(b.Password, a.Password) {
-            return false, fmt.Sprintf("unexpected Password value: expected %s; got %s",
-                strPtrStr(b.Password), strPtrStr(a.Password))
-        } else if b.Host != a.Host {
-            return false, fmt.Sprintf("unexpected Host value: expected %s; got %s",
-                b.Host, a.Host)
-        } else if !uint16PtrEq(b.Port, a.Port) {
-            return false, fmt.Sprintf("unexpected Port value: expected %s; got %s",
-                uint16PtrStr(b.Port), uint16PtrStr(a.Port))
-        } else if !paramsEqual(b.UriParams, a.UriParams) {
-            return false, fmt.Sprintf("unequal Uri parameters: expected \"%s\"; got \"%s\"",
-                ParamsToString(b.UriParams, ';', ';'),
-                ParamsToString(a.UriParams, ';', ';'))
-        } else if !paramsEqual(b.Headers, a.Headers) {
-            return false, fmt.Sprintf("unequal Uri headers; expected \"%s\"; got \"%s\"",
-                ParamsToString(b.Headers, '?', '&'),
-                ParamsToString(a.Headers, '?', '&'))
-        }
-        return true, ""
-    default:
-        return false, fmt.Sprintf("unexpected URI schema: expected URI was \"%s\"; got \"%s\"", a.String(), other.String())
-    }
-
-}
