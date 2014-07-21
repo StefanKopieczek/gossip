@@ -85,7 +85,7 @@ func (parser *parserImpl) ParseMessage(rawData []byte) (base.SipMessage, error) 
 		return parser.parseResponse(contents)
 	}
 
-	return nil, fmt.Errorf("transmission beginnng '%s' is not a SIP message", contents[0])
+	return nil, fmt.Errorf("transmission beginning '%s' is not a SIP message", contents[0])
 }
 
 // Heuristic to determine if the given transmission looks like a SIP request.
@@ -1006,6 +1006,9 @@ func getNextHeaderLine(contents []string) (headerText string, consumed int) {
 	if len(contents) == 0 {
 		return
 	}
+    if len(contents[0]) == 0 {
+        return
+    }
 
 	var buffer bytes.Buffer
 	buffer.WriteString(contents[0])

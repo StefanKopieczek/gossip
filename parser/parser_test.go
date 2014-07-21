@@ -258,7 +258,7 @@ func TestHeaderBlocks(t *testing.T) {
         test{headerBlockInput([]string{"Line one", "      with a big indent"}),          &headerBlockResult{"Line one with a big indent", 2}},
         test{headerBlockInput([]string{"Line one", " \twith space then tab"}),           &headerBlockResult{"Line one with space then tab", 2}},
         test{headerBlockInput([]string{"Line one", "\t    with tab then spaces"}),       &headerBlockResult{"Line one with tab then spaces", 2}},
-        test{headerBlockInput([]string{""}),                                             &headerBlockResult{"", 1}},
+        test{headerBlockInput([]string{""}),                                             &headerBlockResult{"", 0}},
         test{headerBlockInput([]string{" "}),                                            &headerBlockResult{" ", 1}},
         test{headerBlockInput([]string{}),                                               &headerBlockResult{"", 0}},
         test{headerBlockInput([]string{" foo"}),                                         &headerBlockResult{" foo", 1}},
