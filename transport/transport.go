@@ -13,6 +13,7 @@ import (
 )
 
 const c_LISTENER_QUEUE_SIZE int = 1000
+const c_SOCKET_EXPIRY time.Duration = time.Hour
 
 /**
   Temporary implementation of a transport layer for SIP messages using UDP.
@@ -79,35 +80,72 @@ func (c listener) notify(message base.SipMessage) (ok bool) {
 // Fields of connTable should only be modified by the dedicated goroutine called by Init().
 // All other callers should use connTable's associated public methods to access it.
 type connTable struct {
-    conns map[string]net.Conn
-    timers map[string]time.Timer
-    update chan connUpdate
-    expire chan string
+    conns map[string]*connManager
+    stopped bool
+}
+
+type connManager struct {
+    conn net.Conn
+    timer *time.Timer
+    update chan net.Conn
     stop chan bool
 }
 
-func (table *connTable) Init() {
-    table.conns = make(map[string]net.Conn)
-    table.timers = make(map[string]time.Timer)
-
-    go func(t *connTable) {
-        // Select from timers, stop chan, and update chan.
-    }(table)
+func (t *connTable) Init() {
+    t.conns = make(map[string]*connManager)
 }
 
-func (table *connTable) Stop() {
-    table.stop <- true
+func (t *connTable) Notify(addr string, conn net.Conn) {
+    if t.stopped {
+        log.Debug("Ignoring conn notification for address %s after table stop.")
+        return
+    }
+
+    manager, ok := t.conns[addr]
+    if ok {
+        manager.update <- conn
+    } else {
+        manager := connManager{conn, &time.Timer{}, make(chan net.Conn), make(chan bool)}
+        go func(mgr *connManager) {
+            // We expect to close off connections explicitly, but let's be safe and clean up
+            // if we close unexpectedly.
+            defer func(c net.Conn) {
+                if c != nil {
+                    c.Close()
+                }
+            } (mgr.conn)
+
+            for {
+                select {
+                case <- mgr.timer.C:
+                    // Socket expiry timer has run out. Close the connection.
+                    mgr.conn.Close()
+                    mgr.conn = nil
+                case update := <- mgr.update:
+                    // We've been pinged with a connection; update it and refresh the
+                    // timer.
+                    mgr.conn = update
+                    mgr.timer.Stop()
+                    mgr.timer = time.NewTimer(c_SOCKET_EXPIRY)
+                case stop := <- mgr.stop:
+                    // We've received a termination signal; stop managing this connection.
+                    if stop {
+                        mgr.timer.Stop()
+                        mgr.conn.Close()
+                        mgr.conn = nil
+                        break
+                    }
+                }
+            }
+        }(&manager)
+    }
 }
 
-func (table *connTable) Update(conn net.Conn, addr string) {
-    table.update <- connUpdate{conn, addr}
-}
-
-func (table *connTable) Expire(addr string) {
-    table.expire <- addr
-}
-
-type connUpdate struct {
-    conn net.Conn
-    address string
+func (t *connTable) GetConn(addr string) net.Conn {
+    manager, ok := t.conns[addr]
+    if ok {
+        return manager.conn
+    } else {
+        return nil
+    }
 }
