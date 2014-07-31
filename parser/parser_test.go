@@ -2,6 +2,7 @@ package parser
 
 import (
     "github.com/stefankopieczek/gossip/base"
+    "github.com/stefankopieczek/gossip/log"
     "github.com/stefankopieczek/gossip/utils"
 )
 
@@ -16,6 +17,7 @@ import (
 var testsRun int
 var testsPassed int
 
+const c_DUMMY_STARTLINE = "INVITE sip:bob@biloxi.com SIP/2.0"
 
 type input interface{
     String() string
@@ -247,6 +249,7 @@ func TestHostPort(t *testing.T) () {
     }, t)
 }
 
+/*
 func TestHeaderBlocks(t *testing.T) {
     doTests([]test {
         test{headerBlockInput([]string{"All on one line."}),                             &headerBlockResult{"All on one line.", 1}},
@@ -264,7 +267,7 @@ func TestHeaderBlocks(t *testing.T) {
         test{headerBlockInput([]string{" foo"}),                                         &headerBlockResult{" foo", 1}},
     }, t)
 }
-
+*/
 func TestToHeaders(t *testing.T) {
     fooEqBar := map[string]*string{"foo" : &bar}
     fooSingleton := map[string]*string{"foo" : nil}
@@ -1077,6 +1080,19 @@ func (expected *headerBlockResult) equals(other result) (equal bool, reason stri
     return true, ""
 }
 
+func parseHeader(rawHeader string) (headers []base.SipHeader, err error) {
+    factory := NewParserFactory()
+    parser := factory.NewParser(false).(*parser)
+    input := fmt.Sprintf("%s\r\n%s\r\n", c_DUMMY_STARTLINE, rawHeader)
+    _, err = parser.Process([]byte(input))
+    var msg base.SipMessage
+
+    msg, err = parser.Publish()
+    log.Debug("Publish complete.")
+    headers = msg.AllHeaders()
+    return
+}
+
 type toHeaderInput string
 
 func (data toHeaderInput) String() string {
@@ -1084,8 +1100,7 @@ func (data toHeaderInput) String() string {
 }
 
 func (data toHeaderInput) evaluate() result {
-    parser := NewMessageParser().(*parserImpl)
-    headers, err := parser.parseHeader(string(data))
+    headers, err := parseHeader(string(data))
     if len(headers) == 1 {
         return &toHeaderResult{err, headers[0].(*base.ToHeader)}
     } else if len(headers) == 0 {
@@ -1153,8 +1168,12 @@ func (data fromHeaderInput) String() string {
 }
 
 func (data fromHeaderInput) evaluate() result {
-    parser := NewMessageParser().(*parserImpl)
-    headers, err := parser.parseHeader(string(data))
+    factory := NewParserFactory()
+    parser := factory.NewParser(false).(*parser)
+    _ = parser.parseStartLine(c_DUMMY_STARTLINE)
+    parser.parseHeader(string(data))
+    msg, err := parser.Publish()
+    headers := msg.AllHeaders()
     if len(headers) == 1 {
         return &fromHeaderResult{err, headers[0].(*base.FromHeader)}
     } else if len(headers) == 0 {
@@ -1222,8 +1241,7 @@ func (data contactHeaderInput) String() string {
 }
 
 func (data contactHeaderInput) evaluate() result {
-    parser := NewMessageParser().(*parserImpl)
-    headers, err := parser.parseHeader(string(data))
+    headers, err := parseHeader(string(data))
     contactHeaders := make([]*base.ContactHeader, len(headers))
     if len(headers) > 0 {
         for idx, header := range(headers) {
@@ -1296,8 +1314,7 @@ func (data cSeqInput) String() string {
 }
 
 func (data cSeqInput) evaluate() result {
-    parser := NewMessageParser().(*parserImpl)
-    headers, err := parser.parseHeader(string(data))
+    headers, err := parseHeader(string(data))
     if len(headers) == 1 {
         return &cSeqResult{err, headers[0].(*base.CSeq)}
     } else if len(headers) == 0 {
@@ -1335,8 +1352,7 @@ func (data callIdInput) String() string {
 }
 
 func (data callIdInput) evaluate() result {
-    parser := NewMessageParser().(*parserImpl)
-    headers, err := parser.parseHeader(string(data))
+    headers, err := parseHeader(string(data))
     if len(headers) == 1 {
         return &callIdResult{err, *(headers[0].(*base.CallId))}
     } else if len(headers) == 0 {
@@ -1371,8 +1387,7 @@ func (data maxForwardsInput) String() string {
 }
 
 func (data maxForwardsInput) evaluate() result {
-    parser := NewMessageParser().(*parserImpl)
-    headers, err := parser.parseHeader(string(data))
+    headers, err := parseHeader(string(data))
     if len(headers) == 1 {
         return &maxForwardsResult{err, *(headers[0].(*base.MaxForwards))}
     } else if len(headers) == 0 {
@@ -1407,8 +1422,7 @@ func (data contentLengthInput) String() string {
 }
 
 func (data contentLengthInput) evaluate() result {
-    parser := NewMessageParser().(*parserImpl)
-    headers, err := parser.parseHeader(string(data))
+    headers, err := parseHeader(string(data))
     if len(headers) == 1 {
         return &contentLengthResult{err, *(headers[0].(*base.ContentLength))}
     } else if len(headers) == 0 {
@@ -1443,8 +1457,7 @@ func (data viaInput) String() string {
 }
 
 func (data viaInput) evaluate() result {
-    parser := NewMessageParser().(*parserImpl)
-    headers, err := parser.parseHeader(string(data))
+    headers, err := parseHeader(string(data))
     if len(headers) == 0 {
         return &viaResult{err, &base.ViaHeader{}}
     } else if len(headers) == 1 {

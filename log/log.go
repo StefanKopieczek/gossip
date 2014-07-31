@@ -2,6 +2,7 @@ package log
 
 import (
     "bytes"
+    "fmt"
     "io"
     "log"
     "os"
@@ -9,7 +10,6 @@ import (
 )
 
 const c_STACK_BUFFER_SIZE int = 8192
-
 
 type Level struct {
     Name string
@@ -19,10 +19,14 @@ type Level struct {
 var (
     unspecified = Level{"NIL",    0}  // Discard first value so 0 can be a placeholder.
     DEBUG       = Level{"DEBUG",  1}
-    INFO        = Level{"INFO",   2}
-    WARN        = Level{"WARN",   3}
-    SEVERE      = Level{"SEVERE", 4}
+    FINE        = Level{"FINE",   2}
+    INFO        = Level{"INFO",   3}
+    WARN        = Level{"WARN",   4}
+    SEVERE      = Level{"SEVERE", 5}
 )
+
+var c_DEFAULT_LOGGING_LEVEL = DEBUG
+var c_DEFAULT_STACKTRACE_LEVEL = SEVERE
 
 type Logger struct {
     *log.Logger
@@ -35,16 +39,17 @@ var defaultLogger *Logger
 func New(out io.Writer, prefix string, flags int) (*Logger) {
     var logger Logger
     logger.Logger = log.New(out, prefix, flags)
-    logger.Level = WARN
-    logger.StackTraceLevel = SEVERE
+    logger.Level = c_DEFAULT_LOGGING_LEVEL
+    logger.StackTraceLevel = c_DEFAULT_STACKTRACE_LEVEL
     return &logger
 }
 
-func (l *Logger) Log(level Level, msg string) {
+func (l *Logger) Log(level Level, msg string, args ...interface{}) {
     if (level.Level < l.Level.Level) {
         return
     }
 
+    msg = fmt.Sprintf(msg, args...)
     var buffer bytes.Buffer
     buffer.WriteString(level.Name)
     buffer.WriteString(": ")
@@ -62,20 +67,24 @@ func (l *Logger) Log(level Level, msg string) {
     l.Logger.Printf(buffer.String())
 }
 
-func (l *Logger) Debug(msg string) {
-    l.Log(DEBUG, msg)
+func (l *Logger) Debug(msg string, args ...interface{}) {
+    l.Log(DEBUG, msg, args...)
 }
 
-func (l *Logger) Info(msg string) {
-    l.Log(INFO, msg)
+func (l *Logger) Fine(msg string, args ...interface{}) {
+    l.Log(FINE, msg, args...)
 }
 
-func (l *Logger) Warn(msg string) {
-    l.Log(WARN, msg)
+func (l *Logger) Info(msg string, args ...interface{}) {
+    l.Log(INFO, msg, args...)
 }
 
-func (l *Logger) Severe(msg string) {
-    l.Log(SEVERE, msg)
+func (l *Logger) Warn(msg string, args ...interface{}) {
+    l.Log(WARN, msg, args...)
+}
+
+func (l *Logger) Severe(msg string, args ...interface{}) {
+    l.Log(SEVERE, msg, args...)
 }
 
 func (l *Logger) PrintStack() {
@@ -88,32 +97,39 @@ func stackTrace() string {
     return string(trace[:count])
 }
 
-func Debug(msg string) {
+func Debug(msg string, args ...interface{}) {
     if defaultLogger == nil {
         defaultLogger = New(os.Stderr, "", 0)
     }
-    defaultLogger.Debug(msg)
+    defaultLogger.Debug(msg, args...)
 }
 
-func Info(msg string) {
+func Fine(msg string, args ...interface{}) {
     if defaultLogger == nil {
         defaultLogger = New(os.Stderr, "", 0)
     }
-    defaultLogger.Info(msg)
+    defaultLogger.Fine(msg, args...)
 }
 
-func Warn(msg string) {
+func Info(msg string, args ...interface{}) {
     if defaultLogger == nil {
         defaultLogger = New(os.Stderr, "", 0)
     }
-    defaultLogger.Warn(msg)
+    defaultLogger.Info(msg, args...)
 }
 
-func Severe(msg string) {
+func Warn(msg string, args ...interface{}) {
     if defaultLogger == nil {
         defaultLogger = New(os.Stderr, "", 0)
     }
-    defaultLogger.Severe(msg)
+    defaultLogger.Warn(msg, args...)
+}
+
+func Severe(msg string, args ...interface{}) {
+    if defaultLogger == nil {
+        defaultLogger = New(os.Stderr, "", 0)
+    }
+    defaultLogger.Severe(msg, args...)
 }
 
 func SetDefaultLogLevel(level Level) {

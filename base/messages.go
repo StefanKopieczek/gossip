@@ -40,6 +40,12 @@ const (
 type SipMessage interface {
 	// Yields a flat, string representation of the SIP message suitable for sending out over the wire.
 	String() string
+
+    AllHeaders() []SipHeader
+    HeadersByName(name string) []SipHeader
+
+    GetBody() string
+    SetBody(body string)
 }
 
 // A SIP request (c.f. RFC 3261 section 7.1).
@@ -57,7 +63,7 @@ type Request struct {
 	Headers []SipHeader
 
 	// The application data of the message.
-	Body *string
+	Body string
 }
 
 func (request *Request) String() string {
@@ -79,11 +85,30 @@ func (request *Request) String() string {
 	}
 
 	// If the request has a message body, add it.
-	if request.Body != nil {
-		buffer.WriteString("\r\n" + *request.Body)
-	}
+    buffer.WriteString("\r\n" + request.Body)
 
 	return buffer.String()
+}
+
+func (request *Request) AllHeaders() []SipHeader {
+    return request.Headers
+}
+
+func (request *Request) HeadersByName(name string) []SipHeader {
+    result := make([]SipHeader, 0)
+    for _, header := range(request.Headers) {
+        result = append(result, header)
+    }
+
+    return result
+}
+
+func (request *Request) GetBody() string {
+    return request.Body
+}
+
+func (request *Request) SetBody(body string) {
+    request.Body = body
 }
 
 // A SIP response object  (c.f. RFC 3261 section 7.2).
@@ -104,7 +129,7 @@ type Response struct {
 	Headers []SipHeader
 
 	// The application data of the message.
-	Body *string
+	Body string
 }
 
 func (response *Response) String() string {
@@ -126,9 +151,29 @@ func (response *Response) String() string {
 	}
 
 	// If the request has a message body, add it.
-	if response.Body != nil {
-		buffer.WriteString("\r\n" + *response.Body)
-	}
+    buffer.WriteString("\r\n" + response.Body)
 
 	return buffer.String()
 }
+
+func (response *Response) AllHeaders() []SipHeader {
+    return response.Headers
+}
+
+func (response *Response) HeadersByName(name string) []SipHeader {
+    result := make([]SipHeader, 0)
+    for _, header := range(response.Headers) {
+        result = append(result, header)
+    }
+
+    return result
+}
+
+func (response *Response) GetBody() string {
+    return response.Body
+}
+
+func (response *Response) SetBody(body string) {
+    response.Body = body
+}
+
