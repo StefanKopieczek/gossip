@@ -25,7 +25,7 @@ var (
     SEVERE      = Level{"SEVERE", 5}
 )
 
-var c_DEFAULT_LOGGING_LEVEL = DEBUG
+var c_DEFAULT_LOGGING_LEVEL = INFO
 var c_DEFAULT_STACKTRACE_LEVEL = SEVERE
 
 type Logger struct {

@@ -2,7 +2,6 @@ package parser
 
 import (
     "github.com/stefankopieczek/gossip/base"
-    "github.com/stefankopieczek/gossip/log"
     "github.com/stefankopieczek/gossip/utils"
 )
 
@@ -1081,15 +1080,14 @@ func (expected *headerBlockResult) equals(other result) (equal bool, reason stri
 }
 
 func parseHeader(rawHeader string) (headers []base.SipHeader, err error) {
-    factory := NewParserFactory()
-    parser := factory.NewParser(false).(*parser)
-    input := fmt.Sprintf("%s\r\n%s\r\n", c_DUMMY_STARTLINE, rawHeader)
-    _, err = parser.Process([]byte(input))
-    var msg base.SipMessage
+    messages := make(chan base.SipMessage, 0)
+    errors := make(chan error, 0)
+    p := NewParser(messages, errors, false)
 
-    msg, err = parser.Publish()
-    log.Debug("Publish complete.")
-    headers = msg.AllHeaders()
+    headers, err = (p.(*parser)).parseHeader(rawHeader)
+
+    // parser.Stop()
+
     return
 }
 
@@ -1168,12 +1166,7 @@ func (data fromHeaderInput) String() string {
 }
 
 func (data fromHeaderInput) evaluate() result {
-    factory := NewParserFactory()
-    parser := factory.NewParser(false).(*parser)
-    _ = parser.parseStartLine(c_DUMMY_STARTLINE)
-    parser.parseHeader(string(data))
-    msg, err := parser.Publish()
-    headers := msg.AllHeaders()
+    headers, err := parseHeader(string(data))
     if len(headers) == 1 {
         return &fromHeaderResult{err, headers[0].(*base.FromHeader)}
     } else if len(headers) == 0 {

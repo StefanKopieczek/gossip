@@ -41,6 +41,9 @@ type SipMessage interface {
 	// Yields a flat, string representation of the SIP message suitable for sending out over the wire.
 	String() string
 
+    // Yields a short string representation of the message useful for logging.
+    Short() string
+
     AllHeaders() []SipHeader
     HeadersByName(name string) []SipHeader
 
@@ -90,6 +93,22 @@ func (request *Request) String() string {
 	return buffer.String()
 }
 
+func (request *Request) Short() string {
+    var buffer bytes.Buffer
+
+    buffer.WriteString(fmt.Sprintf("%s %s %s",
+        (string)(request.Method),
+        request.Recipient.String(),
+        request.SipVersion))
+
+    cseqs := request.HeadersByName("CSeq")
+    if len(cseqs) > 0 {
+        buffer.WriteString(fmt.Sprintf(" (CSeq: %s)", (cseqs[0].(*CSeq)).String()))
+    }
+
+    return buffer.String()
+}
+
 func (request *Request) AllHeaders() []SipHeader {
     return request.Headers
 }
@@ -97,6 +116,7 @@ func (request *Request) AllHeaders() []SipHeader {
 func (request *Request) HeadersByName(name string) []SipHeader {
     result := make([]SipHeader, 0)
     for _, header := range(request.Headers) {
+        // TODO: Filter headers
         result = append(result, header)
     }
 
@@ -156,6 +176,22 @@ func (response *Response) String() string {
 	return buffer.String()
 }
 
+func (response *Response) Short() string {
+    var buffer bytes.Buffer
+
+	buffer.WriteString(fmt.Sprintf("%s %d %s\r\n",
+		response.SipVersion,
+		response.StatusCode,
+		response.Reason))
+
+    cseqs := response.HeadersByName("CSeq")
+    if len(cseqs) > 0 {
+        buffer.WriteString(fmt.Sprintf(" (CSeq: %s)", (cseqs[0].(*CSeq)).String()))
+    }
+
+    return buffer.String()
+}
+
 func (response *Response) AllHeaders() []SipHeader {
     return response.Headers
 }
@@ -163,6 +199,7 @@ func (response *Response) AllHeaders() []SipHeader {
 func (response *Response) HeadersByName(name string) []SipHeader {
     result := make([]SipHeader, 0)
     for _, header := range(response.Headers) {
+        // TODO: Filter headers
         result = append(result, header)
     }
 
