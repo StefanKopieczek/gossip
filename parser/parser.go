@@ -136,8 +136,6 @@ func (p *parser) Write(data []byte) (n int, err error) {
 
 // Consume input lines one at a time, producing base.SipMessage objects and sending them down p.output.
 func (p *parser) parse(lines <- chan string, requireContentLength bool) {
-    log.Fine("Parser %p started", p)
-
     var message base.SipMessage
 
     for {
@@ -253,15 +251,21 @@ func (p *parser) parse(lines <- chan string, requireContentLength bool) {
             buffer.WriteString(line)
             buffer.WriteString("\r\n")
         }
-        if buffer.Len() != contentLength {
+
+        result := buffer.String()
+        if len(result) > 2 {
+            result = result[:len(result)-2]
+        }
+
+        if len(result) != contentLength {
             p.errs <- fmt.Errorf("Final line of message %s was unexpectedly long: '%s'", message.Short(), line)
         }
 
         switch message.(type) {
         case *base.Request:
-            message.(*base.Request).Body = buffer.String()
+            message.(*base.Request).Body = result
         case *base.Response:
-            message.(*base.Response).Body = buffer.String()
+            message.(*base.Response).Body = result
         default:
             log.Severe("Internal error - message %s is neither a request type nor a response type", message.Short())
         }
@@ -292,7 +296,7 @@ func pipeLines(textIn <- chan string, linesOut chan<- string) {
         buffer.Reset()
 
         for idx, line := range(lines[1:]) {
-            if idx == len(lines) - 2 {
+            if idx == len(lines) - 1 {
                 break
             }
             toSend = append(toSend, line)

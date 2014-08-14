@@ -2,6 +2,7 @@ package parser
 
 import (
     "github.com/stefankopieczek/gossip/base"
+    "github.com/stefankopieczek/gossip/log"
     "github.com/stefankopieczek/gossip/utils"
 )
 
@@ -11,12 +12,14 @@ import (
     "strings"
     "strconv"
     "testing"
+    "time"
 )
+
+// Level of logs output during testing.
+var c_LOG_LEVEL = log.INFO
 
 var testsRun int
 var testsPassed int
-
-const c_DUMMY_STARTLINE = "INVITE sip:bob@biloxi.com SIP/2.0"
 
 type input interface{
     String() string
@@ -75,6 +78,10 @@ var kat string = "kat"
 var ui16_5 uint16= uint16(5)
 var ui16_5060 = uint16(5060)
 var ui16_9 uint16 = uint16(9)
+
+func TestAAAASetup(t *testing.T) {
+    log.SetDefaultLogLevel(c_LOG_LEVEL)
+}
 
 func TestParams(t *testing.T) {
     doTests([]test {
@@ -935,6 +942,43 @@ func TestViaHeaders(t *testing.T) {
     }, t)
 }
 
+func TestUnstreamedParse1(t *testing.T) {
+    nilMap :=make(map[string]*string)
+    test := ParserTest{false, []parserTestStep {
+        // Steps each have: Input, result, sent error, returned error
+        parserTestStep{"INVITE sip:bob@biloxi.com SIP/2.0\r\n\r\n",
+                       &base.Request{Method     : base.INVITE,
+                                     Recipient  : &base.SipUri{false, &bob, nil, "biloxi.com", nil, nilMap, nilMap},
+                                     SipVersion : "SIP/2.0",
+                                     Headers    : make([]base.SipHeader, 0),
+                                     Body       : ""},
+                       nil,
+                       nil},
+    }}
+
+    test.Test(t)
+}
+
+func TestUnstreamedParse2(t *testing.T) {
+    nilMap :=make(map[string]*string)
+    test := ParserTest{false, []parserTestStep {
+        // Steps each have: Input, result, sent error, returned error
+        parserTestStep{"INVITE sip:bob@biloxi.com SIP/2.0\r\n" +
+                       "CSeq: 13 INVITE\r\n" +
+                       "\r\n" +
+                       "I am a banana",
+                       &base.Request{Method     : base.INVITE,
+                                     Recipient  : &base.SipUri{false, &bob, nil, "biloxi.com", nil, nilMap, nilMap},
+                                     SipVersion : "SIP/2.0",
+                                     Headers    : []base.SipHeader {&base.CSeq{13, base.INVITE}},
+                                     Body       : "I am a banana"},
+                       nil,
+                       nil},
+    }}
+
+    test.Test(t)
+}
+
 type paramInput struct {
     paramString string
     start uint8
@@ -1510,6 +1554,90 @@ func (expected *viaResult) equals(other result) (equal bool, reason string) {
     return true, ""
 }
 
+type ParserTest struct {
+    streamed bool
+    steps []parserTestStep
+}
+
+func (test *ParserTest) Test(t *testing.T) () {
+    testsRun++
+    output := make(chan base.SipMessage)
+    errs := make(chan error)
+    p := NewParser(output, errs, test.streamed)
+    for stepIdx, step := range(test.steps) {
+        success, reason := step.Test(p, output, errs)
+        if !success {
+            t.Errorf("failure in test step %d of input:\n%s\n\nfailure was: %s", stepIdx, test.String(), reason)
+            return
+        }
+    }
+
+    testsPassed++
+    return
+}
+
+func (t *ParserTest) String() string {
+    var buffer bytes.Buffer
+    buffer.WriteString("[")
+    for _, step := range(t.steps) {
+        buffer.WriteString(step.input)
+        buffer.WriteString(",")
+    }
+    buffer.WriteString("]")
+    return buffer.String()
+}
+
+type parserTestStep struct {
+    input string
+
+    // Slightly kludgy - two of these must be nil at any time.
+    result base.SipMessage
+    sentError error
+    returnedError error
+}
+
+func (step *parserTestStep) Test(parser Parser, msgChan chan base.SipMessage, errChan chan error) (success bool, reason string) {
+    _, err := parser.Write([]byte(step.input))
+    if err != step.returnedError {
+        success = false
+        reason = fmt.Sprintf("expected returned error %s on write; got %s", errToStr(step.returnedError), errToStr(err))
+        return
+    }
+
+    if err == nil {
+        select {
+        case msg := <- msgChan:
+            if msg == nil && step.result != nil {
+                success = false
+                reason = fmt.Sprintf("nil message returned from parser; expected:\n%s", step.result.String())
+            } else if msg != nil && step.result == nil {
+                success = false
+                reason = fmt.Sprintf("expected no message to be returned; got\n%s", msg.String())
+            } else if msg.String() != step.result.String() {
+                success = false
+                reason = fmt.Sprintf("unexpected message returned by parser; expected:\n\n%s\n\nbut got:\n\n%s", step.result.String(), msg.String())
+            } else {
+                success = true
+            }
+        case err = <- errChan:
+            if err == nil && step.sentError != nil {
+                success = false
+                reason = fmt.Sprintf("nil error output from parser; expected: %s", step.sentError.Error())
+            } else if err != nil && step.sentError == nil {
+                success = false
+                reason = fmt.Sprintf("expected no error; parser output: %s", err.Error())
+            } else {
+                success = true
+            }
+        case <- time.After(time.Second * 5):
+            success = false
+            reason = "timeout when processing input"
+        }
+    }
+
+    return
+}
+
 func TestZZZCountTests (t *testing.T) {
     fmt.Printf("\n *** %d tests run ***", testsRun)
     fmt.Printf("\n *** %d tests passed (%.2f%%) ***\n\n", testsPassed, (float32(testsPassed) * 100.0 / float32(testsRun)))
@@ -1531,3 +1659,10 @@ func uint16PtrStr(uint16Ptr *uint16) string {
     }
 }
 
+func errToStr(err error) string {
+    if err == nil {
+        return "nil"
+    } else {
+        return err.Error()
+    }
+}
