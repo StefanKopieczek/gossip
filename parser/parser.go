@@ -356,8 +356,14 @@ func isRequest(startLine string) bool {
 	}
 
 	// Check that the version string starts with SIP.
-	versionString := strings.ToUpper(strings.Split(startLine, " ")[2])
-	return versionString[:3] == "SIP"
+    parts := strings.Split(startLine, " ")
+    if len(parts) < 3 {
+        return false
+    } else if len(parts[2]) < 3 {
+        return false
+    } else {
+        return strings.ToUpper(parts[2][:3]) == "SIP"
+    }
 }
 
 // Heuristic to determine if the given transmission looks like a SIP response.
@@ -370,8 +376,14 @@ func isResponse(startLine string) bool {
 	}
 
 	// Check that the version string starts with SIP.
-	versionString := startLine[:strings.Index(startLine, " ")]
-	return versionString[:3] == "SIP"
+    parts := strings.Split(startLine, " ")
+    if len(parts) < 3 {
+        return false
+    } else if len(parts[0]) < 3 {
+        return false
+    } else {
+        return strings.ToUpper(parts[0][:3]) == "SIP"
+    }
 }
 
 // Parse the first line of a SIP request, e.g:
