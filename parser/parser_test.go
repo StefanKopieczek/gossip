@@ -962,6 +962,7 @@ func TestViaHeaders(t *testing.T) {
     }, t)
 }
 
+// Basic test of unstreamed parsing, using empty INVITE.
 func TestUnstreamedParse1(t *testing.T) {
     nilMap :=make(map[string]*string)
     test := ParserTest{false, []parserTestStep {
@@ -979,6 +980,7 @@ func TestUnstreamedParse1(t *testing.T) {
     test.Test(t)
 }
 
+// Test unstreamed parsing with a header and body.
 func TestUnstreamedParse2(t *testing.T) {
     nilMap :=make(map[string]*string)
     test := ParserTest{false, []parserTestStep {
@@ -992,6 +994,82 @@ func TestUnstreamedParse2(t *testing.T) {
                                      SipVersion : "SIP/2.0",
                                      Headers    : []base.SipHeader {&base.CSeq{13, base.INVITE}},
                                      Body       : "I am a banana"},
+                       nil,
+                       nil},
+    }}
+
+    test.Test(t)
+}
+
+// Test unstreamed parsing of a base.Request object (rather than a base.Response).
+func TestUnstreamedParse3(t *testing.T) {
+    test := ParserTest{false, []parserTestStep {
+        // Steps each have: Input, result, sent error, returned error
+        parserTestStep{"SIP/2.0 200 OK\r\n" +
+                       "CSeq: 2 INVITE\r\n" +
+                       "\r\n" +
+                       "Everything is awesome.",
+                       &base.Response{SipVersion : "SIP/2.0",
+                                      StatusCode : 200,
+                                      Reason     : "OK",
+                                      Headers    : []base.SipHeader {&base.CSeq{2, base.INVITE}},
+                                      Body       : "Everything is awesome."},
+                       nil,
+                       nil},
+    }}
+
+    test.Test(t)
+}
+
+// Test unstreamed parsing with more than one header.
+func TestUnstreamedParse4(t *testing.T) {
+    callId := base.CallId("cheesecake1729")
+    maxForwards := base.MaxForwards(65)
+    test := ParserTest{false, []parserTestStep {
+        // Steps each have: Input, result, sent error, returned error
+        parserTestStep{"SIP/2.0 200 OK\r\n" +
+                       "CSeq: 2 INVITE\r\n" +
+                       "Call-ID: cheesecake1729\r\n" +
+                       "Max-Forwards: 65\r\n" +
+                       "\r\n" +
+                       "Everything is awesome.",
+                       &base.Response{SipVersion : "SIP/2.0",
+                                      StatusCode : 200,
+                                      Reason     : "OK",
+                                      Headers    : []base.SipHeader {
+                                                        &base.CSeq{2, base.INVITE},
+                                                        &callId,
+                                                        &maxForwards},
+                                      Body       : "Everything is awesome."},
+                       nil,
+                       nil},
+    }}
+
+    test.Test(t)
+}
+
+// Test unstreamed parsing with whitespace and line breaks.
+func TestUnstreamedParse5(t *testing.T) {
+    callId := base.CallId("cheesecake1729")
+    maxForwards := base.MaxForwards(63)
+    test := ParserTest{false, []parserTestStep {
+        // Steps each have: Input, result, sent error, returned error
+        parserTestStep{"SIP/2.0 200 OK\r\n" +
+                       "CSeq:   2     \r\n" +
+                       "    INVITE\r\n" +
+                       "Call-ID:\tcheesecake1729\r\n" +
+                       "Max-Forwards:\t\r\n" +
+                       "\t63\r\n" +
+                       "\r\n" +
+                       "Everything is awesome.",
+                       &base.Response{SipVersion : "SIP/2.0",
+                                      StatusCode : 200,
+                                      Reason     : "OK",
+                                      Headers    : []base.SipHeader {
+                                                        &base.CSeq{2, base.INVITE},
+                                                        &callId,
+                                                        &maxForwards},
+                                      Body       : "Everything is awesome."},
                        nil,
                        nil},
     }}
