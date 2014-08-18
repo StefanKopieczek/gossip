@@ -826,12 +826,32 @@ func TestContactHeaders(t *testing.T) {
     }, t)
 }
 
+func TestSplitByWS(t *testing.T) {
+    doTests([] test {
+        test{splitByWSInput("Hello world"), splitByWSResult([]string{"Hello", "world"})},
+        test{splitByWSInput("Hello\tworld"), splitByWSResult([]string{"Hello", "world"})},
+        test{splitByWSInput("Hello    world"), splitByWSResult([]string{"Hello", "world"})},
+        test{splitByWSInput("Hello  world"), splitByWSResult([]string{"Hello", "world"})},
+        test{splitByWSInput("Hello\t world"), splitByWSResult([]string{"Hello", "world"})},
+        test{splitByWSInput("Hello\t world"), splitByWSResult([]string{"Hello", "world"})},
+        test{splitByWSInput("Hello\t \tworld"), splitByWSResult([]string{"Hello", "world"})},
+        test{splitByWSInput("Hello\t\tworld"), splitByWSResult([]string{"Hello", "world"})},
+        test{splitByWSInput("Hello\twonderful\tworld"), splitByWSResult([]string{"Hello", "wonderful", "world"})},
+        test{splitByWSInput("Hello   wonderful\tworld"), splitByWSResult([]string{"Hello", "wonderful", "world"})},
+        test{splitByWSInput("Hello   wonderful  world"), splitByWSResult([]string{"Hello", "wonderful", "world"})},
+    }, t)
+}
+
 func TestCSeqs(t *testing.T) {
     doTests([]test {
         test{cSeqInput("CSeq: 1 INVITE"), &cSeqResult{pass, &base.CSeq{1, "INVITE"}}},
-        test{cSeqInput("CSeq : 1 INVITE"), &cSeqResult{pass, &base.CSeq{1, "INVITE"}}},
-        test{cSeqInput("CSeq  : 1 INVITE"), &cSeqResult{pass, &base.CSeq{1, "INVITE"}}},
-        test{cSeqInput("CSeq\t: 1 INVITE"), &cSeqResult{pass, &base.CSeq{1, "INVITE"}}},
+        test{cSeqInput("CSeq : 2 INVITE"), &cSeqResult{pass, &base.CSeq{2, "INVITE"}}},
+        test{cSeqInput("CSeq  : 3 INVITE"), &cSeqResult{pass, &base.CSeq{3, "INVITE"}}},
+        test{cSeqInput("CSeq\t: 4 INVITE"), &cSeqResult{pass, &base.CSeq{4, "INVITE"}}},
+        test{cSeqInput("CSeq:\t5\t\tINVITE"), &cSeqResult{pass, &base.CSeq{5, "INVITE"}}},
+        test{cSeqInput("CSeq:\t6 \tINVITE"), &cSeqResult{pass, &base.CSeq{6, "INVITE"}}},
+        test{cSeqInput("CSeq:    7      INVITE"), &cSeqResult{pass, &base.CSeq{7, "INVITE"}}},
+        test{cSeqInput("CSeq: 8  INVITE"), &cSeqResult{pass, &base.CSeq{8, "INVITE"}}},
         test{cSeqInput("CSeq: 0 register"), &cSeqResult{pass, &base.CSeq{0, "register"}}},
         test{cSeqInput("CSeq: 10 reGister"), &cSeqResult{pass, &base.CSeq{10, "reGister"}}},
         test{cSeqInput("CSeq: 17 FOOBAR"), &cSeqResult{pass, &base.CSeq{17, "FOOBAR"}}},
@@ -1338,6 +1358,33 @@ func (expected *contactHeaderResult) equals(other result) (equal bool, reason st
             return false, fmt.Sprintf("unexpected parameters \"%s\" (expected \"%s\")",
                 base.ParamsToString(actual.headers[idx].Params, '$', '-'),
                 base.ParamsToString(expected.headers[idx].Params, '$', '-'))
+        }
+    }
+
+    return true, ""
+}
+
+type splitByWSInput string
+
+func (data splitByWSInput) String() string {
+    return string(data)
+}
+
+func (data splitByWSInput) evaluate() result {
+    return splitByWSResult(splitByWhitespace(string(data)))
+}
+
+type splitByWSResult []string
+
+func (expected splitByWSResult) equals (other result) (equal bool, reason string) {
+    actual := other.(splitByWSResult)
+    if len(expected) != len(actual) {
+        return false, fmt.Sprintf("unexpected result length in splitByWS test: expected %d %v, got %d %v.", len(expected), expected, len(actual), actual)
+    }
+
+    for idx, e := range(expected) {
+        if e != actual[idx] {
+            return false, fmt.Sprintf("unexpected result at index %d in splitByWS test: expected '%s'; got '%s'", idx, e, actual[idx])
         }
     }
 

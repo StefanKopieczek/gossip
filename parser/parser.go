@@ -855,9 +855,9 @@ func parseCSeq(headerName string, headerText string) (
 	headers []base.SipHeader, err error) {
 	var cseq base.CSeq
 
-	parts := strings.Split(headerText, " ")
+	parts := splitByWhitespace(headerText)
 	if len(parts) != 2 {
-		err = fmt.Errorf("CSeq field should have precisely one space: '%s'",
+		err = fmt.Errorf("CSeq field should have precisely one whitespace section: '%s'",
 			headerText)
 		return
 	}
@@ -1231,4 +1231,33 @@ func findAnyUnescaped(text string, targets string, delims ...delimiter) int {
 	}
 
 	return -1
+}
+
+// Splits the given string into sections, separated by one or more characters
+// from c_ABNF_WS.
+func splitByWhitespace(text string) []string {
+    var buffer bytes.Buffer
+    var inString bool = true
+    result := make([]string, 0)
+
+    for _, char := range(text) {
+        s := string(char)
+        if strings.Contains(c_ABNF_WS, s) {
+            if inString {
+                // First whitespace char following text; flush buffer to the results array.
+                result = append(result, buffer.String())
+                buffer.Reset()
+            }
+            inString = false
+        } else {
+            buffer.WriteString(s)
+            inString = true
+        }
+    }
+
+    if buffer.Len() > 0 {
+        result = append(result, buffer.String())
+    }
+
+    return result
 }
