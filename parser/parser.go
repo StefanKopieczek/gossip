@@ -154,6 +154,7 @@ func (p *parser) parse(lines <- chan string, requireContentLength bool) {
         }
 
         if p.terminalErr != nil {
+            p.terminalErr = fmt.Errorf("failed to parse first line of message: %s", p.terminalErr.Error())
             p.errs <- p.terminalErr
             break
         }
