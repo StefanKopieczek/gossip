@@ -1,16 +1,16 @@
 package parser
 
 import (
-    "github.com/stefankopieczek/gossip/base"
+	"github.com/stefankopieczek/gossip/base"
 )
 
 import (
-    "bytes"
-    "fmt"
-    "strings"
-    "strconv"
-    "unicode"
-    "unicode/utf8"
+	"bytes"
+	"fmt"
+	"strconv"
+	"strings"
+	"unicode"
+	"unicode/utf8"
 )
 
 // The whitespace characters recognised by the Augmented Backus-Naur Form syntax
@@ -214,10 +214,10 @@ func parseRequestLine(requestLine string) (
 	recipient, err = ParseUri(parts[1])
 	sipVersion = parts[2]
 
-    switch recipient.(type) {
-    case *base.WildcardUri:
-        err = fmt.Errorf("wildcard URI '*' not permitted in request line: '%s'", requestLine)
-    }
+	switch recipient.(type) {
+	case *base.WildcardUri:
+		err = fmt.Errorf("wildcard URI '*' not permitted in request line: '%s'", requestLine)
+	}
 
 	return
 }
@@ -226,7 +226,7 @@ func parseRequestLine(requestLine string) (
 //   SIP/2.0 200 OK
 //   SIP/1.0 403 Forbidden
 func parseStatusLine(statusLine string) (
-	sipVersion string, statusCode uint8, reasonPhrase string, err error) {
+	sipVersion string, statusCode uint16, reasonPhrase string, err error) {
 	parts := strings.Split(statusLine, " ")
 	if len(parts) < 3 {
 		err = fmt.Errorf("status line has too few spaces: '%s'", statusLine)
@@ -235,7 +235,7 @@ func parseStatusLine(statusLine string) (
 
 	sipVersion = parts[0]
 	statusCodeRaw, err := strconv.ParseUint(parts[1], 10, 8)
-	statusCode = uint8(statusCodeRaw)
+	statusCode = uint16(statusCodeRaw)
 	reasonPhrase = strings.Join(parts[2:], "")
 
 	return
@@ -1008,9 +1008,9 @@ func getNextHeaderLine(contents []string) (headerText string, consumed int) {
 	if len(contents) == 0 {
 		return
 	}
-    if len(contents[0]) == 0 {
-        return
-    }
+	if len(contents[0]) == 0 {
+		return
+	}
 
 	var buffer bytes.Buffer
 	buffer.WriteString(contents[0])
