@@ -1,16 +1,16 @@
 package parser
 
 import (
-    "github.com/stefankopieczek/gossip/base"
+	"github.com/stefankopieczek/gossip/base"
 )
 
 import (
-    "bytes"
-    "fmt"
-    "strings"
-    "strconv"
-    "unicode"
-    "unicode/utf8"
+	"bytes"
+	"fmt"
+	"strconv"
+	"strings"
+	"unicode"
+	"unicode/utf8"
 )
 
 // The whitespace characters recognised by the Augmented Backus-Naur Form syntax
@@ -133,7 +133,7 @@ func (parser *parserImpl) parseRequest(contents []string) (*base.Request, error)
 	// Parse all headers on the message.
 	// Record how many lines are consumed so that we may identify the start of the application data.
 	var consumed int
-	request.Headers, consumed, err = parser.parseHeaders(contents[1:])
+	request.Headers, request.HeaderOrder, consumed, err = parser.parseHeaders(contents[1:])
 	if err != nil {
 		return nil, err
 	}
@@ -173,7 +173,7 @@ func (parser *parserImpl) parseResponse(contents []string) (*base.Response, erro
 	// Parse all headers on the message.
 	// Record how many lines are consumed so that we can identify the start of the application data.
 	var consumed int
-	response.Headers, consumed, err = parser.parseHeaders(contents[1:])
+	response.Headers, response.HeaderOrder, consumed, err = parser.parseHeaders(contents[1:])
 	if err != nil {
 		return nil, err
 	}
@@ -214,10 +214,10 @@ func parseRequestLine(requestLine string) (
 	recipient, err = ParseUri(parts[1])
 	sipVersion = parts[2]
 
-    switch recipient.(type) {
-    case *base.WildcardUri:
-        err = fmt.Errorf("wildcard URI '*' not permitted in request line: '%s'", requestLine)
-    }
+	switch recipient.(type) {
+	case *base.WildcardUri:
+		err = fmt.Errorf("wildcard URI '*' not permitted in request line: '%s'", requestLine)
+	}
 
 	return
 }
@@ -226,7 +226,7 @@ func parseRequestLine(requestLine string) (
 //   SIP/2.0 200 OK
 //   SIP/1.0 403 Forbidden
 func parseStatusLine(statusLine string) (
-	sipVersion string, statusCode uint8, reasonPhrase string, err error) {
+	sipVersion string, statusCode uint16, reasonPhrase string, err error) {
 	parts := strings.Split(statusLine, " ")
 	if len(parts) < 3 {
 		err = fmt.Errorf("status line has too few spaces: '%s'", statusLine)
@@ -235,7 +235,7 @@ func parseStatusLine(statusLine string) (
 
 	sipVersion = parts[0]
 	statusCodeRaw, err := strconv.ParseUint(parts[1], 10, 8)
-	statusCode = uint8(statusCodeRaw)
+	statusCode = uint16(statusCodeRaw)
 	reasonPhrase = strings.Join(parts[2:], "")
 
 	return
@@ -540,8 +540,13 @@ parseLoop:
 // Extract the headers from a string representation of a SIP message.
 // Return the parsed headers, the number of lines consumed, and any error.
 func (parser *parserImpl) parseHeaders(contents []string) (
-	headers []base.SipHeader, consumed int, err error) {
-	headers = make([]base.SipHeader, 0)
+	headers map[string][]base.SipHeader,
+	order []string,
+	consumed int,
+	err error) {
+
+	headers = map[string][]base.SipHeader{}
+	order = []string{}
 	for {
 		// Separate out the lines corresponding to the first header.
 		headerText, lines := getNextHeaderLine(contents[consumed:])
@@ -557,7 +562,10 @@ func (parser *parserImpl) parseHeaders(contents []string) (
 		if err != nil {
 			return
 		}
-		headers = append(headers, someHeaders...)
+		if len(someHeaders) > 0 {
+			headers[someHeaders[0].Name()] = someHeaders
+			order = append(order, someHeaders[0].Name())
+		}
 		consumed += lines
 	}
 
@@ -1006,9 +1014,9 @@ func getNextHeaderLine(contents []string) (headerText string, consumed int) {
 	if len(contents) == 0 {
 		return
 	}
-    if len(contents[0]) == 0 {
-        return
-    }
+	if len(contents[0]) == 0 {
+		return
+	}
 
 	var buffer bytes.Buffer
 	buffer.WriteString(contents[0])

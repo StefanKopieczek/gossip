@@ -54,7 +54,10 @@ type Request struct {
 	SipVersion string
 
 	// The logical SIP headers attached to this message.
-	Headers []SipHeader
+	Headers map[string][]SipHeader
+
+	// The order the headers should be displayed in.
+	HeaderOrder []string
 
 	// The application data of the message.
 	Body *string
@@ -70,11 +73,13 @@ func (request *Request) String() string {
 		request.SipVersion))
 
 	// Construct each header in turn and add it to the message.
-	for idx, header := range request.Headers {
-		buffer.WriteString(header.String())
-
-		if idx < len(request.Headers) {
-			buffer.WriteString("\r\n")
+	for typeIdx, name := range request.HeaderOrder {
+		headers := request.Headers[name]
+		for idx, header := range headers {
+			buffer.WriteString(header.String())
+			if typeIdx < len(request.HeaderOrder) || idx < len(headers) {
+				buffer.WriteString("\r\n")
+			}
 		}
 	}
 
@@ -93,7 +98,7 @@ type Response struct {
 
 	// The response code, e.g. 200, 401 or 500.
 	// This indicates the outcome of the originating request.
-	StatusCode uint8
+	StatusCode uint16
 
 	// The reason string provides additional, human-readable information used to provide
 	// clarification or explanation of the status code.
@@ -101,7 +106,10 @@ type Response struct {
 	Reason string
 
 	// The logical SIP headers attached to this message.
-	Headers []SipHeader
+	Headers map[string][]SipHeader
+
+	// The order the headers should be displayed in.
+	HeaderOrder []string
 
 	// The application data of the message.
 	Body *string
@@ -117,11 +125,13 @@ func (response *Response) String() string {
 		response.Reason))
 
 	// Construct each header in turn and add it to the message.
-	for idx, header := range response.Headers {
-		buffer.WriteString(header.String())
-
-		if idx < len(response.Headers) {
-			buffer.WriteString("\r\n")
+	for typeIdx, name := range response.HeaderOrder {
+		headers := response.Headers[name]
+		for idx, header := range headers {
+			buffer.WriteString(header.String())
+			if typeIdx < len(response.HeaderOrder) || idx < len(headers) {
+				buffer.WriteString("\r\n")
+			}
 		}
 	}
 
