@@ -540,8 +540,8 @@ parseLoop:
 // Extract the headers from a string representation of a SIP message.
 // Return the parsed headers, the number of lines consumed, and any error.
 func (parser *parserImpl) parseHeaders(contents []string) (
-	headers []base.SipHeader, consumed int, err error) {
-	headers = make([]base.SipHeader, 0)
+	headers map[string][]base.SipHeader, consumed int, err error) {
+	headers = map[string][]base.SipHeader{}
 	for {
 		// Separate out the lines corresponding to the first header.
 		headerText, lines := getNextHeaderLine(contents[consumed:])
@@ -557,7 +557,9 @@ func (parser *parserImpl) parseHeaders(contents []string) (
 		if err != nil {
 			return
 		}
-		headers = append(headers, someHeaders...)
+		if len(someHeaders) > 0 {
+			headers[someHeaders[0].Name()] = someHeaders
+		}
 		consumed += lines
 	}
 
