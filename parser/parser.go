@@ -133,7 +133,7 @@ func (parser *parserImpl) parseRequest(contents []string) (*base.Request, error)
 	// Parse all headers on the message.
 	// Record how many lines are consumed so that we may identify the start of the application data.
 	var consumed int
-	request.Headers, consumed, err = parser.parseHeaders(contents[1:])
+	request.Headers, request.HeaderOrder, consumed, err = parser.parseHeaders(contents[1:])
 	if err != nil {
 		return nil, err
 	}
@@ -173,7 +173,7 @@ func (parser *parserImpl) parseResponse(contents []string) (*base.Response, erro
 	// Parse all headers on the message.
 	// Record how many lines are consumed so that we can identify the start of the application data.
 	var consumed int
-	response.Headers, consumed, err = parser.parseHeaders(contents[1:])
+	response.Headers, response.HeaderOrder, consumed, err = parser.parseHeaders(contents[1:])
 	if err != nil {
 		return nil, err
 	}
@@ -540,8 +540,13 @@ parseLoop:
 // Extract the headers from a string representation of a SIP message.
 // Return the parsed headers, the number of lines consumed, and any error.
 func (parser *parserImpl) parseHeaders(contents []string) (
-	headers map[string][]base.SipHeader, consumed int, err error) {
+	headers map[string][]base.SipHeader,
+	order []string,
+	consumed int,
+	err error) {
+
 	headers = map[string][]base.SipHeader{}
+	order = []string{}
 	for {
 		// Separate out the lines corresponding to the first header.
 		headerText, lines := getNextHeaderLine(contents[consumed:])
@@ -559,6 +564,7 @@ func (parser *parserImpl) parseHeaders(contents []string) (
 		}
 		if len(someHeaders) > 0 {
 			headers[someHeaders[0].Name()] = someHeaders
+			order = append(order, someHeaders[0].Name())
 		}
 		consumed += lines
 	}

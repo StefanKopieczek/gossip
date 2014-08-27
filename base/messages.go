@@ -56,6 +56,9 @@ type Request struct {
 	// The logical SIP headers attached to this message.
 	Headers map[string][]SipHeader
 
+	// The order the headers should be displayed in.
+	HeaderOrder []string
+
 	// The application data of the message.
 	Body *string
 }
@@ -70,15 +73,14 @@ func (request *Request) String() string {
 		request.SipVersion))
 
 	// Construct each header in turn and add it to the message.
-	typeIdx := 0
-	for _, headers := range request.Headers {
+	for typeIdx, name := range request.HeaderOrder {
+		headers := request.Headers[name]
 		for idx, header := range headers {
 			buffer.WriteString(header.String())
-			if typeIdx < len(request.Headers) || idx < len(headers) {
+			if typeIdx < len(request.HeaderOrder) || idx < len(headers) {
 				buffer.WriteString("\r\n")
 			}
 		}
-		typeIdx++
 	}
 
 	// If the request has a message body, add it.
@@ -106,6 +108,9 @@ type Response struct {
 	// The logical SIP headers attached to this message.
 	Headers map[string][]SipHeader
 
+	// The order the headers should be displayed in.
+	HeaderOrder []string
+
 	// The application data of the message.
 	Body *string
 }
@@ -120,15 +125,14 @@ func (response *Response) String() string {
 		response.Reason))
 
 	// Construct each header in turn and add it to the message.
-	typeIdx := 0
-	for _, headers := range response.Headers {
+	for typeIdx, name := range response.HeaderOrder {
+		headers := response.Headers[name]
 		for idx, header := range headers {
 			buffer.WriteString(header.String())
-			if typeIdx < len(response.Headers) || idx < len(headers) {
+			if typeIdx < len(response.HeaderOrder) || idx < len(headers) {
 				buffer.WriteString("\r\n")
 			}
 		}
-		typeIdx++
 	}
 
 	// If the request has a message body, add it.
