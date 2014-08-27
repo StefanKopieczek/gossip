@@ -563,7 +563,7 @@ func (parser *parserImpl) parseHeaders(contents []string) (
 			return
 		}
 		if len(someHeaders) > 0 {
-			headers[someHeaders[0].Name()] = someHeaders
+			headers[someHeaders[0].Name()] = append(headers[someHeaders[0].Name()], someHeaders...)
 			order = append(order, someHeaders[0].Name())
 		}
 		consumed += lines
