@@ -1,7 +1,7 @@
 package base
 
 import (
-    "github.com/stefankopieczek/gossip/utils"
+	"github.com/stefankopieczek/gossip/utils"
 )
 
 import "bytes"
@@ -16,6 +16,9 @@ const c_ABNF_WS = " \t"
 type SipHeader interface {
 	// Produce the string representation of the header.
 	String() string
+
+	// Produce the name of the header (e.g. "To", "Via")
+	Name() string
 }
 
 // A URI from any schema (e.g. sip:, tel:, callto:)
@@ -194,6 +197,11 @@ func (header *GenericHeader) String() string {
 	return header.HeaderName + ": " + header.Contents
 }
 
+// Pull out the header name.
+func (h *GenericHeader) Name() string {
+	return h.HeaderName
+}
+
 type ToHeader struct {
 	// The display name from the header - this is a pointer type as it is optional.
 	DisplayName *string
@@ -218,6 +226,8 @@ func (to *ToHeader) String() string {
 	return buffer.String()
 }
 
+func (h *ToHeader) Name() string { return "To" }
+
 type FromHeader struct {
 	// The display name from the header - this is a pointer type as it is optional.
 	DisplayName *string
@@ -241,6 +251,8 @@ func (from *FromHeader) String() string {
 
 	return buffer.String()
 }
+
+func (h *FromHeader) Name() string { return "From" }
 
 type ContactHeader struct {
 	// The display name from the header - this is a pointer type as it is optional.
@@ -273,11 +285,15 @@ func (contact *ContactHeader) String() string {
 	return buffer.String()
 }
 
+func (h *ContactHeader) Name() string { return "Contact" }
+
 type CallId string
 
 func (callId *CallId) String() string {
 	return "Call-Id: " + (string)(*callId)
 }
+
+func (h *CallId) Name() string { return "Call-Id" }
 
 type CSeq struct {
 	SeqNo      uint32
@@ -288,17 +304,23 @@ func (cseq *CSeq) String() string {
 	return fmt.Sprintf("CSeq: %d %s", cseq.SeqNo, cseq.MethodName)
 }
 
+func (h *CSeq) Name() string { return "CSeq" }
+
 type MaxForwards uint32
 
 func (maxForwards *MaxForwards) String() string {
 	return fmt.Sprintf("Max-Forwards: %d", ((int)(*maxForwards)))
 }
 
+func (h *MaxForwards) Name() string { return "Max-Forwards" }
+
 type ContentLength uint32
 
 func (contentLength *ContentLength) String() string {
 	return fmt.Sprintf("Content-Length: %d", ((int)(*contentLength)))
 }
+
+func (h *ContentLength) Name() string { return "Content-Length" }
 
 type ViaHeader []*ViaHop
 
@@ -347,6 +369,8 @@ func (via ViaHeader) String() string {
 	return buffer.String()
 }
 
+func (h *ViaHeader) Name() string { return "Via" }
+
 type RequireHeader struct {
 	Options []string
 }
@@ -355,6 +379,8 @@ func (header *RequireHeader) String() string {
 	return fmt.Sprintf("Require: %s",
 		strings.Join(header.Options, ", "))
 }
+
+func (h *RequireHeader) Name() string { return "Require" }
 
 type SupportedHeader struct {
 	Options []string
@@ -365,6 +391,8 @@ func (header *SupportedHeader) String() string {
 		strings.Join(header.Options, ", "))
 }
 
+func (h *SupportedHeader) Name() string { return "Supported" }
+
 type ProxyRequireHeader struct {
 	Options []string
 }
@@ -373,6 +401,8 @@ func (header *ProxyRequireHeader) String() string {
 	return fmt.Sprintf("Proxy-Require: %s",
 		strings.Join(header.Options, ", "))
 }
+
+func (h *ProxyRequireHeader) Name() string { return "Proxy-Require" }
 
 // 'Unsupported:' is a SIP header type - this doesn't indicate that the
 // header itself is not supported by gossip!
@@ -384,6 +414,8 @@ func (header *UnsupportedHeader) String() string {
 	return fmt.Sprintf("Unsupported: %s",
 		strings.Join(header.Options, ", "))
 }
+
+func (h *UnsupportedHeader) Name() string { return "Unsupported" }
 
 // Utility method for converting a map of parameters to a flat string representation.
 // Takes the map of parameters, and start and end characters (e.g. '?' and '&').
