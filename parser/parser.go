@@ -1,16 +1,16 @@
 package parser
 
 import (
-    "github.com/stefankopieczek/gossip/base"
+	"github.com/stefankopieczek/gossip/base"
 )
 
 import (
-    "bytes"
-    "fmt"
-    "strings"
-    "strconv"
-    "unicode"
-    "unicode/utf8"
+	"bytes"
+	"fmt"
+	"strconv"
+	"strings"
+	"unicode"
+	"unicode/utf8"
 )
 
 // The whitespace characters recognised by the Augmented Backus-Naur Form syntax
@@ -121,8 +121,9 @@ func isResponse(contents []string) bool {
 }
 
 func (parser *parserImpl) parseRequest(contents []string) (*base.Request, error) {
-	var request base.Request
 	var err error
+
+	request := &base.Request{}
 
 	// Parse the Request Line of the message.
 	request.Method, request.Recipient, request.SipVersion, err = parseRequestLine(contents[0])
@@ -133,16 +134,21 @@ func (parser *parserImpl) parseRequest(contents []string) (*base.Request, error)
 	// Parse all headers on the message.
 	// Record how many lines are consumed so that we may identify the start of the application data.
 	var consumed int
-	request.Headers, consumed, err = parser.parseHeaders(contents[1:])
+	headers, consumed, err := parser.parseHeaders(contents[1:])
 	if err != nil {
 		return nil, err
+	}
+
+	// Add the headers to the request.
+	for _, h := range headers {
+		request.AddHeader(h)
 	}
 
 	// If the request contains no application data then it should end immediately with double-CRLF.
 	// We're splitting on CRLF, so there should be at least two more lines at this stage; if there
 	// are exactly two we've reached the end of the message.
 	if len(contents) == consumed+2 {
-		return &request, err
+		return request, err
 	} else if len(contents) == consumed+1 {
 		err = fmt.Errorf("Request beginning '%s' has no CRLF at end of headers",
 			contents[0])
@@ -157,12 +163,13 @@ func (parser *parserImpl) parseRequest(contents []string) (*base.Request, error)
 	bodyText := strings.Join(contents[2+consumed:], "\r\n")
 	request.Body = &bodyText
 
-	return &request, err
+	return request, err
 }
 
 func (parser *parserImpl) parseResponse(contents []string) (*base.Response, error) {
-	var response base.Response
 	var err error
+
+	response := &base.Response{}
 
 	// Parse the status line of the message.
 	response.SipVersion, response.StatusCode, response.Reason, err = parseStatusLine(contents[0])
@@ -173,16 +180,21 @@ func (parser *parserImpl) parseResponse(contents []string) (*base.Response, erro
 	// Parse all headers on the message.
 	// Record how many lines are consumed so that we can identify the start of the application data.
 	var consumed int
-	response.Headers, consumed, err = parser.parseHeaders(contents[1:])
+	headers, consumed, err := parser.parseHeaders(contents[1:])
 	if err != nil {
 		return nil, err
+	}
+
+	// Add the headers to the response.
+	for _, h := range headers {
+		response.AddHeader(h)
 	}
 
 	// If the request contains no application data then it should end immediately with double-CRLF.
 	// We're splitting on CRLF, so there should be at least two more lines at this stage; if there
 	// are exactly two we've reached the end of the message.
 	if len(contents) == consumed+2 {
-		return &response, err
+		return response, err
 	} else if len(contents) == consumed+1 {
 		err = fmt.Errorf("Response beginning '%s' has no CRLF at end of headers", contents[0])
 		return nil, err
@@ -196,7 +208,7 @@ func (parser *parserImpl) parseResponse(contents []string) (*base.Response, erro
 	bodyText := strings.Join(contents[2+consumed:], "\r\n")
 	response.Body = &bodyText
 
-	return &response, err
+	return response, err
 }
 
 // Parse the first line of a SIP request, e.g:
@@ -214,10 +226,10 @@ func parseRequestLine(requestLine string) (
 	recipient, err = ParseUri(parts[1])
 	sipVersion = parts[2]
 
-    switch recipient.(type) {
-    case *base.WildcardUri:
-        err = fmt.Errorf("wildcard URI '*' not permitted in request line: '%s'", requestLine)
-    }
+	switch recipient.(type) {
+	case base.WildcardUri:
+		err = fmt.Errorf("wildcard URI '*' not permitted in request line: '%s'", requestLine)
+	}
 
 	return
 }
@@ -247,7 +259,7 @@ func parseStatusLine(statusLine string) (
 func ParseUri(uriStr string) (uri base.Uri, err error) {
 	if strings.TrimSpace(uriStr) == "*" {
 		// Wildcard '*' URI used in the Contact headers of REGISTERs when unregistering.
-		return &base.WildcardUri{}, nil
+		return base.WildcardUri{}, nil
 	}
 
 	colonIdx := strings.Index(uriStr, ":")
@@ -541,7 +553,6 @@ parseLoop:
 // Return the parsed headers, the number of lines consumed, and any error.
 func (parser *parserImpl) parseHeaders(contents []string) (
 	headers []base.SipHeader, consumed int, err error) {
-	headers = make([]base.SipHeader, 0)
 	for {
 		// Separate out the lines corresponding to the first header.
 		headerText, lines := getNextHeaderLine(contents[consumed:])
@@ -629,7 +640,7 @@ func parseAddressHeader(headerName string, headerText string) (
 							headerName, headerText)
 				}
 				switch uris[idx].(type) {
-				case *base.WildcardUri:
+				case base.WildcardUri:
 					// The Wildcard '*' URI is only permitted in Contact headers.
 					err = fmt.Errorf("wildcard uri not permitted in to: "+
 						"header: %s", headerText)
@@ -648,7 +659,7 @@ func parseAddressHeader(headerName string, headerText string) (
 							headerName, headerText)
 				}
 				switch uris[idx].(type) {
-				case *base.WildcardUri:
+				case base.WildcardUri:
 					// The Wildcard '*' URI is only permitted in Contact headers.
 					err = fmt.Errorf("wildcard uri not permitted in from: "+
 						"header: %s", headerText)
@@ -1006,9 +1017,9 @@ func getNextHeaderLine(contents []string) (headerText string, consumed int) {
 	if len(contents) == 0 {
 		return
 	}
-    if len(contents[0]) == 0 {
-        return
-    }
+	if len(contents[0]) == 0 {
+		return
+	}
 
 	var buffer bytes.Buffer
 	buffer.WriteString(contents[0])

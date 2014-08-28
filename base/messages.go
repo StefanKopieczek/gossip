@@ -40,6 +40,73 @@ const (
 type SipMessage interface {
 	// Yields a flat, string representation of the SIP message suitable for sending out over the wire.
 	String() string
+
+	// Adds a header to this message.
+	AddHeader(h SipHeader)
+
+	// Returns a slice of all headers of the given type.
+	// If there are no headers of the requested type, returns an empty slice.
+	Headers(name string) []SipHeader
+}
+
+// A shared type for holding headers and their ordering.
+type headers struct {
+	// The logical SIP headers attached to this message.
+	headers map[string][]SipHeader
+
+	// The order the headers should be displayed in.
+	headerOrder []string
+}
+
+func (h headers) String() string {
+	buffer := bytes.Buffer{}
+	// Construct each header in turn and add it to the message.
+	for typeIdx, name := range h.headerOrder {
+		headers := h.headers[name]
+		for idx, header := range headers {
+			buffer.WriteString(header.String())
+			if typeIdx < len(h.headerOrder) || idx < len(headers) {
+				buffer.WriteString("\r\n")
+			}
+		}
+	}
+	return buffer.String()
+}
+
+// Add the given header.
+func (hs *headers) AddHeader(h SipHeader) {
+	if hs.headers == nil {
+		hs.headers = map[string][]SipHeader{}
+		hs.headerOrder = []string{}
+	}
+	name := h.Name()
+	if _, ok := hs.headers[name]; ok {
+		hs.headers[name] = append(hs.headers[name], h)
+	} else {
+		hs.headers[name] = []SipHeader{h}
+		hs.headerOrder = append(hs.headerOrder, name)
+	}
+}
+
+// Gets some headers.
+func (hs *headers) Headers(name string) []SipHeader {
+	if hs.headers == nil {
+		hs.headers = map[string][]SipHeader{}
+		hs.headerOrder = []string{}
+	}
+	if headers, ok := hs.headers[name]; ok {
+		return headers
+	} else {
+		return []SipHeader{}
+	}
+}
+
+// Copy all headers of one type from one message to another.
+// Appending to any headers that were already there.
+func CopyHeaders(name string, from, to SipMessage) {
+	for _, h := range from.Headers(name) {
+		to.AddHeader(h.Copy())
+	}
 }
 
 // A SIP request (c.f. RFC 3261 section 7.1).
@@ -53,8 +120,8 @@ type Request struct {
 	// The version of SIP used in this message, e.g. "SIP/2.0".
 	SipVersion string
 
-	// The logical SIP headers attached to this message.
-	Headers []SipHeader
+	// A Request has headers.
+	headers
 
 	// The application data of the message.
 	Body *string
@@ -69,14 +136,7 @@ func (request *Request) String() string {
 		request.Recipient.String(),
 		request.SipVersion))
 
-	// Construct each header in turn and add it to the message.
-	for idx, header := range request.Headers {
-		buffer.WriteString(header.String())
-
-		if idx < len(request.Headers) {
-			buffer.WriteString("\r\n")
-		}
-	}
+	buffer.WriteString(request.headers.String())
 
 	// If the request has a message body, add it.
 	if request.Body != nil {
@@ -100,8 +160,8 @@ type Response struct {
 	// This will vary between different SIP UAs, and should not be interpreted by the receiving UA.
 	Reason string
 
-	// The logical SIP headers attached to this message.
-	Headers []SipHeader
+	// A response has headers.
+	headers
 
 	// The application data of the message.
 	Body *string
@@ -116,14 +176,8 @@ func (response *Response) String() string {
 		response.StatusCode,
 		response.Reason))
 
-	// Construct each header in turn and add it to the message.
-	for idx, header := range response.Headers {
-		buffer.WriteString(header.String())
-
-		if idx < len(response.Headers) {
-			buffer.WriteString("\r\n")
-		}
-	}
+	// Write the headers.
+	buffer.WriteString(response.headers.String())
 
 	// If the request has a message body, add it.
 	if response.Body != nil {

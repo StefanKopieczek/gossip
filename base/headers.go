@@ -1,7 +1,7 @@
 package base
 
 import (
-    "github.com/stefankopieczek/gossip/utils"
+	"github.com/stefankopieczek/gossip/utils"
 )
 
 import "bytes"
@@ -16,6 +16,12 @@ const c_ABNF_WS = " \t"
 type SipHeader interface {
 	// Produce the string representation of the header.
 	String() string
+
+	// Produce the name of the header (e.g. "To", "Via")
+	Name() string
+
+	// Produce an exact copy of this header.
+	Copy() SipHeader
 }
 
 // A URI from any schema (e.g. sip:, tel:, callto:)
@@ -25,16 +31,15 @@ type Uri interface {
 
 	// Produce the string representation of the URI.
 	String() string
+
+	// Produce an exact copy of this URI.
+	Copy() Uri
 }
 
 // A URI from a schema suitable for inclusion in a Contact: header.
 // The only such URIs are sip/sips URIs and the special wildcard URI '*'.
 type ContactUri interface {
-	// Determine if the two URIs are equal according to the rules in RFC 3261 s. 19.1.4.
-	Equals(other Uri) bool
-
-	// Produce the string representation of the URI.
-	String() string
+	Uri
 
 	// Return true if and only if the URI is the special wildcard URI '*'; that is, if it is
 	// a WildcardUri struct.
@@ -68,14 +73,42 @@ type SipUri struct {
 	// (For more details, see RFC 3261 section 19.1.1).
 	// These appear as a semicolon-separated list of key=value pairs following the host[:port] part.
 	// Note that not all keys have an associated value, so the values of the map may be nil.
-	UriParams map[string]*string
+	UriParams params
 
 	// Any headers to be included on requests constructed from this URI.
 	// These appear as a '&'-separated list at the end of the URI, introduced by '?'.
 	// Although the values of the map are pointers, they will never be nil in practice as the parser
 	// guarantees to not return nil values for header elements in SIP URIs.
 	// You should not set the values of headers to nil.
-	Headers map[string]*string
+	Headers params
+}
+
+// Copy the Sip URI.
+func (uri *SipUri) Copy() Uri {
+	var user, password *string
+	var port *uint16
+	if uri.User != nil {
+		temp := *uri.User
+		user = &temp
+	}
+	if uri.Password != nil {
+		temp := *uri.Password
+		password = &temp
+	}
+	if uri.Port != nil {
+		temp := *uri.Port
+		port = &temp
+	}
+
+	return &SipUri{
+		uri.IsEncrypted,
+		user,
+		password,
+		uri.Host,
+		port,
+		uri.UriParams.Copy(),
+		uri.Headers.Copy(),
+	}
 }
 
 // IsWildcard() always returns 'false' for SIP URIs as they are not equal to the wildcard '*' URI.
@@ -157,25 +190,45 @@ func (uri *SipUri) String() string {
 // The special wildcard URI used in Contact: headers in REGISTER requests when expiring all registrations.
 type WildcardUri struct{}
 
+// Copy the wildcard URI. Not hard!
+func (uri WildcardUri) Copy() Uri { return uri }
+
 // Always returns 'true'.
-func (uri *WildcardUri) IsWildcard() bool {
+func (uri WildcardUri) IsWildcard() bool {
 	return true
 }
 
 // Always returns '*' - the representation of a wildcard URI in a SIP message.
-func (uri *WildcardUri) String() string {
+func (uri WildcardUri) String() string {
 	return "*"
 }
 
 // Determines if this wildcard URI equals the specified other URI.
 // This is true if and only if the other URI is also a wildcard URI.
-func (uri *WildcardUri) Equals(other Uri) bool {
+func (uri WildcardUri) Equals(other Uri) bool {
 	switch other.(type) {
-	case *WildcardUri:
+	case WildcardUri:
 		return true
 	default:
 		return false
 	}
+}
+
+// Generic list of parameters on a header.
+type params map[string]*string
+
+// Copy a list of params.
+func (p params) Copy() params {
+	dup := make(map[string]*string, len(p))
+	for k, v := range p {
+		if v != nil {
+			s := *v
+			dup[k] = &s
+		} else {
+			dup[k] = nil
+		}
+	}
+	return dup
 }
 
 // Encapsulates a header that gossip does not natively support.
@@ -194,6 +247,16 @@ func (header *GenericHeader) String() string {
 	return header.HeaderName + ": " + header.Contents
 }
 
+// Pull out the header name.
+func (h *GenericHeader) Name() string {
+	return h.HeaderName
+}
+
+// Copy the header.
+func (h *GenericHeader) Copy() SipHeader {
+	return &GenericHeader{h.HeaderName, h.Contents}
+}
+
 type ToHeader struct {
 	// The display name from the header - this is a pointer type as it is optional.
 	DisplayName *string
@@ -201,7 +264,7 @@ type ToHeader struct {
 	Address Uri
 
 	// Any parameters present in the header.
-	Params map[string]*string
+	Params params
 }
 
 func (to *ToHeader) String() string {
@@ -218,6 +281,18 @@ func (to *ToHeader) String() string {
 	return buffer.String()
 }
 
+func (h *ToHeader) Name() string { return "To" }
+
+// Copy the header. A little tricky due to string pointers.
+func (h *ToHeader) Copy() SipHeader {
+	var name *string
+	if h.DisplayName != nil {
+		temp := *h.DisplayName
+		name = &temp
+	}
+	return &ToHeader{name, h.Address.Copy(), h.Params.Copy()}
+}
+
 type FromHeader struct {
 	// The display name from the header - this is a pointer type as it is optional.
 	DisplayName *string
@@ -225,7 +300,7 @@ type FromHeader struct {
 	Address Uri
 
 	// Any parameters present in the header.
-	Params map[string]*string
+	Params params
 }
 
 func (from *FromHeader) String() string {
@@ -242,6 +317,18 @@ func (from *FromHeader) String() string {
 	return buffer.String()
 }
 
+func (h *FromHeader) Name() string { return "From" }
+
+// Copy the header. A little tricky due to string pointers.
+func (h *FromHeader) Copy() SipHeader {
+	var name *string
+	if h.DisplayName != nil {
+		temp := *h.DisplayName
+		name = &temp
+	}
+	return &FromHeader{name, h.Address.Copy(), h.Params.Copy()}
+}
+
 type ContactHeader struct {
 	// The display name from the header - this is a pointer type as it is optional.
 	DisplayName *string
@@ -249,7 +336,7 @@ type ContactHeader struct {
 	Address ContactUri
 
 	// Any parameters present in the header.
-	Params map[string]*string
+	Params params
 }
 
 func (contact *ContactHeader) String() string {
@@ -273,11 +360,27 @@ func (contact *ContactHeader) String() string {
 	return buffer.String()
 }
 
+func (h *ContactHeader) Name() string { return "Contact" }
+
+// Copy the header. A little tricky due to string pointers.
+func (h *ContactHeader) Copy() SipHeader {
+	var name *string
+	if h.DisplayName != nil {
+		temp := *h.DisplayName
+		name = &temp
+	}
+	return &ContactHeader{name, h.Address.Copy().(ContactUri), h.Params.Copy()}
+}
+
 type CallId string
 
-func (callId *CallId) String() string {
-	return "Call-Id: " + (string)(*callId)
+func (callId CallId) String() string {
+	return "Call-Id: " + (string)(callId)
 }
+
+func (h CallId) Name() string { return "Call-Id" }
+
+func (h CallId) Copy() SipHeader { return h }
 
 type CSeq struct {
 	SeqNo      uint32
@@ -288,17 +391,29 @@ func (cseq *CSeq) String() string {
 	return fmt.Sprintf("CSeq: %d %s", cseq.SeqNo, cseq.MethodName)
 }
 
+func (h *CSeq) Name() string { return "CSeq" }
+
+func (h *CSeq) Copy() SipHeader { return &CSeq{h.SeqNo, h.MethodName} }
+
 type MaxForwards uint32
 
-func (maxForwards *MaxForwards) String() string {
-	return fmt.Sprintf("Max-Forwards: %d", ((int)(*maxForwards)))
+func (maxForwards MaxForwards) String() string {
+	return fmt.Sprintf("Max-Forwards: %d", ((int)(maxForwards)))
 }
+
+func (h MaxForwards) Name() string { return "Max-Forwards" }
+
+func (h MaxForwards) Copy() SipHeader { return h }
 
 type ContentLength uint32
 
-func (contentLength *ContentLength) String() string {
-	return fmt.Sprintf("Content-Length: %d", ((int)(*contentLength)))
+func (contentLength ContentLength) String() string {
+	return fmt.Sprintf("Content-Length: %d", ((int)(contentLength)))
 }
+
+func (h ContentLength) Name() string { return "Content-Length" }
+
+func (h ContentLength) Copy() SipHeader { return h }
 
 type ViaHeader []*ViaHop
 
@@ -316,7 +431,7 @@ type ViaHop struct {
 	// The port for this via hop. This is stored as a pointer type, since it is an optional field.
 	Port *uint16
 
-	Params map[string]*string
+	Params params
 }
 
 func (hop *ViaHop) String() string {
@@ -334,6 +449,23 @@ func (hop *ViaHop) String() string {
 	return buffer.String()
 }
 
+// Return an exact copy of this ViaHop.
+func (hop *ViaHop) Copy() *ViaHop {
+	var port *uint16 = nil
+	if hop.Port != nil {
+		temp := *hop.Port
+		port = &temp
+	}
+	return &ViaHop{
+		hop.ProtocolName,
+		hop.ProtocolVersion,
+		hop.Transport,
+		hop.Host,
+		port,
+		hop.Params.Copy(),
+	}
+}
+
 func (via ViaHeader) String() string {
 	var buffer bytes.Buffer
 	buffer.WriteString("Via: ")
@@ -347,6 +479,16 @@ func (via ViaHeader) String() string {
 	return buffer.String()
 }
 
+func (h ViaHeader) Name() string { return "Via" }
+
+func (h ViaHeader) Copy() SipHeader {
+	dup := make([]*ViaHop, 0, len(h))
+	for _, hop := range h {
+		dup = append(dup, hop.Copy())
+	}
+	return ViaHeader(dup)
+}
+
 type RequireHeader struct {
 	Options []string
 }
@@ -354,6 +496,14 @@ type RequireHeader struct {
 func (header *RequireHeader) String() string {
 	return fmt.Sprintf("Require: %s",
 		strings.Join(header.Options, ", "))
+}
+
+func (h *RequireHeader) Name() string { return "Require" }
+
+func (h *RequireHeader) Copy() SipHeader {
+	dup := make([]string, len(h.Options))
+	copy(h.Options, dup)
+	return &RequireHeader{dup}
 }
 
 type SupportedHeader struct {
@@ -365,6 +515,14 @@ func (header *SupportedHeader) String() string {
 		strings.Join(header.Options, ", "))
 }
 
+func (h *SupportedHeader) Name() string { return "Supported" }
+
+func (h *SupportedHeader) Copy() SipHeader {
+	dup := make([]string, len(h.Options))
+	copy(h.Options, dup)
+	return &SupportedHeader{dup}
+}
+
 type ProxyRequireHeader struct {
 	Options []string
 }
@@ -372,6 +530,14 @@ type ProxyRequireHeader struct {
 func (header *ProxyRequireHeader) String() string {
 	return fmt.Sprintf("Proxy-Require: %s",
 		strings.Join(header.Options, ", "))
+}
+
+func (h *ProxyRequireHeader) Name() string { return "Proxy-Require" }
+
+func (h *ProxyRequireHeader) Copy() SipHeader {
+	dup := make([]string, len(h.Options))
+	copy(h.Options, dup)
+	return &ProxyRequireHeader{dup}
 }
 
 // 'Unsupported:' is a SIP header type - this doesn't indicate that the
@@ -385,11 +551,19 @@ func (header *UnsupportedHeader) String() string {
 		strings.Join(header.Options, ", "))
 }
 
+func (h *UnsupportedHeader) Name() string { return "Unsupported" }
+
+func (h *UnsupportedHeader) Copy() SipHeader {
+	dup := make([]string, len(h.Options))
+	copy(h.Options, dup)
+	return &UnsupportedHeader{dup}
+}
+
 // Utility method for converting a map of parameters to a flat string representation.
 // Takes the map of parameters, and start and end characters (e.g. '?' and '&').
 // It is assumed that key/value pairs are always represented as "key=value".
 // Note that this method does not escape special characters - that should be done before calling this method.
-func ParamsToString(params map[string]*string, start uint8, sep uint8) string {
+func ParamsToString(params params, start uint8, sep uint8) string {
 	var buffer bytes.Buffer
 	first := true
 	for key, value := range params {
@@ -413,7 +587,7 @@ func ParamsToString(params map[string]*string, start uint8, sep uint8) string {
 
 // Check if two maps of parameters are equal in the sense of having the same keys with the same values.
 // This does not rely on any ordering of the keys of the map in memory.
-func ParamsEqual(a map[string]*string, b map[string]*string) bool {
+func ParamsEqual(a params, b params) bool {
 	if len(a) != len(b) {
 		return false
 	}
