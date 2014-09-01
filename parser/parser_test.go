@@ -1758,6 +1758,9 @@ func (step *parserTestStep) Test(parser Parser, msgChan chan base.SipMessage, er
         success = false
         reason = fmt.Sprintf("expected returned error %s on write; got %s", errToStr(step.returnedError), errToStr(err))
         return
+    } else if step.returnedError != nil {
+        success = true
+        return
     }
 
     if err == nil {
@@ -1786,8 +1789,12 @@ func (step *parserTestStep) Test(parser Parser, msgChan chan base.SipMessage, er
                 success = true
             }
         case <- time.After(time.Second * 5):
-            success = false
-            reason = "timeout when processing input"
+            if step.result != nil || step.sentError != nil {
+                success = false
+                reason = "timeout when processing input"
+            } else {
+                success = true
+            }
         }
     }
 
