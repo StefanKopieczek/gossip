@@ -964,7 +964,7 @@ func TestViaHeaders(t *testing.T) {
 
 // Basic test of unstreamed parsing, using empty INVITE.
 func TestUnstreamedParse1(t *testing.T) {
-    nilMap :=make(map[string]*string)
+    nilMap := make(map[string]*string)
     test := ParserTest{false, []parserTestStep {
         // Steps each have: Input, result, sent error, returned error
         parserTestStep{"INVITE sip:bob@biloxi.com SIP/2.0\r\n\r\n",
@@ -982,7 +982,7 @@ func TestUnstreamedParse1(t *testing.T) {
 
 // Test unstreamed parsing with a header and body.
 func TestUnstreamedParse2(t *testing.T) {
-    nilMap :=make(map[string]*string)
+    nilMap := make(map[string]*string)
     test := ParserTest{false, []parserTestStep {
         // Steps each have: Input, result, sent error, returned error
         parserTestStep{"INVITE sip:bob@biloxi.com SIP/2.0\r\n" +
@@ -1070,6 +1070,37 @@ func TestUnstreamedParse5(t *testing.T) {
                                                         &callId,
                                                         &maxForwards},
                                       Body       : "Everything is awesome."},
+                       nil,
+                       nil},
+    }}
+
+    test.Test(t)
+}
+
+// Test error responses, and responses of minimal length.
+func TestUnstreamedParse6(t *testing.T) {
+    test := ParserTest{false, []parserTestStep {
+        parserTestStep{"SIP/2.0 403 Forbidden\r\n\r\n",
+                       &base.Response{SipVersion : "SIP/2.0",
+                                      StatusCode : 403,
+                                      Reason     : "Forbidden"},
+                       nil,
+                       nil},
+    }}
+
+    test.Test(t)
+}
+
+// Test requests of minimal length.
+func TestUnstreamedParse7(t *testing.T) {
+    foo := "foo"
+    nilMap := make(map[string]*string)
+
+    test := ParserTest{false, []parserTestStep {
+        parserTestStep{"ACK sip:foo@bar.com SIP/2.0\r\n\r\n",
+                       &base.Request{Method     : base.ACK,
+                                     Recipient  : &base.SipUri{false, &foo, nil, "bar.com", nil, nilMap, nilMap},
+                                     SipVersion : "SIP/2.0"},
                        nil,
                        nil},
     }}

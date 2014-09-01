@@ -138,7 +138,7 @@ type Response struct {
 
 	// The response code, e.g. 200, 401 or 500.
 	// This indicates the outcome of the originating request.
-	StatusCode uint8
+	StatusCode uint16
 
 	// The reason string provides additional, human-readable information used to provide
 	// clarification or explanation of the status code.
