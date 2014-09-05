@@ -146,12 +146,13 @@ func (request *Request) HeadersWithName(name string) []SipHeader {
 }
 
 func (request *Request) AddHeader(header SipHeader) {
-    headersOfSameType, isMatch := request.headers[header.Name()]
+    name := strings.ToLower(header.Name())
+    headersOfSameType, isMatch := request.headers[name]
     if !isMatch || len(headersOfSameType) == 0 {
-        request.headers[header.Name()] = []SipHeader{header}
-        request.headerOrder = append(request.headerOrder, header.Name())
+        request.headers[name] = []SipHeader{header}
+        request.headerOrder = append(request.headerOrder, name)
     } else {
-        request.headers[header.Name()] = append(headersOfSameType, header)
+        request.headers[name] = append(headersOfSameType, header)
     }
 }
 
@@ -299,12 +300,13 @@ func (response *Response) HeadersWithName(name string) []SipHeader {
 }
 
 func (response *Response) AddHeader(header SipHeader) {
-    headersOfSameType, isMatch := response.headers[header.Name()]
+    name := strings.ToLower(header.Name())
+    headersOfSameType, isMatch := response.headers[name]
     if !isMatch || len(headersOfSameType) == 0 {
-        response.headers[header.Name()] = []SipHeader{header}
-        response.headerOrder = append(response.headerOrder, header.Name())
+        response.headers[name] = []SipHeader{header}
+        response.headerOrder = append(response.headerOrder, name)
     } else {
-        response.headers[header.Name()] = append(headersOfSameType, header)
+        response.headers[name] = append(headersOfSameType, header)
     }
 }
 
