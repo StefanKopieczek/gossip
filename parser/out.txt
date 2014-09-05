@@ -1,0 +1,151 @@
+DEBUG: Write 'INVITE sip:bob@biloxi.com SIP/2.0
+Content-Length: 0
+
+'
+DEBUG: Start reqloop
+DEBUG: Exit reqloop
+DEBUG: 0xc0840150c0: New data: 'INVITE sip:bob@biloxi.com SIP/2.0
+Content-Length: 0
+
+'
+DEBUG: 0
+DEBUG: 'INVITE sip:bob@biloxi.com SIP/2.0
+Content-Length: 0
+
+' has '
+' at 33
+DEBUG: 34
+DEBUG: 'INVITE sip:bob@biloxi.com SIP/2.0
+Content-Length: 0
+
+' has '
+' at 52
+DEBUG: 53
+DEBUG: 'INVITE sip:bob@biloxi.com SIP/2.0
+Content-Length: 0
+
+' has '
+' at 54
+DEBUG: 55
+DEBUG: 'INVITE sip:bob@biloxi.com SIP/2.0
+Content-Length: 0
+
+' has '
+' at 54
+DEBUG: 0xc0840150c0: New CRLF at 33 -> 33
+DEBUG: 0xc0840150c0: New CRLF at 52 -> 52
+DEBUG: 0xc0840150c0: New CRLF at 54 -> 54
+DEBUG: ....
+DEBUG: Start reqloop
+DEBUG: Exit reqloop
+DEBUG: Issue req
+DEBUG: Reqpop
+DEBUG: 0xc0840150c0: New request 0xc084009b40; now 1 pending
+DEBUG: Start reqloop
+DEBUG: 0xc0840150c0: Handle req 0xc084009b40?
+DEBUG: Line.
+DEBUG: Yes
+DEBUG: Sent 'INVITE sip:bob@biloxi.com SIP/2.0
+'
+DEBUG: Done
+DEBUG: 0xc0840150c0: Handle req 0xc084009b40?
+DEBUG: Line.
+DEBUG: Yes
+DEBUG: Parsed startline 'INVITE sip:bob@biloxi.com SIP/2.0
+'
+DEBUG: Await header line.
+DEBUG: Issue req
+--- FAIL: TestStreamedParse1 (5.00 seconds)
+	parser_test.go:1778: failure in test step 0 of input:
+		[INVITE sip:bob@biloxi.com SIP/2.0
+		Content-Length: 0
+		
+		,]
+		
+		failure was: timeout when processing input
+DEBUG: Write 'INVITE sip:bob@biloxi.com SIP/2.0
+'
+DEBUG: Start reqloop
+DEBUG: Exit reqloop
+DEBUG: 0xc084015240: New data: 'INVITE sip:bob@biloxi.com SIP/2.0
+'
+DEBUG: 0
+DEBUG: 'INVITE sip:bob@biloxi.com SIP/2.0
+' has '
+' at 33
+DEBUG: 34
+DEBUG: 'INVITE sip:bob@biloxi.com SIP/2.0
+' has '
+' at 33
+DEBUG: 0xc084015240: New CRLF at 33 -> 33
+DEBUG: ....
+DEBUG: Start reqloop
+DEBUG: Exit reqloop
+DEBUG: Issue req
+DEBUG: Reqpop
+DEBUG: 0xc084015240: New request 0xc084009e40; now 1 pending
+DEBUG: Start reqloop
+DEBUG: 0xc084015240: Handle req 0xc084009e40?
+DEBUG: Line.
+DEBUG: Yes
+DEBUG: Sent 'INVITE sip:bob@biloxi.com SIP/2.0
+'
+DEBUG: Done
+DEBUG: 0xc084015240: Handle req 0xc084009e40?
+DEBUG: Line.
+DEBUG: Nope
+DEBUG: Exit reqloop
+DEBUG: Parsed startline 'INVITE sip:bob@biloxi.com SIP/2.0
+'
+DEBUG: Await header line.
+DEBUG: Issue req
+DEBUG: Reqpop
+DEBUG: 0xc084015240: New request 0xc084009f00; now 2 pending
+DEBUG: Start reqloop
+DEBUG: 0xc084015240: Handle req 0xc084009e40?
+DEBUG: Line.
+DEBUG: Nope
+DEBUG: Exit reqloop
+DEBUG: Write 'Content-Length: 0
+
+'
+DEBUG: 0xc084015240: New data: 'Content-Length: 0
+
+'
+DEBUG: 0
+DEBUG: 'Content-Length: 0
+
+' has '
+' at 17
+DEBUG: 18
+DEBUG: 'Content-Length: 0
+
+' has '
+' at 19
+DEBUG: 20
+DEBUG: 'Content-Length: 0
+
+' has '
+' at 19
+DEBUG: 0xc084015240: New CRLF at 17 -> 17
+DEBUG: 0xc084015240: New CRLF at 19 -> 19
+DEBUG: ....
+DEBUG: Start reqloop
+DEBUG: 0xc084015240: Handle req 0xc084009e40?
+DEBUG: Line.
+DEBUG: Yes
+--- FAIL: TestStreamedParse2 (10.00 seconds)
+	parser_test.go:1778: failure in test step 1 of input:
+		[INVITE sip:bob@biloxi.com SIP/2.0
+		,Content-Length: 0
+		
+		,]
+		
+		failure was: timeout when processing input
+
+ *** 2 tests run ***
+ *** 0 tests passed (0.00%) ***
+
+FAIL
+exit status 1
+FAIL	github.com/stefankopieczek/gossip/parser	15.416s
