@@ -44,8 +44,10 @@ type SipMessage interface {
     // Yields a short string representation of the message useful for logging.
     Short() string
 
-    AllHeaders() []SipHeader
-    HeadersByName(name string) []SipHeader
+    Headers() []SipHeader
+    HeadersWithName(name string) []SipHeader
+    AddHeader(header SipHeader)
+    RemoveHeader(header SipHeader) error
 
     GetBody() string
     SetBody(body string)
@@ -63,10 +65,28 @@ type Request struct {
 	SipVersion string
 
 	// The logical SIP headers attached to this message.
-	Headers []SipHeader
+	headers map[string][]SipHeader
+
+	// The order the headers should be displayed in.
+	headerOrder []string
 
 	// The application data of the message.
 	Body string
+}
+
+func NewRequest(method Method, recipient Uri, sipVersion string, headers []SipHeader, body string) (request *Request) {
+    request = new(Request)
+    request.Method = method
+    request.Recipient = recipient
+    request.headers = make(map[string][]SipHeader)
+    request.headerOrder = make([]string, 0)
+    request.Body = body
+
+    for _, header := range headers {
+        request.AddHeader(header)
+    }
+
+    return
 }
 
 func (request *Request) String() string {
@@ -79,11 +99,13 @@ func (request *Request) String() string {
 		request.SipVersion))
 
 	// Construct each header in turn and add it to the message.
-	for idx, header := range request.Headers {
-		buffer.WriteString(header.String())
-
-		if idx < len(request.Headers) {
-			buffer.WriteString("\r\n")
+	for typeIdx, name := range request.headerOrder {
+		headers := request.headers[name]
+		for idx, header := range headers {
+			buffer.WriteString(header.String())
+			if typeIdx < len(request.headerOrder) || idx < len(headers) {
+				buffer.WriteString("\r\n")
+			}
 		}
 	}
 
@@ -101,7 +123,7 @@ func (request *Request) Short() string {
         request.Recipient.String(),
         request.SipVersion))
 
-    cseqs := request.HeadersByName("CSeq")
+    cseqs := request.HeadersWithName("CSeq")
     if len(cseqs) > 0 {
         buffer.WriteString(fmt.Sprintf(" (CSeq: %s)", (cseqs[0].(*CSeq)).String()))
     }
@@ -109,18 +131,67 @@ func (request *Request) Short() string {
     return buffer.String()
 }
 
-func (request *Request) AllHeaders() []SipHeader {
-    return request.Headers
-}
-
-func (request *Request) HeadersByName(name string) []SipHeader {
-    result := make([]SipHeader, 0)
-    for _, header := range(request.Headers) {
-        // TODO: Filter headers
-        result = append(result, header)
+func (request *Request) Headers() []SipHeader {
+    headers := make([]SipHeader, 0)
+    for _, key := range(request.headerOrder) {
+        headers = append(headers, request.headers[key]...)
     }
 
-    return result
+    return headers
+}
+
+func (request *Request) HeadersWithName(name string) []SipHeader {
+    name = strings.ToLower(name)
+    return request.headers[name]
+}
+
+func (request *Request) AddHeader(header SipHeader) {
+    headersOfSameType, isMatch := request.headers[header.Name()]
+    if !isMatch || len(headersOfSameType) == 0 {
+        request.headers[header.Name()] = []SipHeader{header}
+        request.headerOrder = append(request.headerOrder, header.Name())
+    } else {
+        request.headers[header.Name()] = append(headersOfSameType, header)
+    }
+}
+
+func (request *Request) RemoveHeader(header SipHeader) error {
+    errNoMatch := fmt.Errorf("cannot remove header '%s' from request '%s' as it is not present",
+                             header.String(), request.Short())
+    name := header.Name()
+
+    headersOfSameType, isMatch := request.headers[name]
+
+    if !isMatch || len(headersOfSameType) == 0 {
+        return errNoMatch
+    }
+
+    found := false
+    for idx, hdr := range headersOfSameType {
+        if hdr == header {
+            request.headers[name] = append(headersOfSameType[:idx], headersOfSameType[idx+1:]...)
+            found = true
+            break
+        }
+    }
+    if !found {
+        return errNoMatch
+    }
+
+    if len(request.headers[name]) == 0 {
+        // The header we removed was the only one of its type.
+        // Tidy up the header structure by removing the empty list value from the header map,
+        // and removing the entry from the headerOrder list.
+        delete(request.headers, name)
+
+        for idx, entry := range request.headerOrder {
+            if entry == name {
+                request.headerOrder = append(request.headerOrder[:idx], request.headerOrder[idx+1:]...)
+            }
+        }
+    }
+
+    return nil
 }
 
 func (request *Request) GetBody() string {
@@ -146,10 +217,29 @@ type Response struct {
 	Reason string
 
 	// The logical SIP headers attached to this message.
-	Headers []SipHeader
+	headers map[string][]SipHeader
+
+	// The order the headers should be displayed in.
+	headerOrder []string
 
 	// The application data of the message.
 	Body string
+}
+
+func NewResponse(sipVersion string, statusCode uint16, reason string, headers []SipHeader, body string) (response *Response) {
+    response = new(Response)
+    response.SipVersion = sipVersion
+    response.StatusCode = statusCode
+    response.Reason = reason
+    response.Body = body
+    response.headers = make(map[string][]SipHeader)
+    response.headerOrder = make([]string, 0)
+
+    for _, header := range headers {
+        response.AddHeader(header)
+    }
+
+    return
 }
 
 func (response *Response) String() string {
@@ -162,11 +252,13 @@ func (response *Response) String() string {
 		response.Reason))
 
 	// Construct each header in turn and add it to the message.
-	for idx, header := range response.Headers {
-		buffer.WriteString(header.String())
-
-		if idx < len(response.Headers) {
-			buffer.WriteString("\r\n")
+	for typeIdx, name := range response.headerOrder {
+		headers := response.headers[name]
+		for idx, header := range headers {
+			buffer.WriteString(header.String())
+			if typeIdx < len(response.headerOrder) || idx < len(headers) {
+				buffer.WriteString("\r\n")
+			}
 		}
 	}
 
@@ -184,7 +276,7 @@ func (response *Response) Short() string {
 		response.StatusCode,
 		response.Reason))
 
-    cseqs := response.HeadersByName("CSeq")
+    cseqs := response.HeadersWithName("CSeq")
     if len(cseqs) > 0 {
         buffer.WriteString(fmt.Sprintf(" (CSeq: %s)", (cseqs[0].(*CSeq)).String()))
     }
@@ -192,18 +284,67 @@ func (response *Response) Short() string {
     return buffer.String()
 }
 
-func (response *Response) AllHeaders() []SipHeader {
-    return response.Headers
-}
-
-func (response *Response) HeadersByName(name string) []SipHeader {
-    result := make([]SipHeader, 0)
-    for _, header := range(response.Headers) {
-        // TODO: Filter headers
-        result = append(result, header)
+func (response *Response) Headers() []SipHeader {
+    headers := make([]SipHeader, 0)
+    for _, key := range(response.headerOrder) {
+        headers = append(headers, response.headers[key]...)
     }
 
-    return result
+    return headers
+}
+
+func (response *Response) HeadersWithName(name string) []SipHeader {
+    name = strings.ToLower(name)
+    return response.headers[name]
+}
+
+func (response *Response) AddHeader(header SipHeader) {
+    headersOfSameType, isMatch := response.headers[header.Name()]
+    if !isMatch || len(headersOfSameType) == 0 {
+        response.headers[header.Name()] = []SipHeader{header}
+        response.headerOrder = append(response.headerOrder, header.Name())
+    } else {
+        response.headers[header.Name()] = append(headersOfSameType, header)
+    }
+}
+
+func (response *Response) RemoveHeader(header SipHeader) error {
+    errNoMatch := fmt.Errorf("cannot remove header '%s' from response '%s' as it is not present",
+                             header.String(), response.Short())
+    name := header.Name()
+
+    headersOfSameType, isMatch := response.headers[name]
+
+    if !isMatch || len(headersOfSameType) == 0 {
+        return errNoMatch
+    }
+
+    found := false
+    for idx, hdr := range headersOfSameType {
+        if hdr == header {
+            response.headers[name] = append(headersOfSameType[:idx], headersOfSameType[idx+1:]...)
+            found = true
+            break
+        }
+    }
+    if !found {
+        return errNoMatch
+    }
+
+    if len(response.headers[name]) == 0 {
+        // The header we removed was the only one of its type.
+        // Tidy up the header structure by removing the empty list value from the header map,
+        // and removing the entry from the headerOrder list.
+        delete(response.headers, name)
+
+        for idx, entry := range response.headerOrder {
+            if entry == name {
+                response.headerOrder = append(response.headerOrder[:idx], response.headerOrder[idx+1:]...)
+            }
+        }
+    }
+
+    return nil
 }
 
 func (response *Response) GetBody() string {

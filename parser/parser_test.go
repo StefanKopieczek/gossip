@@ -968,11 +968,11 @@ func TestUnstreamedParse1(t *testing.T) {
     test := ParserTest{false, []parserTestStep {
         // Steps each have: Input, result, sent error, returned error
         parserTestStep{"INVITE sip:bob@biloxi.com SIP/2.0\r\n\r\n",
-                       &base.Request{Method     : base.INVITE,
-                                     Recipient  : &base.SipUri{false, &bob, nil, "biloxi.com", nil, nilMap, nilMap},
-                                     SipVersion : "SIP/2.0",
-                                     Headers    : make([]base.SipHeader, 0),
-                                     Body       : ""},
+                       base.NewRequest(base.INVITE,
+                                       &base.SipUri{false, &bob, nil, "biloxi.com", nil, nilMap, nilMap},
+                                       "SIP/2.0",
+                                       make([]base.SipHeader, 0),
+                                       ""),
                        nil,
                        nil},
     }}
@@ -989,11 +989,11 @@ func TestUnstreamedParse2(t *testing.T) {
                        "CSeq: 13 INVITE\r\n" +
                        "\r\n" +
                        "I am a banana",
-                       &base.Request{Method     : base.INVITE,
-                                     Recipient  : &base.SipUri{false, &bob, nil, "biloxi.com", nil, nilMap, nilMap},
-                                     SipVersion : "SIP/2.0",
-                                     Headers    : []base.SipHeader {&base.CSeq{13, base.INVITE}},
-                                     Body       : "I am a banana"},
+                       base.NewRequest(base.INVITE,
+                                       &base.SipUri{false, &bob, nil, "biloxi.com", nil, nilMap, nilMap},
+                                       "SIP/2.0",
+                                       []base.SipHeader {&base.CSeq{13, base.INVITE}},
+                                       "I am a banana"),
                        nil,
                        nil},
     }}
@@ -1009,11 +1009,11 @@ func TestUnstreamedParse3(t *testing.T) {
                        "CSeq: 2 INVITE\r\n" +
                        "\r\n" +
                        "Everything is awesome.",
-                       &base.Response{SipVersion : "SIP/2.0",
-                                      StatusCode : 200,
-                                      Reason     : "OK",
-                                      Headers    : []base.SipHeader {&base.CSeq{2, base.INVITE}},
-                                      Body       : "Everything is awesome."},
+                       base.NewResponse("SIP/2.0",
+                                        200,
+                                        "OK",
+                                        []base.SipHeader {&base.CSeq{2, base.INVITE}},
+                                        "Everything is awesome."),
                        nil,
                        nil},
     }}
@@ -1033,14 +1033,15 @@ func TestUnstreamedParse4(t *testing.T) {
                        "Max-Forwards: 65\r\n" +
                        "\r\n" +
                        "Everything is awesome.",
-                       &base.Response{SipVersion : "SIP/2.0",
-                                      StatusCode : 200,
-                                      Reason     : "OK",
-                                      Headers    : []base.SipHeader {
-                                                        &base.CSeq{2, base.INVITE},
-                                                        &callId,
-                                                        &maxForwards},
-                                      Body       : "Everything is awesome."},
+                       base.NewResponse("SIP/2.0",
+                                        200,
+                                        "OK",
+                                        []base.SipHeader {
+                                            &base.CSeq{2, base.INVITE},
+                                            &callId,
+                                            &maxForwards,
+                                        },
+                                        "Everything is awesome."),
                        nil,
                        nil},
     }}
@@ -1062,14 +1063,14 @@ func TestUnstreamedParse5(t *testing.T) {
                        "\t63\r\n" +
                        "\r\n" +
                        "Everything is awesome.",
-                       &base.Response{SipVersion : "SIP/2.0",
-                                      StatusCode : 200,
-                                      Reason     : "OK",
-                                      Headers    : []base.SipHeader {
-                                                        &base.CSeq{2, base.INVITE},
-                                                        &callId,
-                                                        &maxForwards},
-                                      Body       : "Everything is awesome."},
+                       base.NewResponse("SIP/2.0",
+                                        200,
+                                        "OK",
+                                        []base.SipHeader {
+                                            &base.CSeq{2, base.INVITE},
+                                            &callId,
+                                            &maxForwards},
+                                        "Everything is awesome."),
                        nil,
                        nil},
     }}
@@ -1081,9 +1082,11 @@ func TestUnstreamedParse5(t *testing.T) {
 func TestUnstreamedParse6(t *testing.T) {
     test := ParserTest{false, []parserTestStep {
         parserTestStep{"SIP/2.0 403 Forbidden\r\n\r\n",
-                       &base.Response{SipVersion : "SIP/2.0",
-                                      StatusCode : 403,
-                                      Reason     : "Forbidden"},
+                       base.NewResponse("SIP/2.0",
+                                        403,
+                                        "Forbidden",
+                                        []base.SipHeader{},
+                                        ""),
                        nil,
                        nil},
     }}
@@ -1098,9 +1101,11 @@ func TestUnstreamedParse7(t *testing.T) {
 
     test := ParserTest{false, []parserTestStep {
         parserTestStep{"ACK sip:foo@bar.com SIP/2.0\r\n\r\n",
-                       &base.Request{Method     : base.ACK,
-                                     Recipient  : &base.SipUri{false, &foo, nil, "bar.com", nil, nilMap, nilMap},
-                                     SipVersion : "SIP/2.0"},
+                       base.NewRequest(base.ACK,
+                                       &base.SipUri{false, &foo, nil, "bar.com", nil, nilMap, nilMap},
+                                       "SIP/2.0",
+                                       []base.SipHeader{},
+                                       ""),
                        nil,
                        nil},
     }}
@@ -1116,6 +1121,7 @@ type paramInput struct {
     quoteValues bool
     permitSingletons bool
 }
+
 func (data *paramInput) String() string {
     return fmt.Sprintf("paramString=\"%s\", start=%c, sep=%c, end=%c, quoteValues=%b, permitSingletons=%b",
                        data.paramString, data.start, data.sep, data.end, data.quoteValues, data.permitSingletons)

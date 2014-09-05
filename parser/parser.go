@@ -142,13 +142,13 @@ func (p *parser) parse(lines <- chan string, requireContentLength bool) {
         // Parse the StartLine.
         startLine := <- lines
         if isRequest(startLine) {
-            var request base.Request
-            request.Method, request.Recipient, request.SipVersion, p.terminalErr = parseRequestLine(startLine)
-            message = &request
+            method, recipient, sipVersion, err := parseRequestLine(startLine)
+            message = base.NewRequest(method, recipient, sipVersion, []base.SipHeader{}, "")
+            p.terminalErr = err
         } else if isResponse(startLine) {
-            var response base.Response
-            response.SipVersion, response.StatusCode, response.Reason, p.terminalErr = parseStatusLine(startLine)
-            message = &response
+            sipVersion, statusCode, reason, err := parseStatusLine(startLine)
+            message = base.NewResponse(sipVersion, statusCode, reason, []base.SipHeader{}, "")
+            p.terminalErr = err
         } else {
             p.terminalErr = fmt.Errorf("transmission beginning '%s' is not a SIP message", startLine)
         }
@@ -204,14 +204,9 @@ func (p *parser) parse(lines <- chan string, requireContentLength bool) {
             }
         }
 
-        // Store the headers in the message object - bit of static-typing busywork here.
-        switch message.(type) {
-        case *base.Request:
-            message.(*base.Request).Headers = headers
-        case *base.Response:
-            message.(*base.Response).Headers = headers
-        default:
-            log.Severe("Internal error - message %s is neither a request type nor a response type", message.Short())
+        // Store the headers in the message object.
+        for _, header := range headers {
+            message.AddHeader(header)
         }
 
         var contentLength int
@@ -219,7 +214,7 @@ func (p *parser) parse(lines <- chan string, requireContentLength bool) {
         // Determine the length of the body, so we know when to stop parsing this message.
         if p.streamed {
             // Use the content-length header to identify the end of the message.
-            contentLengthHeaders := message.HeadersByName("Content-Length")
+            contentLengthHeaders := message.HeadersWithName("Content-Length")
             if len(contentLengthHeaders) == 0 {
                 p.terminalErr = fmt.Errorf("Missing required content-length header on message %s", message.Short())
                 p.errs <- p.terminalErr
