@@ -51,6 +51,7 @@ type ClientTransaction struct {
 	timer_a_time time.Duration       // Current duration of timer A.
 	timer_a      *time.Timer
 	timer_b      *time.Timer
+	timer_d_time time.Duration // Current duration of timer A.
 	timer_d      *time.Timer
 }
 

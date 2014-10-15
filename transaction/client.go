@@ -1,6 +1,8 @@
 package transaction
 
 import (
+	"time"
+
 	"github.com/discoviking/fsm"
 	"github.com/stefankopieczek/gossip/log"
 )
@@ -45,10 +47,16 @@ func (tx *ClientTransaction) initFSM() {
 	}
 
 	// Handle 300+ responses.
-	// Pass up response and send ACK.
+	// Pass up response and send ACK, start timer D.
 	act_300 := func() fsm.Input {
 		tx.passUp()
 		tx.Ack()
+		if tx.timer_d != nil {
+			tx.timer_d.Stop()
+		}
+		tx.timer_d = time.AfterFunc(tx.timer_d_time, func() {
+			tx.fsm.Spin(client_input_timer_d)
+		})
 		return fsm.NO_INPUT
 	}
 
@@ -92,6 +100,8 @@ func (tx *ClientTransaction) initFSM() {
 			client_input_1xx:      {client_state_proceeding, act_passup},
 			client_input_2xx:      {client_state_terminated, act_passup},
 			client_input_300_plus: {client_state_completed, act_300},
+			client_input_timer_a:  {client_state_proceeding, fsm.NO_ACTION},
+			client_input_timer_b:  {client_state_proceeding, fsm.NO_ACTION},
 		},
 	}
 
@@ -104,6 +114,8 @@ func (tx *ClientTransaction) initFSM() {
 			client_input_300_plus:      {client_state_completed, act_ack},
 			client_input_timer_d:       {client_state_terminated, fsm.NO_ACTION},
 			client_input_transport_err: {client_state_terminated, act_trans_err},
+			client_input_timer_a:       {client_state_completed, fsm.NO_ACTION},
+			client_input_timer_b:       {client_state_completed, fsm.NO_ACTION},
 		},
 	}
 
@@ -114,6 +126,8 @@ func (tx *ClientTransaction) initFSM() {
 			client_input_1xx:      {client_state_terminated, fsm.NO_ACTION},
 			client_input_2xx:      {client_state_terminated, fsm.NO_ACTION},
 			client_input_300_plus: {client_state_terminated, fsm.NO_ACTION},
+			client_input_timer_a:  {client_state_terminated, fsm.NO_ACTION},
+			client_input_timer_b:  {client_state_terminated, fsm.NO_ACTION},
 		},
 	}
 

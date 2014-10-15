@@ -135,8 +135,15 @@ func (mng *Manager) Send(r *base.Request, dest string) *ClientTransaction {
 	tx.tu_err = make(chan error, 1)
 
 	tx.timer_a_time = T1
-	tx.timer_a = time.NewTimer(tx.timer_a_time)
-	tx.timer_b = time.NewTimer(64 * T1)
+	tx.timer_a = time.AfterFunc(tx.timer_a_time, func() {
+		tx.fsm.Spin(client_input_timer_a)
+	})
+	tx.timer_b = time.AfterFunc(64*T1, func() {
+		tx.fsm.Spin(client_input_timer_b)
+	})
+
+	// Timer D is set to 32 seconds for unreliable transports, and 0 seconds otherwise.
+	tx.timer_d_time = 32 * time.Second
 
 	err := mng.transport.Send(dest, r)
 	if err != nil {
