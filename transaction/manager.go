@@ -2,6 +2,7 @@ package transaction
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/stefankopieczek/gossip/base"
@@ -18,6 +19,7 @@ var (
 type Manager struct {
 	txs       map[key]Transaction
 	transport *transport.Manager
+	requests  chan *ServerTransaction
 }
 
 // Transactions are identified by the branch parameter in the top Via header, and the method. (RFC 3261 17.1.3)
@@ -37,17 +39,23 @@ func NewManager(trans, addr string) (*Manager, error) {
 		transport: t,
 	}
 
+	mng.requests = make(chan *ServerTransaction, 5)
+
 	// Spin up a goroutine to pull messages up from the depths.
 	go func() {
 		c := mng.transport.GetChannel()
 		for msg := range c {
-			mng.Handle(msg)
+			mng.handle(msg)
 		}
 	}()
 
 	mng.transport.Listen(addr)
 
 	return mng, nil
+}
+
+func (mng *Manager) Requests() <-chan *ServerTransaction {
+	return (<-chan *ServerTransaction)(mng.requests)
 }
 
 func (mng *Manager) putTx(tx Transaction) {
@@ -100,13 +108,13 @@ func (mng *Manager) getTx(s base.SipMessage) (Transaction, bool) {
 	return tx, ok
 }
 
-func (mng *Manager) Handle(msg base.SipMessage) {
+func (mng *Manager) handle(msg base.SipMessage) {
 	log.Info("Received message: %s", msg.Short())
 	switch m := msg.(type) {
 	case *base.Request:
-		log.Debug("Received request:\n%v", m.String())
+		mng.request(m)
 	case *base.Response:
-		mng.Correlate(m)
+		mng.correlate(m)
 	default:
 		// TODO: Error
 	}
@@ -142,11 +150,76 @@ func (mng *Manager) Send(r *base.Request, dest string) *ClientTransaction {
 }
 
 // Give a received response to the correct transaction.
-func (mng *Manager) Correlate(r *base.Response) {
+func (mng *Manager) correlate(r *base.Response) {
 	tx, ok := mng.getTx(r)
 	if !ok {
 		// TODO: Something
 	}
 
 	tx.Receive(r)
+}
+
+// Handle a request.
+func (mng *Manager) request(r *base.Request) {
+	t, ok := mng.getTx(r)
+	if ok {
+		t.Receive(r)
+		return
+	}
+
+	// Create a new transaction
+	tx := &ServerTransaction{}
+	tx.origin = r
+
+	// Use the remote address in the top Via header.  This is not correct behaviour.
+	viaHeaders := tx.Origin().Headers("Via")
+	if len(viaHeaders) == 0 {
+		log.Warn("No Via header on new transaction. Transaction will be dropped.")
+		return
+	}
+
+	via, ok := viaHeaders[0].(*base.ViaHeader)
+	if !ok {
+		panic(errors.New("Headers('Via') returned non-Via header!"))
+	}
+
+	if len(*via) == 0 {
+		log.Warn("Via header contained no hops! Transaction will be dropped.")
+		return
+	}
+
+	hop := (*via)[0]
+
+	tx.dest = fmt.Sprintf("%v:%v", hop.Host, *hop.Port)
+	tx.transport = mng.transport
+
+	tx.initFSM()
+
+	tx.tu = make(chan *base.Response, 3)
+	tx.tu_err = make(chan error, 1)
+	tx.ack = make(chan *base.Request, 1)
+
+	// Send a 100 Trying immediately.
+	// Technically we shouldn't do this if we trustthe user to do it within 200ms,
+	// but I'm not sure how to handle that situation right now.
+
+	// Pretend the user sent us a 100 to send.
+	trying := base.NewResponse(
+		"SIP/2.0",
+		100,
+		"Trying",
+		[]base.SipHeader{},
+		"",
+	)
+
+	base.CopyHeaders("Via", tx.origin, trying)
+	base.CopyHeaders("From", tx.origin, trying)
+	base.CopyHeaders("To", tx.origin, trying)
+	base.CopyHeaders("Call-Id", tx.origin, trying)
+	base.CopyHeaders("CSeq", tx.origin, trying)
+
+	tx.lastResp = trying
+	tx.fsm.Spin(server_input_user_1xx)
+
+	mng.requests <- tx
 }

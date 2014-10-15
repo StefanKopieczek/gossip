@@ -6,6 +6,7 @@ import (
 
 	"github.com/discoviking/fsm"
 	"github.com/stefankopieczek/gossip/base"
+	"github.com/stefankopieczek/gossip/log"
 	"github.com/stefankopieczek/gossip/transport"
 )
 
@@ -25,7 +26,7 @@ type Transaction interface {
 type transaction struct {
 	fsm       *fsm.FSM       // FSM which governs the behavior of this transaction.
 	origin    *base.Request  // Request that started this transaction.
-	lastIn    *base.Response // Most recently received message.
+	lastResp  *base.Response // Most recently received message.
 	dest      string         // Of the form hostname:port
 	transport *transport.Manager
 }
@@ -53,13 +54,64 @@ type ClientTransaction struct {
 	timer_d      *time.Timer
 }
 
+type ServerTransaction struct {
+	transaction
+
+	tu      chan *base.Response // Channel to transaction user.
+	tu_err  chan error          // Channel to report up errors to TU.
+	ack     chan *base.Request  // Channel we send the ACK up on.
+	timer_g *time.Timer
+	timer_h *time.Timer
+	timer_i *time.Timer
+}
+
+func (tx *ServerTransaction) Receive(m base.SipMessage) {
+	r, ok := m.(*base.Request)
+	if !ok {
+		log.Warn("Client transaction received request")
+	}
+
+	var input fsm.Input = fsm.NO_INPUT
+	switch {
+	case r.Method == tx.origin.Method:
+		input = server_input_request
+	case r.Method == base.ACK:
+		input = server_input_ack
+		tx.ack <- r
+	default:
+		log.Warn("Invalid message correlated to server transaction.")
+	}
+
+	tx.fsm.Spin(input)
+}
+
+func (tx *ServerTransaction) Respond(r *base.Response) {
+	tx.lastResp = r
+
+	var input fsm.Input
+	switch {
+	case r.StatusCode < 200:
+		input = server_input_user_1xx
+	case r.StatusCode < 300:
+		input = server_input_user_2xx
+	default:
+		input = server_input_user_300_plus
+	}
+
+	tx.fsm.Spin(input)
+}
+
+func (tx *ServerTransaction) Ack() <-chan *base.Request {
+	return (<-chan *base.Request)(tx.ack)
+}
+
 func (tx *ClientTransaction) Receive(m base.SipMessage) {
 	r, ok := m.(*base.Response)
 	if !ok {
-		// TODO: Log Error.
+		log.Warn("Client transaction received request")
 	}
 
-	tx.lastIn = r
+	tx.lastResp = r
 
 	var input fsm.Input
 	switch {
@@ -84,7 +136,7 @@ func (tx *ClientTransaction) resend() {
 
 // Pass up the most recently received response to the TU.
 func (tx *ClientTransaction) passUp() {
-	tx.tu <- tx.lastIn
+	tx.tu <- tx.lastResp
 }
 
 // Send an error to the TU.
@@ -117,7 +169,7 @@ func (tx *ClientTransaction) Ack() {
 	ack.AddHeader(via)
 
 	// Copy headers from response.
-	base.CopyHeaders("To", tx.lastIn, ack)
+	base.CopyHeaders("To", tx.lastResp, ack)
 
 	// Send the ACK.
 	tx.transport.Send(tx.dest, ack)
