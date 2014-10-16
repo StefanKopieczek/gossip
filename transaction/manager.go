@@ -89,6 +89,7 @@ func (mng *Manager) getTx(s base.SipMessage) (Transaction, bool) {
 
 	branch, ok := (*via)[0].Params["branch"]
 	if !ok {
+		// TODO: Here we should actually initiate searching as described in RFC3621 section 17.
 		log.Warn("No branch parameter on top Via header.  Transaction will be dropped.")
 		return nil, false
 	}
@@ -96,7 +97,12 @@ func (mng *Manager) getTx(s base.SipMessage) (Transaction, bool) {
 	var method string
 	switch s := s.(type) {
 	case *base.Request:
-		method = string(s.Method)
+		// Correlate an ACK request to the related INVITE.
+		if s.Method == base.ACK {
+			method = string(base.INVITE)
+		} else {
+			method = string(s.Method)
+		}
 	case *base.Response:
 		cseq, _ := s.Headers("CSeq")[0].(*base.CSeq)
 		method = string(cseq.MethodName)
@@ -161,6 +167,8 @@ func (mng *Manager) correlate(r *base.Response) {
 	tx, ok := mng.getTx(r)
 	if !ok {
 		// TODO: Something
+		log.Warn("Failed to correlate response to active transaction. Dropping it.")
+		return
 	}
 
 	tx.Receive(r)
@@ -171,6 +179,12 @@ func (mng *Manager) request(r *base.Request) {
 	t, ok := mng.getTx(r)
 	if ok {
 		t.Receive(r)
+		return
+	}
+
+	// If we failed to correlate an ACK, just drop it.
+	if r.Method == base.ACK {
+		log.Warn("Couldn't correlate ACK to an open transaction. Dropping it.")
 		return
 	}
 
