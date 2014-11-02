@@ -45,6 +45,8 @@ func NewManager(trans, addr string) (*Manager, error) {
 		}
 	}()
 
+	mng.transport.Listen()
+
 	return mng, nil
 }
 
@@ -99,6 +101,7 @@ func (mng *Manager) getTx(s base.SipMessage) (Transaction, bool) {
 }
 
 func (mng *Manager) Handle(msg base.SipMessage) {
+	log.Info("Received message: %s", msg.Short())
 	switch m := msg.(type) {
 	case *base.Request:
 		// TODO: Create a new server transaction.
