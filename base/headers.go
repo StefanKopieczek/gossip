@@ -73,14 +73,14 @@ type SipUri struct {
 	// (For more details, see RFC 3261 section 19.1.1).
 	// These appear as a semicolon-separated list of key=value pairs following the host[:port] part.
 	// Note that not all keys have an associated value, so the values of the map may be nil.
-	UriParams params
+	UriParams Params
 
 	// Any headers to be included on requests constructed from this URI.
 	// These appear as a '&'-separated list at the end of the URI, introduced by '?'.
 	// Although the values of the map are pointers, they will never be nil in practice as the parser
 	// guarantees to not return nil values for header elements in SIP URIs.
 	// You should not set the values of headers to nil.
-	Headers params
+	Headers Params
 }
 
 // Copy the Sip URI.
@@ -215,10 +215,10 @@ func (uri WildcardUri) Equals(other Uri) bool {
 }
 
 // Generic list of parameters on a header.
-type params map[string]*string
+type Params map[string]*string
 
 // Copy a list of params.
-func (p params) Copy() params {
+func (p Params) Copy() Params {
 	dup := make(map[string]*string, len(p))
 	for k, v := range p {
 		if v != nil {
@@ -264,7 +264,7 @@ type ToHeader struct {
 	Address Uri
 
 	// Any parameters present in the header.
-	Params params
+	Params Params
 }
 
 func (to *ToHeader) String() string {
@@ -300,7 +300,7 @@ type FromHeader struct {
 	Address Uri
 
 	// Any parameters present in the header.
-	Params params
+	Params Params
 }
 
 func (from *FromHeader) String() string {
@@ -336,7 +336,7 @@ type ContactHeader struct {
 	Address ContactUri
 
 	// Any parameters present in the header.
-	Params params
+	Params Params
 }
 
 func (contact *ContactHeader) String() string {
@@ -434,7 +434,7 @@ type ViaHop struct {
 	// The port for this via hop. This is stored as a pointer type, since it is an optional field.
 	Port *uint16
 
-	Params params
+	Params Params
 }
 
 func (hop *ViaHop) String() string {
@@ -566,7 +566,7 @@ func (h *UnsupportedHeader) Copy() SipHeader {
 // Takes the map of parameters, and start and end characters (e.g. '?' and '&').
 // It is assumed that key/value pairs are always represented as "key=value".
 // Note that this method does not escape special characters - that should be done before calling this method.
-func ParamsToString(params params, start uint8, sep uint8) string {
+func ParamsToString(params Params, start uint8, sep uint8) string {
 	var buffer bytes.Buffer
 	first := true
 	for key, value := range params {
@@ -590,7 +590,7 @@ func ParamsToString(params params, start uint8, sep uint8) string {
 
 // Check if two maps of parameters are equal in the sense of having the same keys with the same values.
 // This does not rely on any ordering of the keys of the map in memory.
-func ParamsEqual(a params, b params) bool {
+func ParamsEqual(a Params, b Params) bool {
 	if len(a) != len(b) {
 		return false
 	}
