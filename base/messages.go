@@ -154,6 +154,7 @@ type Request struct {
 func NewRequest(method Method, recipient Uri, sipVersion string, headers []SipHeader, body string) (request *Request) {
 	request = new(Request)
 	request.Method = method
+	request.SipVersion = sipVersion
 	request.Recipient = recipient
 	request.headers = newHeaders()
 	request.Body = body
