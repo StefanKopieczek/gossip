@@ -41,9 +41,10 @@ func (tcp *Tcp) IsStreamed() bool {
 }
 
 func (tcp *Tcp) getConn(addr string) (*net.TCPConn, error) {
-	var conn *net.TCPConn
-	conn = tcp.connTable.GetConn(addr).(*net.TCPConn)
+	conn := tcp.connTable.GetConn(addr)
+
 	if conn == nil {
+		log.Debug("No stored connection for address %s", addr)
 		raddr, err := net.ResolveTCPAddr("tcp", addr)
 		if err != nil {
 			return nil, err
@@ -55,7 +56,7 @@ func (tcp *Tcp) getConn(addr string) (*net.TCPConn, error) {
 	}
 
 	tcp.connTable.Notify(addr, conn)
-	return conn, nil
+	return conn.(*net.TCPConn), nil
 }
 
 func (tcp *Tcp) Send(addr string, msg base.SipMessage) error {

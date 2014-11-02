@@ -62,13 +62,13 @@ func (manager *Manager) Listen() error {
 				if ok {
 					manager.notifyAll(message)
 				} else {
-					log.Info("Parser stopped in UDP Transport Manager; will stop listening")
+					log.Info("Parser stopped in Transport Manager; will stop listening")
 					running = false
 				}
 			case err, ok := <-errors:
 				if ok {
 					// The parser has hit a terminal error. We need to restart it.
-					log.Warn("Failed to parse SIP message", err)
+					log.Warn("Failed to parse SIP message: %s", err.Error())
 					manager.parser = parser.NewParser(parsedMessages, errors, manager.transport.IsStreamed())
 				} else {
 					log.Info("Parser stopped in Transport Manager; will stop listening")
@@ -153,6 +153,7 @@ type connTable struct {
 }
 
 type connManager struct {
+	addr   string
 	conn   net.Conn
 	timer  *time.Timer
 	update chan net.Conn
@@ -174,10 +175,10 @@ func (t *connTable) Notify(addr string, conn net.Conn) {
 	}
 
 	manager, ok := t.conns[addr]
-	if ok {
-		manager.update <- conn
-	} else {
-		manager := connManager{conn, &time.Timer{}, make(chan net.Conn), make(chan bool)}
+	if !ok {
+		log.Debug("No connection manager registered for %s; spawn one", addr)
+		manager = &connManager{addr, conn, &time.Timer{}, make(chan net.Conn), make(chan bool)}
+		t.conns[addr] = manager
 		go func(mgr *connManager) {
 			// We expect to close off connections explicitly, but let's be safe and clean up
 			// if we close unexpectedly.
@@ -191,17 +192,20 @@ func (t *connTable) Notify(addr string, conn net.Conn) {
 				select {
 				case <-mgr.timer.C:
 					// Socket expiry timer has run out. Close the connection.
+					log.Debug("Socket %v (%s) inactive for too long; close it", mgr.conn, mgr.addr)
 					mgr.conn.Close()
 					mgr.conn = nil
 				case update := <-mgr.update:
 					// We've been pinged with a connection; update it and refresh the
 					// timer.
+					log.Debug("Manager for address %s received new socket %v; update records", mgr.addr, mgr.conn)
 					mgr.conn = update
 					mgr.timer.Stop()
 					mgr.timer = time.NewTimer(c_SOCKET_EXPIRY)
 				case stop := <-mgr.stop:
 					// We've received a termination signal; stop managing this connection.
 					if stop {
+						log.Debug("Connection manager for address %s got the kill signal. Stopping.", mgr.addr)
 						mgr.timer.Stop()
 						mgr.conn.Close()
 						mgr.conn = nil
@@ -209,8 +213,11 @@ func (t *connTable) Notify(addr string, conn net.Conn) {
 					}
 				}
 			}
-		}(&manager)
+		}(manager)
 	}
+
+	log.Debug("Push new socket %v to manager for address %s", conn, addr)
+	manager.update <- conn
 }
 
 // Return an existing open socket for the given address, or nil if no such socket
@@ -218,8 +225,10 @@ func (t *connTable) Notify(addr string, conn net.Conn) {
 func (t *connTable) GetConn(addr string) net.Conn {
 	manager, ok := t.conns[addr]
 	if ok {
+		log.Debug("Query connection for address %s returns %v", addr, manager.conn)
 		return manager.conn
 	} else {
+		log.Debug("Query connection for address %s returns nil (no registered manager)", addr)
 		return nil
 	}
 }
