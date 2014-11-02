@@ -42,7 +42,7 @@ func NewManager(transportType string, localAddress string) (manager *Manager, er
 		// TODO
 	}
 
-	if transport != nil && err != nil {
+	if transport != nil && err == nil {
 		manager = &Manager{transport: transport}
 	}
 
