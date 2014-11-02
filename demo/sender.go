@@ -8,12 +8,14 @@ import (
 
 import "time"
 
-const SENDER_ADDR string = "oryx.home:5060"
-const RECEIVER_ADDR string = "giraffe.home:5061"
+const SENDER_ADDR string = "169.254.96.61:5060"
+const RECEIVER_ADDR string = "169.254.255.255:5061"
+
+// const RECEIVER_ADDR string = "169.254.138.185:5061"
 const MESSAGE_INTERVAL time.Duration = time.Second
 
 func send() {
-	transportManager, err := transport.NewManager("tcp", SENDER_ADDR)
+	transportManager, err := transport.NewManager("udp", SENDER_ADDR)
 	if err != nil {
 		panic(err)
 	}

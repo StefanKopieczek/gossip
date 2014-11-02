@@ -7,10 +7,10 @@ import (
 	"github.com/stefankopieczek/gossip/transport"
 )
 
-const LOCAL_ADDR string = "localhost:5061"
+const LOCAL_ADDR string = "oryx.home:20780"
 
 func receive() {
-	transportManager, err := transport.NewManager("tcp", SENDER_ADDR)
+	transportManager, err := transport.NewManager("tcp", LOCAL_ADDR)
 	if err != nil {
 		panic(err)
 	}
@@ -19,6 +19,7 @@ func receive() {
 		panic("Transport manager is nil!")
 	}
 
+	transportManager.Listen()
 	log.Info("Ready to receive messages!")
 	messages := transportManager.GetChannel()
 	for message := range messages {

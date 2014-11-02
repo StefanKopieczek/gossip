@@ -4,7 +4,7 @@ import "github.com/stefankopieczek/gossip/log"
 
 func main() {
 	log.SetDefaultLogLevel(log.DEBUG)
-	go receive()
+	// go receive()
 	go send()
 
 	// Block forever.

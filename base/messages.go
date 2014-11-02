@@ -155,6 +155,7 @@ func NewRequest(method Method, recipient Uri, sipVersion string, headers []SipHe
 	request = new(Request)
 	request.Method = method
 	request.Recipient = recipient
+	request.SipVersion = sipVersion
 	request.headers = newHeaders()
 	request.Body = body
 
