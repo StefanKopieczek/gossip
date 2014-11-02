@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/stefankopieczek/gossip/base"
+	"github.com/stefankopieczek/gossip/log"
 	"github.com/stefankopieczek/gossip/transport"
 )
 
@@ -90,6 +91,8 @@ func (mng *Manager) Handle(msg base.SipMessage) {
 
 // Create Client transaction.
 func (mng *Manager) Send(r *base.Request, dest string) (<-chan *base.Response, error) {
+	log.Debug("Sending to %v: %v", dest, r.String())
+
 	tx := &ClientTransaction{}
 	tx.origin = r
 	tx.dest = dest
