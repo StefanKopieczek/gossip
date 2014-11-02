@@ -43,11 +43,13 @@ func (udp *Udp) IsStreamed() bool {
 }
 
 func (udp *Udp) Send(addr string, msg base.SipMessage) error {
+	log.Debug("Sending message %s to %s", msg.Short(), addr)
 	raddr, err := net.ResolveUDPAddr("udp", addr)
 	if err != nil {
 		return err
 	}
 
+	log.Debug("About to dial")
 	var conn *net.UDPConn
 	conn, err = net.DialUDP("udp", udp.laddr, raddr)
 	if err != nil {
@@ -55,7 +57,10 @@ func (udp *Udp) Send(addr string, msg base.SipMessage) error {
 	}
 	defer conn.Close()
 
+	log.Debug("About to write")
 	_, err = conn.Write([]byte(msg.String()))
+	log.Debug("Wrote")
+
 	return err
 }
 

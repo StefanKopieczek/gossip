@@ -42,7 +42,7 @@ func NewManager(transportType string, localAddress string) (manager *Manager, er
 		// TODO
 	}
 
-	if transport != nil && err != nil {
+	if transport != nil && err == nil {
 		manager = &Manager{transport: transport}
 	}
 
@@ -101,6 +101,7 @@ type notifier struct {
 }
 
 func (n *notifier) register(l listener) {
+	log.Debug("Register for listener")
 	if n.listeners == nil {
 		n.listeners = make(map[listener]bool)
 	}

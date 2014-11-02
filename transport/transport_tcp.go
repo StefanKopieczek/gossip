@@ -42,7 +42,6 @@ func (tcp *Tcp) IsStreamed() bool {
 
 func (tcp *Tcp) getConn(addr string) (*net.TCPConn, error) {
 	var conn *net.TCPConn
-	conn = tcp.connTable.GetConn(addr).(*net.TCPConn)
 	if conn == nil {
 		raddr, err := net.ResolveTCPAddr("tcp", addr)
 		if err != nil {
@@ -52,6 +51,8 @@ func (tcp *Tcp) getConn(addr string) (*net.TCPConn, error) {
 		if err != nil {
 			return nil, err
 		}
+	} else {
+		conn = tcp.connTable.GetConn(addr).(*net.TCPConn)
 	}
 
 	tcp.connTable.Notify(addr, conn)
