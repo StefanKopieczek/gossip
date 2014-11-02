@@ -1,6 +1,7 @@
 package transaction
 
 import (
+	"errors"
 	"time"
 
 	"github.com/stefankopieczek/gossip/base"
@@ -49,19 +50,38 @@ func NewManager(trans, addr string) (*Manager, error) {
 
 func (mng *Manager) putTx(tx Transaction) {
 	viaHeaders := tx.Origin().Headers("Via")
-	via := viaHeaders[0].(base.ViaHeader)
-	branch := *via[0].Params["branch"]
+	if len(viaHeaders) == 0 {
+		log.Warn("No Via header on new transaction. Transaction will be dropped.")
+		return
+	}
+
+	via, ok := viaHeaders[0].(base.ViaHeader)
+	if !ok {
+		panic(errors.New("Headers('Via') returned non-Via header!"))
+	}
+
+	branch, ok := via[0].Params["branch"]
+	if !ok {
+		log.Warn("No branch parameter on top Via header.  Transactino will be dropped.")
+	}
+
 	// TODO: Safety
 
-	key := key{branch, string(tx.Origin().Method)}
+	key := key{*branch, string(tx.Origin().Method)}
 	mng.txs[key] = tx
 }
 
 func (mng *Manager) getTx(s base.SipMessage) (Transaction, bool) {
 	viaHeaders := s.Headers("Via")
-	via, _ := viaHeaders[0].(base.ViaHeader)
-	branch := *via[0].Params["branch"]
-	// TODO: Safety
+	via, ok := viaHeaders[0].(base.ViaHeader)
+	if !ok {
+		panic(errors.New("Headers('Via') returned non-Via header!"))
+	}
+
+	branch, ok := via[0].Params["branch"]
+	if !ok {
+		log.Warn("No branch parameter on top Via header.  Transactino will be dropped.")
+	}
 
 	var method string
 	switch s := s.(type) {
@@ -72,7 +92,7 @@ func (mng *Manager) getTx(s base.SipMessage) (Transaction, bool) {
 		method = string(cseq.MethodName)
 	}
 
-	key := key{branch, method}
+	key := key{*branch, method}
 	tx, ok := mng.txs[key]
 
 	return tx, ok
