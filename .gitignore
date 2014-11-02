@@ -9,6 +9,7 @@ _test
 
 # Editor swap files
 *.swp
+*.swo
 
 # Architecture specific extensions/prefixes
 *.[568vq]

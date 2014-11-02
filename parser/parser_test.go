@@ -2,6 +2,7 @@ package parser
 
 import (
 	"github.com/stefankopieczek/gossip/base"
+	"github.com/stefankopieczek/gossip/log"
 	"github.com/stefankopieczek/gossip/utils"
 )
 
@@ -11,7 +12,11 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
+
+// Level of logs output during testing.
+var c_LOG_LEVEL = log.INFO
 
 var testsRun int
 var testsPassed int
@@ -73,6 +78,10 @@ var kat string = "kat"
 var ui16_5 uint16 = uint16(5)
 var ui16_5060 = uint16(5060)
 var ui16_9 uint16 = uint16(9)
+
+func TestAAAASetup(t *testing.T) {
+	log.SetDefaultLogLevel(c_LOG_LEVEL)
+}
 
 func TestParams(t *testing.T) {
 	doTests([]test{
@@ -246,6 +255,7 @@ func TestHostPort(t *testing.T) {
 	}, t)
 }
 
+/*
 func TestHeaderBlocks(t *testing.T) {
 	doTests([]test{
 		test{headerBlockInput([]string{"All on one line."}), &headerBlockResult{"All on one line.", 1}},
@@ -263,7 +273,7 @@ func TestHeaderBlocks(t *testing.T) {
 		test{headerBlockInput([]string{" foo"}), &headerBlockResult{" foo", 1}},
 	}, t)
 }
-
+*/
 func TestToHeaders(t *testing.T) {
 	fooEqBar := map[string]*string{"foo": &bar}
 	fooSingleton := map[string]*string{"foo": nil}
@@ -580,22 +590,22 @@ func TestContactHeaders(t *testing.T) {
 		test{contactHeaderInput("Contact: *"), &contactHeaderResult{
 			pass,
 			[]*base.ContactHeader{
-				&base.ContactHeader{Address: base.WildcardUri{}}}}},
+				&base.ContactHeader{Address: &base.WildcardUri{}}}}},
 
 		test{contactHeaderInput("Contact: \t  *"), &contactHeaderResult{
 			pass,
 			[]*base.ContactHeader{
-				&base.ContactHeader{Address: base.WildcardUri{}}}}},
+				&base.ContactHeader{Address: &base.WildcardUri{}}}}},
 
 		test{contactHeaderInput("M: *"), &contactHeaderResult{
 			pass,
 			[]*base.ContactHeader{
-				&base.ContactHeader{Address: base.WildcardUri{}}}}},
+				&base.ContactHeader{Address: &base.WildcardUri{}}}}},
 
 		test{contactHeaderInput("Contact: *"), &contactHeaderResult{
 			pass,
 			[]*base.ContactHeader{
-				&base.ContactHeader{Address: base.WildcardUri{}}}}},
+				&base.ContactHeader{Address: &base.WildcardUri{}}}}},
 
 		test{contactHeaderInput("Contact: \"John\" *"), &contactHeaderResult{
 			fail,
@@ -815,12 +825,32 @@ func TestContactHeaders(t *testing.T) {
 	}, t)
 }
 
+func TestSplitByWS(t *testing.T) {
+	doTests([]test{
+		test{splitByWSInput("Hello world"), splitByWSResult([]string{"Hello", "world"})},
+		test{splitByWSInput("Hello\tworld"), splitByWSResult([]string{"Hello", "world"})},
+		test{splitByWSInput("Hello    world"), splitByWSResult([]string{"Hello", "world"})},
+		test{splitByWSInput("Hello  world"), splitByWSResult([]string{"Hello", "world"})},
+		test{splitByWSInput("Hello\t world"), splitByWSResult([]string{"Hello", "world"})},
+		test{splitByWSInput("Hello\t world"), splitByWSResult([]string{"Hello", "world"})},
+		test{splitByWSInput("Hello\t \tworld"), splitByWSResult([]string{"Hello", "world"})},
+		test{splitByWSInput("Hello\t\tworld"), splitByWSResult([]string{"Hello", "world"})},
+		test{splitByWSInput("Hello\twonderful\tworld"), splitByWSResult([]string{"Hello", "wonderful", "world"})},
+		test{splitByWSInput("Hello   wonderful\tworld"), splitByWSResult([]string{"Hello", "wonderful", "world"})},
+		test{splitByWSInput("Hello   wonderful  world"), splitByWSResult([]string{"Hello", "wonderful", "world"})},
+	}, t)
+}
+
 func TestCSeqs(t *testing.T) {
 	doTests([]test{
 		test{cSeqInput("CSeq: 1 INVITE"), &cSeqResult{pass, &base.CSeq{1, "INVITE"}}},
-		test{cSeqInput("CSeq : 1 INVITE"), &cSeqResult{pass, &base.CSeq{1, "INVITE"}}},
-		test{cSeqInput("CSeq  : 1 INVITE"), &cSeqResult{pass, &base.CSeq{1, "INVITE"}}},
-		test{cSeqInput("CSeq\t: 1 INVITE"), &cSeqResult{pass, &base.CSeq{1, "INVITE"}}},
+		test{cSeqInput("CSeq : 2 INVITE"), &cSeqResult{pass, &base.CSeq{2, "INVITE"}}},
+		test{cSeqInput("CSeq  : 3 INVITE"), &cSeqResult{pass, &base.CSeq{3, "INVITE"}}},
+		test{cSeqInput("CSeq\t: 4 INVITE"), &cSeqResult{pass, &base.CSeq{4, "INVITE"}}},
+		test{cSeqInput("CSeq:\t5\t\tINVITE"), &cSeqResult{pass, &base.CSeq{5, "INVITE"}}},
+		test{cSeqInput("CSeq:\t6 \tINVITE"), &cSeqResult{pass, &base.CSeq{6, "INVITE"}}},
+		test{cSeqInput("CSeq:    7      INVITE"), &cSeqResult{pass, &base.CSeq{7, "INVITE"}}},
+		test{cSeqInput("CSeq: 8  INVITE"), &cSeqResult{pass, &base.CSeq{8, "INVITE"}}},
 		test{cSeqInput("CSeq: 0 register"), &cSeqResult{pass, &base.CSeq{0, "register"}}},
 		test{cSeqInput("CSeq: 10 reGister"), &cSeqResult{pass, &base.CSeq{10, "reGister"}}},
 		test{cSeqInput("CSeq: 17 FOOBAR"), &cSeqResult{pass, &base.CSeq{17, "FOOBAR"}}},
@@ -929,6 +959,200 @@ func TestViaHeaders(t *testing.T) {
 		test{viaInput("Via: box:5060"), &viaResult{fail, &base.ViaHeader{}}},
 		test{viaInput("Via: box:5060;foo=bar"), &viaResult{fail, &base.ViaHeader{}}},
 	}, t)
+}
+
+// Basic test of unstreamed parsing, using empty INVITE.
+func TestUnstreamedParse1(t *testing.T) {
+	nilMap := make(map[string]*string)
+	test := ParserTest{false, []parserTestStep{
+		// Steps each have: Input, result, sent error, returned error
+		parserTestStep{"INVITE sip:bob@biloxi.com SIP/2.0\r\n\r\n",
+			base.NewRequest(base.INVITE,
+				&base.SipUri{false, &bob, nil, "biloxi.com", nil, nilMap, nilMap},
+				"SIP/2.0",
+				make([]base.SipHeader, 0),
+				""),
+			nil,
+			nil},
+	}}
+
+	test.Test(t)
+}
+
+// Test unstreamed parsing with a header and body.
+func TestUnstreamedParse2(t *testing.T) {
+	nilMap := make(map[string]*string)
+	test := ParserTest{false, []parserTestStep{
+		// Steps each have: Input, result, sent error, returned error
+		parserTestStep{"INVITE sip:bob@biloxi.com SIP/2.0\r\n" +
+			"CSeq: 13 INVITE\r\n" +
+			"\r\n" +
+			"I am a banana",
+			base.NewRequest(base.INVITE,
+				&base.SipUri{false, &bob, nil, "biloxi.com", nil, nilMap, nilMap},
+				"SIP/2.0",
+				[]base.SipHeader{&base.CSeq{13, base.INVITE}},
+				"I am a banana"),
+			nil,
+			nil},
+	}}
+
+	test.Test(t)
+}
+
+// Test unstreamed parsing of a base.Request object (rather than a base.Response).
+func TestUnstreamedParse3(t *testing.T) {
+	test := ParserTest{false, []parserTestStep{
+		// Steps each have: Input, result, sent error, returned error
+		parserTestStep{"SIP/2.0 200 OK\r\n" +
+			"CSeq: 2 INVITE\r\n" +
+			"\r\n" +
+			"Everything is awesome.",
+			base.NewResponse("SIP/2.0",
+				200,
+				"OK",
+				[]base.SipHeader{&base.CSeq{2, base.INVITE}},
+				"Everything is awesome."),
+			nil,
+			nil},
+	}}
+
+	test.Test(t)
+}
+
+// Test unstreamed parsing with more than one header.
+func TestUnstreamedParse4(t *testing.T) {
+	callId := base.CallId("cheesecake1729")
+	maxForwards := base.MaxForwards(65)
+	test := ParserTest{false, []parserTestStep{
+		// Steps each have: Input, result, sent error, returned error
+		parserTestStep{"SIP/2.0 200 OK\r\n" +
+			"CSeq: 2 INVITE\r\n" +
+			"Call-ID: cheesecake1729\r\n" +
+			"Max-Forwards: 65\r\n" +
+			"\r\n" +
+			"Everything is awesome.",
+			base.NewResponse("SIP/2.0",
+				200,
+				"OK",
+				[]base.SipHeader{
+					&base.CSeq{2, base.INVITE},
+					&callId,
+					&maxForwards,
+				},
+				"Everything is awesome."),
+			nil,
+			nil},
+	}}
+
+	test.Test(t)
+}
+
+// Test unstreamed parsing with whitespace and line breaks.
+func TestUnstreamedParse5(t *testing.T) {
+	callId := base.CallId("cheesecake1729")
+	maxForwards := base.MaxForwards(63)
+	test := ParserTest{false, []parserTestStep{
+		// Steps each have: Input, result, sent error, returned error
+		parserTestStep{"SIP/2.0 200 OK\r\n" +
+			"CSeq:   2     \r\n" +
+			"    INVITE\r\n" +
+			"Call-ID:\tcheesecake1729\r\n" +
+			"Max-Forwards:\t\r\n" +
+			"\t63\r\n" +
+			"\r\n" +
+			"Everything is awesome.",
+			base.NewResponse("SIP/2.0",
+				200,
+				"OK",
+				[]base.SipHeader{
+					&base.CSeq{2, base.INVITE},
+					&callId,
+					&maxForwards},
+				"Everything is awesome."),
+			nil,
+			nil},
+	}}
+
+	test.Test(t)
+}
+
+// Test error responses, and responses of minimal length.
+func TestUnstreamedParse6(t *testing.T) {
+	test := ParserTest{false, []parserTestStep{
+		parserTestStep{"SIP/2.0 403 Forbidden\r\n\r\n",
+			base.NewResponse("SIP/2.0",
+				403,
+				"Forbidden",
+				[]base.SipHeader{},
+				""),
+			nil,
+			nil},
+	}}
+
+	test.Test(t)
+}
+
+// Test requests of minimal length.
+func TestUnstreamedParse7(t *testing.T) {
+	foo := "foo"
+	nilMap := make(map[string]*string)
+
+	test := ParserTest{false, []parserTestStep{
+		parserTestStep{"ACK sip:foo@bar.com SIP/2.0\r\n\r\n",
+			base.NewRequest(base.ACK,
+				&base.SipUri{false, &foo, nil, "bar.com", nil, nilMap, nilMap},
+				"SIP/2.0",
+				[]base.SipHeader{},
+				""),
+			nil,
+			nil},
+	}}
+
+	test.Test(t)
+}
+
+// TODO: Error cases for unstreamed parse.
+// TODO: Multiple writes on unstreamed parse.
+
+// Basic streamed parsing, using empty INVITE.
+func TestStreamedParse1(t *testing.T) {
+	nilMap := make(map[string]*string)
+	contentLength := base.ContentLength(0)
+	test := ParserTest{true, []parserTestStep{
+		// Steps each have: Input, result, sent error, returned error
+		parserTestStep{"INVITE sip:bob@biloxi.com SIP/2.0\r\n" +
+			"Content-Length: 0\r\n\r\n",
+			base.NewRequest(base.INVITE,
+				&base.SipUri{false, &bob, nil, "biloxi.com", nil, nilMap, nilMap},
+				"SIP/2.0",
+				[]base.SipHeader{&contentLength},
+				""),
+			nil,
+			nil},
+	}}
+
+	test.Test(t)
+}
+
+// Test writing a single message in two stages (breaking after the start line).
+func TestStreamedParse2(t *testing.T) {
+	nilMap := make(map[string]*string)
+	contentLength := base.ContentLength(0)
+	test := ParserTest{true, []parserTestStep{
+		// Steps each have: Input, result, sent error, returned error
+		parserTestStep{"INVITE sip:bob@biloxi.com SIP/2.0\r\n", nil, nil, nil},
+		parserTestStep{"Content-Length: 0\r\n\r\n",
+			base.NewRequest(base.INVITE,
+				&base.SipUri{false, &bob, nil, "biloxi.com", nil, nilMap, nilMap},
+				"SIP/2.0",
+				[]base.SipHeader{&contentLength},
+				""),
+			nil,
+			nil},
+	}}
+
+	test.Test(t)
 }
 
 type paramInput struct {
@@ -1079,6 +1303,18 @@ func (expected *headerBlockResult) equals(other result) (equal bool, reason stri
 	return true, ""
 }
 
+func parseHeader(rawHeader string) (headers []base.SipHeader, err error) {
+	messages := make(chan base.SipMessage, 0)
+	errors := make(chan error, 0)
+	p := NewParser(messages, errors, false)
+
+	headers, err = (p.(*parser)).parseHeader(rawHeader)
+
+	// parser.Stop()
+
+	return
+}
+
 type toHeaderInput string
 
 func (data toHeaderInput) String() string {
@@ -1086,8 +1322,7 @@ func (data toHeaderInput) String() string {
 }
 
 func (data toHeaderInput) evaluate() result {
-	parser := NewMessageParser().(*parserImpl)
-	headers, err := parser.parseHeader(string(data))
+	headers, err := parseHeader(string(data))
 	if len(headers) == 1 {
 		return &toHeaderResult{err, headers[0].(*base.ToHeader)}
 	} else if len(headers) == 0 {
@@ -1155,8 +1390,7 @@ func (data fromHeaderInput) String() string {
 }
 
 func (data fromHeaderInput) evaluate() result {
-	parser := NewMessageParser().(*parserImpl)
-	headers, err := parser.parseHeader(string(data))
+	headers, err := parseHeader(string(data))
 	if len(headers) == 1 {
 		return &fromHeaderResult{err, headers[0].(*base.FromHeader)}
 	} else if len(headers) == 0 {
@@ -1224,8 +1458,7 @@ func (data contactHeaderInput) String() string {
 }
 
 func (data contactHeaderInput) evaluate() result {
-	parser := NewMessageParser().(*parserImpl)
-	headers, err := parser.parseHeader(string(data))
+	headers, err := parseHeader(string(data))
 	contactHeaders := make([]*base.ContactHeader, len(headers))
 	if len(headers) > 0 {
 		for idx, header := range headers {
@@ -1278,13 +1511,40 @@ func (expected *contactHeaderResult) equals(other result) (equal bool, reason st
 
 		UrisEqual := expected.headers[idx].Address.Equals(actual.headers[idx].Address)
 		if !UrisEqual {
-			return false, fmt.Sprintf("expected Uri %s; got Uri %s", expected.headers[idx].Address, actual.headers[idx].Address)
+			return false, fmt.Sprintf("expected Uri %s; got Uri %s", expected.headers[idx].Address.String(), actual.headers[idx].Address.String())
 		}
 
 		if !base.ParamsEqual(expected.headers[idx].Params, actual.headers[idx].Params) {
 			return false, fmt.Sprintf("unexpected parameters \"%s\" (expected \"%s\")",
 				base.ParamsToString(actual.headers[idx].Params, '$', '-'),
 				base.ParamsToString(expected.headers[idx].Params, '$', '-'))
+		}
+	}
+
+	return true, ""
+}
+
+type splitByWSInput string
+
+func (data splitByWSInput) String() string {
+	return string(data)
+}
+
+func (data splitByWSInput) evaluate() result {
+	return splitByWSResult(splitByWhitespace(string(data)))
+}
+
+type splitByWSResult []string
+
+func (expected splitByWSResult) equals(other result) (equal bool, reason string) {
+	actual := other.(splitByWSResult)
+	if len(expected) != len(actual) {
+		return false, fmt.Sprintf("unexpected result length in splitByWS test: expected %d %v, got %d %v.", len(expected), expected, len(actual), actual)
+	}
+
+	for idx, e := range expected {
+		if e != actual[idx] {
+			return false, fmt.Sprintf("unexpected result at index %d in splitByWS test: expected '%s'; got '%s'", idx, e, actual[idx])
 		}
 	}
 
@@ -1298,8 +1558,7 @@ func (data cSeqInput) String() string {
 }
 
 func (data cSeqInput) evaluate() result {
-	parser := NewMessageParser().(*parserImpl)
-	headers, err := parser.parseHeader(string(data))
+	headers, err := parseHeader(string(data))
 	if len(headers) == 1 {
 		return &cSeqResult{err, headers[0].(*base.CSeq)}
 	} else if len(headers) == 0 {
@@ -1337,8 +1596,7 @@ func (data callIdInput) String() string {
 }
 
 func (data callIdInput) evaluate() result {
-	parser := NewMessageParser().(*parserImpl)
-	headers, err := parser.parseHeader(string(data))
+	headers, err := parseHeader(string(data))
 	if len(headers) == 1 {
 		return &callIdResult{err, *(headers[0].(*base.CallId))}
 	} else if len(headers) == 0 {
@@ -1373,8 +1631,7 @@ func (data maxForwardsInput) String() string {
 }
 
 func (data maxForwardsInput) evaluate() result {
-	parser := NewMessageParser().(*parserImpl)
-	headers, err := parser.parseHeader(string(data))
+	headers, err := parseHeader(string(data))
 	if len(headers) == 1 {
 		return &maxForwardsResult{err, *(headers[0].(*base.MaxForwards))}
 	} else if len(headers) == 0 {
@@ -1409,8 +1666,7 @@ func (data contentLengthInput) String() string {
 }
 
 func (data contentLengthInput) evaluate() result {
-	parser := NewMessageParser().(*parserImpl)
-	headers, err := parser.parseHeader(string(data))
+	headers, err := parseHeader(string(data))
 	if len(headers) == 1 {
 		return &contentLengthResult{err, *(headers[0].(*base.ContentLength))}
 	} else if len(headers) == 0 {
@@ -1445,8 +1701,7 @@ func (data viaInput) String() string {
 }
 
 func (data viaInput) evaluate() result {
-	parser := NewMessageParser().(*parserImpl)
-	headers, err := parser.parseHeader(string(data))
+	headers, err := parseHeader(string(data))
 	if len(headers) == 0 {
 		return &viaResult{err, &base.ViaHeader{}}
 	} else if len(headers) == 1 {
@@ -1506,6 +1761,98 @@ func (expected *viaResult) equals(other result) (equal bool, reason string) {
 	return true, ""
 }
 
+type ParserTest struct {
+	streamed bool
+	steps    []parserTestStep
+}
+
+func (test *ParserTest) Test(t *testing.T) {
+	testsRun++
+	output := make(chan base.SipMessage)
+	errs := make(chan error)
+	p := NewParser(output, errs, test.streamed)
+	for stepIdx, step := range test.steps {
+		success, reason := step.Test(p, output, errs)
+		if !success {
+			t.Errorf("failure in test step %d of input:\n%s\n\nfailure was: %s", stepIdx, test.String(), reason)
+			return
+		}
+	}
+
+	testsPassed++
+	return
+}
+
+func (t *ParserTest) String() string {
+	var buffer bytes.Buffer
+	buffer.WriteString("[")
+	for _, step := range t.steps {
+		buffer.WriteString(step.input)
+		buffer.WriteString(",")
+	}
+	buffer.WriteString("]")
+	return buffer.String()
+}
+
+type parserTestStep struct {
+	input string
+
+	// Slightly kludgy - two of these must be nil at any time.
+	result        base.SipMessage
+	sentError     error
+	returnedError error
+}
+
+func (step *parserTestStep) Test(parser Parser, msgChan chan base.SipMessage, errChan chan error) (success bool, reason string) {
+	_, err := parser.Write([]byte(step.input))
+	if err != step.returnedError {
+		success = false
+		reason = fmt.Sprintf("expected returned error %s on write; got %s", errToStr(step.returnedError), errToStr(err))
+		return
+	} else if step.returnedError != nil {
+		success = true
+		return
+	}
+
+	// TODO - check returns here as they look a bit fishy.
+	if err == nil {
+		select {
+		case msg := <-msgChan:
+			if msg == nil && step.result != nil {
+				success = false
+				reason = fmt.Sprintf("nil message returned from parser; expected:\n%s", step.result.String())
+			} else if msg != nil && step.result == nil {
+				success = false
+				reason = fmt.Sprintf("expected no message to be returned; got\n%s", msg.String())
+			} else if msg.String() != step.result.String() {
+				success = false
+				reason = fmt.Sprintf("unexpected message returned by parser; expected:\n\n%s\n\nbut got:\n\n%s", step.result.String(), msg.String())
+			} else {
+				success = true
+			}
+		case err = <-errChan:
+			if err == nil && step.sentError != nil {
+				success = false
+				reason = fmt.Sprintf("nil error output from parser; expected: %s", step.sentError.Error())
+			} else if err != nil && step.sentError == nil {
+				success = false
+				reason = fmt.Sprintf("expected no error; parser output: %s", err.Error())
+			} else {
+				success = true
+			}
+		case <-time.After(time.Second * 1):
+			if step.result != nil || step.sentError != nil {
+				success = false
+				reason = "timeout when processing input"
+			} else {
+				success = true
+			}
+		}
+	}
+
+	return
+}
+
 func TestZZZCountTests(t *testing.T) {
 	fmt.Printf("\n *** %d tests run ***", testsRun)
 	fmt.Printf("\n *** %d tests passed (%.2f%%) ***\n\n", testsPassed, (float32(testsPassed) * 100.0 / float32(testsRun)))
@@ -1524,5 +1871,13 @@ func uint16PtrStr(uint16Ptr *uint16) string {
 		return "nil"
 	} else {
 		return strconv.Itoa(int(*uint16Ptr))
+	}
+}
+
+func errToStr(err error) string {
+	if err == nil {
+		return "nil"
+	} else {
+		return err.Error()
 	}
 }
