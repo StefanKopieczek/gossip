@@ -57,12 +57,12 @@ func (mng *Manager) putTx(tx Transaction) {
 		return
 	}
 
-	via, ok := viaHeaders[0].(base.ViaHeader)
+	via, ok := viaHeaders[0].(*base.ViaHeader)
 	if !ok {
 		panic(errors.New("Headers('Via') returned non-Via header!"))
 	}
 
-	branch, ok := via[0].Params["branch"]
+	branch, ok := (*via)[0].Params["branch"]
 	if !ok {
 		log.Warn("No branch parameter on top Via header.  Transactino will be dropped.")
 	}
@@ -75,12 +75,12 @@ func (mng *Manager) putTx(tx Transaction) {
 
 func (mng *Manager) getTx(s base.SipMessage) (Transaction, bool) {
 	viaHeaders := s.Headers("Via")
-	via, ok := viaHeaders[0].(base.ViaHeader)
+	via, ok := viaHeaders[0].(*base.ViaHeader)
 	if !ok {
 		panic(errors.New("Headers('Via') returned non-Via header!"))
 	}
 
-	branch, ok := via[0].Params["branch"]
+	branch, ok := (*via)[0].Params["branch"]
 	if !ok {
 		log.Warn("No branch parameter on top Via header.  Transactino will be dropped.")
 	}
@@ -113,7 +113,7 @@ func (mng *Manager) Handle(msg base.SipMessage) {
 }
 
 // Create Client transaction.
-func (mng *Manager) Send(r *base.Request, dest string) (<-chan *base.Response, error) {
+func (mng *Manager) Send(r *base.Request, dest string) (<-chan *base.Response, <-chan error) {
 	log.Debug("Sending to %v: %v", dest, r.String())
 
 	tx := &ClientTransaction{}
@@ -124,8 +124,9 @@ func (mng *Manager) Send(r *base.Request, dest string) (<-chan *base.Response, e
 	tx.initFSM()
 
 	respChan := make(chan *base.Response, 3)
+	errChan := make(chan error, 1)
 	tx.tu = (chan<- *base.Response)(respChan)
-	tx.tu_err = make(chan error, 1)
+	tx.tu_err = (chan<- error)(errChan)
 
 	tx.timer_a_time = T1
 	tx.timer_a = time.NewTimer(tx.timer_a_time)
@@ -133,12 +134,13 @@ func (mng *Manager) Send(r *base.Request, dest string) (<-chan *base.Response, e
 
 	err := mng.transport.Send(dest, r)
 	if err != nil {
+		log.Warn("Failed to send message: %s", err.Error())
 		tx.fsm.Spin(client_input_transport_err)
 	}
 
 	mng.putTx(tx)
 
-	return (<-chan *base.Response)(respChan), err
+	return (<-chan *base.Response)(respChan), (<-chan error)(errChan)
 }
 
 // Give a received response to the correct transaction.
