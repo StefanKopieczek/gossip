@@ -39,7 +39,7 @@ func NewManager(transportType string) (manager *Manager, err error) {
 	var transport transport
 	switch strings.ToLower(transportType) {
 	case "udp":
-		// transport, err = NewUdp(n.inputs) // TODO
+		transport, err = NewUdp(n.inputs)
 	case "tcp":
 		transport, err = NewTcp(n.inputs)
 	case "tls":

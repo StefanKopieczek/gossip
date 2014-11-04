@@ -67,6 +67,24 @@ func defaultHeaderParsers() map[string]HeaderParser {
 	}
 }
 
+// Parse a SIP message by creating a parser on the fly.
+// This is more costly than reusing a parser, but is necessary when we do not
+// have a guarantee that all messages coming over a connection are from the
+// same endpoint (e.g. UDP).
+func ParseMessage(msgData []byte) (base.SipMessage, error) {
+	output := make(chan base.SipMessage, 0)
+	errors := make(chan error, 0)
+	parser := NewParser(output, errors, false)
+	// defer parser.Close()  // TODO!
+	parser.Write(msgData)
+	select {
+	case msg := <-output:
+		return msg, nil
+	case err := <-errors:
+		return nil, err
+	}
+}
+
 // Create a new Parser.
 //
 // Parsed SIP messages will be sent down the 'output' chan provided.

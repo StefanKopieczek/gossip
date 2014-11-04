@@ -97,4 +97,5 @@ func (tcp *Tcp) serve(listeningPoint *net.TCPListener) {
 
 func (tcp *Tcp) Stop() {
 	tcp.connTable.Stop()
+	// TODO: Close all listening points.
 }

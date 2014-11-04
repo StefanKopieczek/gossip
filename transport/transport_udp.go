@@ -1,6 +1,5 @@
 package transport
 
-/*
 import (
 	"github.com/stefankopieczek/gossip/base"
 	"github.com/stefankopieczek/gossip/log"
@@ -12,27 +11,26 @@ import (
 )
 
 type Udp struct {
-	laddr  *net.UDPAddr
-	in     *net.UDPConn
-	output chan base.SipMessage
+	listeningPoints []*net.UDPConn
+	output          chan base.SipMessage
 }
 
-func NewUdp(output chan base.SipMessage) (udp *Udp, err error) {
-	var laddr *net.UDPAddr
-	laddr, err = net.ResolveUDPAddr("udp", address)
-	if err == nil {
-		udp = &Udp{laddr: laddr, output: output}
+func NewUdp(output chan base.SipMessage) (*Udp, error) {
+	newUdp := Udp{listeningPoints: make([]*net.UDPConn, 0), output: output}
+	return &newUdp, nil
+}
+
+func (udp *Udp) Listen(address string) error {
+	addr, err := net.ResolveUDPAddr("udp", address)
+	if err != nil {
+		return err
 	}
 
-	return
-}
-
-func (udp *Udp) Listen(parser parser.Parser) error {
-	var err error = nil
-	udp.in, err = net.ListenUDP("udp", udp.laddr)
+	lp, err := net.ListenUDP("udp", addr)
 
 	if err == nil {
-		go udp.listen(parser)
+		udp.listeningPoints = append(udp.listeningPoints, lp)
+		go udp.listen(lp)
 	}
 
 	return err
@@ -49,38 +47,41 @@ func (udp *Udp) Send(addr string, msg base.SipMessage) error {
 		return err
 	}
 
-	log.Debug("About to dial")
 	var conn *net.UDPConn
-	conn, err = net.DialUDP("udp", udp.laddr, raddr)
+	conn, err = net.DialUDP("udp", nil, raddr)
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
 
-	log.Debug("About to write")
 	_, err = conn.Write([]byte(msg.String()))
-	log.Debug("Wrote")
 
 	return err
 }
 
-func (udp *Udp) listen(parser parser.Parser) {
-	log.Info("Begin listening for UDP on address " + udp.laddr.String())
+func (udp *Udp) listen(conn *net.UDPConn) {
+	log.Info("Begin listening for UDP on address %s", conn.LocalAddr())
 
 	buffer := make([]byte, c_BUFSIZE)
 	for {
-		num, _, err := udp.in.ReadFromUDP(buffer)
+		num, _, err := conn.ReadFromUDP(buffer)
 		if err != nil {
 			log.Severe("Failed to read from UDP buffer: " + err.Error())
 			continue
 		}
 
 		pkt := append([]byte(nil), buffer[:num]...)
-		parser.Write(pkt)
+		go func() {
+			msg, err := parser.ParseMessage(pkt)
+			if err != nil {
+				log.Warn("Failed to parse SIP message: %s", err.Error())
+			} else {
+				udp.output <- msg
+			}
+		}()
 	}
 }
 
 func (udp *Udp) Stop() {
-	udp.in.Close()
+	// TODO: Close all listening points.
 }
-*/
