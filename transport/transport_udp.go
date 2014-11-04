@@ -1,5 +1,6 @@
 package transport
 
+/*
 import (
 	"github.com/stefankopieczek/gossip/base"
 	"github.com/stefankopieczek/gossip/log"
@@ -10,18 +11,17 @@ import (
 	"net"
 )
 
-const c_BUFSIZE int = 65507
-
 type Udp struct {
-	laddr *net.UDPAddr
-	in    *net.UDPConn
+	laddr  *net.UDPAddr
+	in     *net.UDPConn
+	output chan base.SipMessage
 }
 
-func NewUdp(address string) (udp *Udp, err error) {
+func NewUdp(output chan base.SipMessage) (udp *Udp, err error) {
 	var laddr *net.UDPAddr
 	laddr, err = net.ResolveUDPAddr("udp", address)
 	if err == nil {
-		udp = &Udp{laddr: laddr}
+		udp = &Udp{laddr: laddr, output: output}
 	}
 
 	return
@@ -43,11 +43,13 @@ func (udp *Udp) IsStreamed() bool {
 }
 
 func (udp *Udp) Send(addr string, msg base.SipMessage) error {
+	log.Debug("Sending message %s to %s", msg.Short(), addr)
 	raddr, err := net.ResolveUDPAddr("udp", addr)
 	if err != nil {
 		return err
 	}
 
+	log.Debug("About to dial")
 	var conn *net.UDPConn
 	conn, err = net.DialUDP("udp", udp.laddr, raddr)
 	if err != nil {
@@ -55,7 +57,10 @@ func (udp *Udp) Send(addr string, msg base.SipMessage) error {
 	}
 	defer conn.Close()
 
+	log.Debug("About to write")
 	_, err = conn.Write([]byte(msg.String()))
+	log.Debug("Wrote")
+
 	return err
 }
 
@@ -78,3 +83,4 @@ func (udp *Udp) listen(parser parser.Parser) {
 func (udp *Udp) Stop() {
 	udp.in.Close()
 }
+*/
