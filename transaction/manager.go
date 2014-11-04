@@ -27,7 +27,7 @@ type key struct {
 }
 
 func NewManager(trans, addr string) (*Manager, error) {
-	t, err := transport.NewManager(trans, addr)
+	t, err := transport.NewManager(trans)
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +45,7 @@ func NewManager(trans, addr string) (*Manager, error) {
 		}
 	}()
 
-	mng.transport.Listen()
+	mng.transport.Listen(addr)
 
 	return mng, nil
 }
