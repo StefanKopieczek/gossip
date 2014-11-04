@@ -6,6 +6,7 @@ import (
 
 	"github.com/discoviking/fsm"
 	"github.com/stefankopieczek/gossip/base"
+	"github.com/stefankopieczek/gossip/transport"
 )
 
 // Generic Client Transaction
@@ -18,7 +19,7 @@ type Transaction interface {
 	Receive(m base.SipMessage)
 	Origin() *base.Request
 	Destination() string
-	Transport() string
+	Transport() *transport.Manager
 }
 
 type transaction struct {
@@ -26,7 +27,7 @@ type transaction struct {
 	origin    *base.Request  // Request that started this transaction.
 	lastIn    *base.Response // Most recently received message.
 	dest      string         // Of the form hostname:port
-	transport string         // "udp", "tcp", "tls"
+	transport *transport.Manager
 }
 
 func (tx *transaction) Origin() *base.Request {
@@ -37,7 +38,7 @@ func (tx *transaction) Destination() string {
 	return tx.dest
 }
 
-func (tx *transaction) Transport() string {
+func (tx *transaction) Transport() *transport.Manager {
 	return tx.transport
 }
 
@@ -75,7 +76,10 @@ func (tx *ClientTransaction) Receive(m base.SipMessage) {
 
 // Resend the originating request.
 func (tx *ClientTransaction) resend() {
-	// TODO: Send the request.
+	err := tx.transport.Send(tx.dest, tx.origin)
+	if err != nil {
+		tx.fsm.Spin(client_input_transport_err)
+	}
 }
 
 // Pass up the most recently received response to the TU.
@@ -95,5 +99,23 @@ func (tx *ClientTransaction) timeoutError() {
 
 // Send an automatic ACK.
 func (tx *ClientTransaction) sendAck() {
-	// TODO: Send an ACK.
+	ack := base.NewRequest(base.ACK,
+		tx.origin.Recipient,
+		tx.origin.SipVersion,
+		[]base.SipHeader{},
+		"")
+
+	// Copy headers from original request.
+	// TODO: Safety
+	base.CopyHeaders("From", tx.origin, ack)
+	base.CopyHeaders("Call-Id", tx.origin, ack)
+	base.CopyHeaders("Route", tx.origin, ack)
+	cseq := tx.origin.Headers("CSeq")[0].Copy()
+	cseq.(*base.CSeq).MethodName = base.ACK
+	ack.AddHeader(cseq)
+	via := tx.origin.Headers("Via")[0].Copy()
+	ack.AddHeader(via)
+
+	// Copy headers from response.
+	base.CopyHeaders("To", tx.lastIn, ack)
 }

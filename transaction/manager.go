@@ -119,6 +119,7 @@ func (mng *Manager) Send(r *base.Request, dest string) (<-chan *base.Response, e
 	tx := &ClientTransaction{}
 	tx.origin = r
 	tx.dest = dest
+	tx.transport = mng.transport
 
 	tx.initFSM()
 
