@@ -124,7 +124,9 @@ func (tx *ClientTransaction) initFSM() {
 		client_state_def_terminated,
 	)
 
-	log.Severe("Failure to define client transaction fsm: %s", err.Error())
+	if err != nil {
+		log.Severe("Failure to define client transaction fsm: %s", err.Error())
+	}
 
 	tx.fsm = fsm
 }
