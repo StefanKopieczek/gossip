@@ -1,6 +1,9 @@
 package transaction
 
-import "github.com/discoviking/fsm"
+import (
+	"github.com/discoviking/fsm"
+	"github.com/stefankopieczek/gossip/log"
+)
 
 // SIP Client Transaction FSM
 // Implements the behaviour described in RFC 3261 section 17.1
@@ -114,12 +117,14 @@ func (tx *ClientTransaction) initFSM() {
 		},
 	}
 
-	fsm := fsm.Define(
+	fsm, err := fsm.Define(
 		client_state_def_calling,
 		client_state_def_proceeding,
 		client_state_def_completed,
 		client_state_def_terminated,
 	)
+
+	log.Severe("Failure to define client transaction fsm: %s", err.Error())
 
 	tx.fsm = fsm
 }
