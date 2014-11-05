@@ -64,10 +64,9 @@ func (mng *Manager) putTx(tx Transaction) {
 
 	branch, ok := (*via)[0].Params["branch"]
 	if !ok {
-		log.Warn("No branch parameter on top Via header.  Transactino will be dropped.")
+		log.Warn("No branch parameter on top Via header.  Transaction will be dropped.")
+		return
 	}
-
-	// TODO: Safety
 
 	key := key{*branch, string(tx.Origin().Method)}
 	mng.txs[key] = tx
@@ -82,7 +81,8 @@ func (mng *Manager) getTx(s base.SipMessage) (Transaction, bool) {
 
 	branch, ok := (*via)[0].Params["branch"]
 	if !ok {
-		log.Warn("No branch parameter on top Via header.  Transactino will be dropped.")
+		log.Warn("No branch parameter on top Via header.  Transaction will be dropped.")
+		return nil, false
 	}
 
 	var method string
@@ -104,7 +104,7 @@ func (mng *Manager) Handle(msg base.SipMessage) {
 	log.Info("Received message: %s", msg.Short())
 	switch m := msg.(type) {
 	case *base.Request:
-		// TODO: Create a new server transaction.
+		log.Debug("Received request:\n%v", m.String())
 	case *base.Response:
 		mng.Correlate(m)
 	default:
@@ -113,7 +113,7 @@ func (mng *Manager) Handle(msg base.SipMessage) {
 }
 
 // Create Client transaction.
-func (mng *Manager) Send(r *base.Request, dest string) (<-chan *base.Response, <-chan error) {
+func (mng *Manager) Send(r *base.Request, dest string) *ClientTransaction {
 	log.Debug("Sending to %v: %v", dest, r.String())
 
 	tx := &ClientTransaction{}
@@ -123,10 +123,8 @@ func (mng *Manager) Send(r *base.Request, dest string) (<-chan *base.Response, <
 
 	tx.initFSM()
 
-	respChan := make(chan *base.Response, 3)
-	errChan := make(chan error, 1)
-	tx.tu = (chan<- *base.Response)(respChan)
-	tx.tu_err = (chan<- error)(errChan)
+	tx.tu = make(chan *base.Response, 3)
+	tx.tu_err = make(chan error, 1)
 
 	tx.timer_a_time = T1
 	tx.timer_a = time.NewTimer(tx.timer_a_time)
@@ -140,7 +138,7 @@ func (mng *Manager) Send(r *base.Request, dest string) (<-chan *base.Response, <
 
 	mng.putTx(tx)
 
-	return (<-chan *base.Response)(respChan), (<-chan error)(errChan)
+	return tx
 }
 
 // Give a received response to the correct transaction.

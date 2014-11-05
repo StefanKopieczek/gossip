@@ -45,13 +45,13 @@ func (tx *ClientTransaction) initFSM() {
 	// Pass up response and send ACK.
 	act_300 := func() fsm.Input {
 		tx.passUp()
-		tx.sendAck()
+		tx.Ack()
 		return fsm.NO_INPUT
 	}
 
 	// Send an ACK.
 	act_ack := func() fsm.Input {
-		tx.sendAck()
+		tx.Ack()
 		return fsm.NO_INPUT
 	}
 

@@ -45,9 +45,9 @@ func (tx *transaction) Transport() *transport.Manager {
 type ClientTransaction struct {
 	transaction
 
-	tu           chan<- *base.Response // Channel to transaction user.
-	tu_err       chan<- error          // Channel to report up errors to TU.
-	timer_a_time time.Duration         // Current duration of timer A.
+	tu           chan *base.Response // Channel to transaction user.
+	tu_err       chan error          // Channel to report up errors to TU.
+	timer_a_time time.Duration       // Current duration of timer A.
 	timer_a      *time.Timer
 	timer_b      *time.Timer
 	timer_d      *time.Timer
@@ -98,7 +98,7 @@ func (tx *ClientTransaction) timeoutError() {
 }
 
 // Send an automatic ACK.
-func (tx *ClientTransaction) sendAck() {
+func (tx *ClientTransaction) Ack() {
 	ack := base.NewRequest(base.ACK,
 		tx.origin.Recipient,
 		tx.origin.SipVersion,
@@ -118,4 +118,17 @@ func (tx *ClientTransaction) sendAck() {
 
 	// Copy headers from response.
 	base.CopyHeaders("To", tx.lastIn, ack)
+
+	// Send the ACK.
+	tx.transport.Send(tx.dest, ack)
+}
+
+// Return the channel we send responses on.
+func (tx *ClientTransaction) Responses() <-chan *base.Response {
+	return (<-chan *base.Response)(tx.tu)
+}
+
+// Return the channel we send errors on.
+func (tx *ClientTransaction) Errors() <-chan error {
+	return (<-chan error)(tx.tu_err)
 }
