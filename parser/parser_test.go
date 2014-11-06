@@ -1155,6 +1155,42 @@ func TestStreamedParse2(t *testing.T) {
 	test.Test(t)
 }
 
+// Test writing two successive messages, both with bodies.
+func TestStreamedParse3(t *testing.T) {
+	nilMap := make(map[string]*string)
+	contentLength23 := base.ContentLength(23)
+	contentLength33 := base.ContentLength(33)
+	test := ParserTest{true, []parserTestStep{
+		// Steps each have: Input, result, sent error, returned error
+		parserTestStep{"INVITE sip:bob@biloxi.com SIP/2.0\r\n", nil, nil, nil},
+		parserTestStep{"Content-Length: 23\r\n\r\n" +
+			"Hello!\r\nThis is a test.",
+			base.NewRequest(base.INVITE,
+				&base.SipUri{false, &bob, nil, "biloxi.com", nil, nilMap, nilMap},
+				"SIP/2.0",
+				[]base.SipHeader{&contentLength23},
+				"Hello!\r\nThis is a test."),
+			nil,
+			nil},
+		parserTestStep{"ACK sip:bob@biloxi.com SIP/2.0\r\n" +
+			"Content-Length: 33\r\n" +
+			"Contact: sip:alice@biloxi.com\r\n\r\n" +
+			"This is an ack! : \n ! \r\n contact:",
+			base.NewRequest(base.ACK,
+				&base.SipUri{false, &bob, nil, "biloxi.com", nil, nilMap, nilMap},
+				"SIP/2.0",
+				[]base.SipHeader{
+					&contentLength33,
+					&base.ContactHeader{nil, &base.SipUri{false, &alice, nil, "biloxi.com", nil, nilMap, nilMap}, nilMap},
+				},
+				"This is an ack! : \n ! \r\n contact:"),
+			nil,
+			nil},
+	}}
+
+	test.Test(t)
+}
+
 type paramInput struct {
 	paramString      string
 	start            uint8

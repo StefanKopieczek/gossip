@@ -103,8 +103,21 @@ func (pb *parserBuffer) manage() {
 					// We have enough data in the buffer to service the request for chunkReq.n characters.
 					chunkReq.response <- string(pb.buffer.Next(chunkReq.n))
 					pb.requestQueue = pb.requestQueue[1:]
+
+					// Update the stored line-break indices, discarding any line breaks which were contained
+					// within the chunk we just returned.
+					discardedLineBreaks := 0
 					for idx := range pb.lineBreaks {
 						pb.lineBreaks[idx] -= chunkReq.n
+						if pb.lineBreaks[idx] < 0 {
+							discardedLineBreaks += 1
+						}
+					}
+
+					if discardedLineBreaks < len(pb.lineBreaks) {
+						pb.lineBreaks = pb.lineBreaks[discardedLineBreaks+1:]
+					} else {
+						pb.lineBreaks = make([]int, 0)
 					}
 				} else {
 					break requestLoop
