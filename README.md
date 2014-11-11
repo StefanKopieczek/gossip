@@ -6,7 +6,11 @@ SIP stack in Golang, for use by stateful SIP UAs, whether client, server, or pro
 Project status
 --------------
 
-**Version: V0.1**
+**Version: V0.2**
 
-Gossip is currently under development, and is not ready for active use.
+Gossip is now capable of basic SIP 2.0 transactions over UDP and TCP and has been live tested with real softphones.
+It is still missing some compatibility features, isn't well tested and has a few known bugs.
+
+**APIs will change without warning until V1.0.**
+
 This readme will be updated as work progresses.
