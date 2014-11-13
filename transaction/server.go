@@ -32,6 +32,7 @@ const (
 	server_input_timer_h
 	server_input_timer_i
 	server_input_transport_err
+	server_input_delete
 )
 
 // Choose the right FSM init function depending on request method.
@@ -59,12 +60,29 @@ func (tx *ServerTransaction) initInviteFSM() {
 	// Inform user of transport error
 	act_trans_err := func() fsm.Input {
 		tx.tu_err <- errors.New("failed to send response")
-		return fsm.NO_INPUT
+		return server_input_delete
 	}
 
 	// Inform user of timeout error
 	act_timeout := func() fsm.Input {
-		tx.tu_err <- errors.New("timed out waiting for ACK")
+		tx.tu_err <- errors.New("transaction timed out")
+		return server_input_delete
+	}
+
+	// Send response and delete the transaction.
+	act_respond_delete := func() fsm.Input {
+		tx.Delete()
+
+		err := tx.transport.Send(tx.dest, tx.lastResp)
+		if err != nil {
+			return server_input_transport_err
+		}
+		return fsm.NO_INPUT
+	}
+
+	// Just delete the transaction.
+	act_delete := func() fsm.Input {
+		tx.Delete()
 		return fsm.NO_INPUT
 	}
 
@@ -76,7 +94,7 @@ func (tx *ServerTransaction) initInviteFSM() {
 		Outcomes: map[fsm.Input]fsm.Outcome{
 			server_input_request:       {server_state_proceeding, act_respond},
 			server_input_user_1xx:      {server_state_proceeding, act_respond},
-			server_input_user_2xx:      {server_state_terminated, act_respond},
+			server_input_user_2xx:      {server_state_terminated, act_respond_delete},
 			server_input_user_300_plus: {server_state_completed, act_respond},
 			server_input_transport_err: {server_state_terminated, act_trans_err},
 		},
@@ -105,7 +123,7 @@ func (tx *ServerTransaction) initInviteFSM() {
 			server_input_user_1xx:      {server_state_confirmed, fsm.NO_ACTION},
 			server_input_user_2xx:      {server_state_confirmed, fsm.NO_ACTION},
 			server_input_user_300_plus: {server_state_confirmed, fsm.NO_ACTION},
-			server_input_timer_i:       {server_state_terminated, fsm.NO_ACTION},
+			server_input_timer_i:       {server_state_terminated, act_delete},
 		},
 	}
 
@@ -118,6 +136,7 @@ func (tx *ServerTransaction) initInviteFSM() {
 			server_input_user_1xx:      {server_state_terminated, fsm.NO_ACTION},
 			server_input_user_2xx:      {server_state_terminated, fsm.NO_ACTION},
 			server_input_user_300_plus: {server_state_terminated, fsm.NO_ACTION},
+			server_input_delete:        {server_state_terminated, act_delete},
 		},
 	}
 
@@ -167,12 +186,18 @@ func (tx *ServerTransaction) initNonInviteFSM() {
 	// Inform user of transport error
 	act_trans_err := func() fsm.Input {
 		tx.tu_err <- errors.New("failed to send response")
-		return fsm.NO_INPUT
+		return server_input_delete
 	}
 
 	// Inform user of timeout error
 	act_timeout := func() fsm.Input {
-		tx.tu_err <- errors.New("timed out waiting for ACK")
+		tx.tu_err <- errors.New("transaction timed out")
+		return server_input_delete
+	}
+
+	// Just delete the transaction.
+	act_delete := func() fsm.Input {
+		tx.Delete()
 		return fsm.NO_INPUT
 	}
 
@@ -223,6 +248,7 @@ func (tx *ServerTransaction) initNonInviteFSM() {
 			server_input_user_2xx:      {server_state_terminated, fsm.NO_ACTION},
 			server_input_user_300_plus: {server_state_terminated, fsm.NO_ACTION},
 			server_input_timer_h:       {server_state_terminated, fsm.NO_ACTION},
+			server_input_delete:        {server_state_terminated, act_delete},
 		},
 	}
 

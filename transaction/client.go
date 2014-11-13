@@ -28,6 +28,7 @@ const (
 	client_input_timer_b
 	client_input_timer_d
 	client_input_transport_err
+	client_input_delete
 )
 
 // Initialises the correct kind of FSM based on request method.
@@ -79,12 +80,25 @@ func (tx *ClientTransaction) initInviteFSM() {
 	// Send up transport failure error.
 	act_trans_err := func() fsm.Input {
 		tx.transportError()
-		return fsm.NO_INPUT
+		return client_input_delete
 	}
 
 	// Send up timeout error.
 	act_timeout := func() fsm.Input {
 		tx.timeoutError()
+		return client_input_delete
+	}
+
+	// Pass up the response and delete the transaction.
+	act_passup_delete := func() fsm.Input {
+		tx.passUp()
+		tx.Delete()
+		return fsm.NO_INPUT
+	}
+
+	// Just delete the transaction.
+	act_delete := func() fsm.Input {
+		tx.Delete()
 		return fsm.NO_INPUT
 	}
 
@@ -95,7 +109,7 @@ func (tx *ClientTransaction) initInviteFSM() {
 		Index: client_state_calling,
 		Outcomes: map[fsm.Input]fsm.Outcome{
 			client_input_1xx:           {client_state_proceeding, act_passup},
-			client_input_2xx:           {client_state_terminated, act_passup},
+			client_input_2xx:           {client_state_terminated, act_passup_delete},
 			client_input_300_plus:      {client_state_completed, act_300},
 			client_input_timer_a:       {client_state_calling, act_resend},
 			client_input_timer_b:       {client_state_terminated, act_timeout},
@@ -108,7 +122,7 @@ func (tx *ClientTransaction) initInviteFSM() {
 		Index: client_state_proceeding,
 		Outcomes: map[fsm.Input]fsm.Outcome{
 			client_input_1xx:      {client_state_proceeding, act_passup},
-			client_input_2xx:      {client_state_terminated, act_passup},
+			client_input_2xx:      {client_state_terminated, act_passup_delete},
 			client_input_300_plus: {client_state_completed, act_300},
 			client_input_timer_a:  {client_state_proceeding, fsm.NO_ACTION},
 			client_input_timer_b:  {client_state_proceeding, fsm.NO_ACTION},
@@ -122,7 +136,7 @@ func (tx *ClientTransaction) initInviteFSM() {
 			client_input_1xx:           {client_state_completed, fsm.NO_ACTION},
 			client_input_2xx:           {client_state_completed, fsm.NO_ACTION},
 			client_input_300_plus:      {client_state_completed, act_ack},
-			client_input_timer_d:       {client_state_terminated, fsm.NO_ACTION},
+			client_input_timer_d:       {client_state_terminated, act_delete},
 			client_input_transport_err: {client_state_terminated, act_trans_err},
 			client_input_timer_a:       {client_state_completed, fsm.NO_ACTION},
 			client_input_timer_b:       {client_state_completed, fsm.NO_ACTION},
@@ -138,6 +152,7 @@ func (tx *ClientTransaction) initInviteFSM() {
 			client_input_300_plus: {client_state_terminated, fsm.NO_ACTION},
 			client_input_timer_a:  {client_state_terminated, fsm.NO_ACTION},
 			client_input_timer_b:  {client_state_terminated, fsm.NO_ACTION},
+			client_input_delete:   {client_state_terminated, act_delete},
 		},
 	}
 
@@ -192,12 +207,18 @@ func (tx *ClientTransaction) initNonInviteFSM() {
 	// Send up transport failure error.
 	act_trans_err := func() fsm.Input {
 		tx.transportError()
-		return fsm.NO_INPUT
+		return client_input_delete
 	}
 
 	// Send up timeout error.
 	act_timeout := func() fsm.Input {
 		tx.timeoutError()
+		return client_input_delete
+	}
+
+	// Just delete the transaction.
+	act_delete := func() fsm.Input {
+		tx.Delete()
 		return fsm.NO_INPUT
 	}
 
@@ -236,7 +257,7 @@ func (tx *ClientTransaction) initNonInviteFSM() {
 			client_input_1xx:      {client_state_completed, fsm.NO_ACTION},
 			client_input_2xx:      {client_state_completed, fsm.NO_ACTION},
 			client_input_300_plus: {client_state_completed, fsm.NO_ACTION},
-			client_input_timer_d:  {client_state_terminated, fsm.NO_ACTION},
+			client_input_timer_d:  {client_state_terminated, act_delete},
 			client_input_timer_a:  {client_state_completed, fsm.NO_ACTION},
 			client_input_timer_b:  {client_state_completed, fsm.NO_ACTION},
 		},
@@ -252,6 +273,7 @@ func (tx *ClientTransaction) initNonInviteFSM() {
 			client_input_timer_a:  {client_state_terminated, fsm.NO_ACTION},
 			client_input_timer_b:  {client_state_terminated, fsm.NO_ACTION},
 			client_input_timer_d:  {client_state_terminated, fsm.NO_ACTION},
+			client_input_delete:   {client_state_terminated, act_delete},
 		},
 	}
 
