@@ -35,6 +35,62 @@ const (
 	server_input_delete
 )
 
+// Define actions.
+
+// Send response
+func (tx *ServerTransaction) act_respond() fsm.Input {
+	err := tx.transport.Send(tx.dest, tx.lastResp)
+	if err != nil {
+		return server_input_transport_err
+	}
+
+	return fsm.NO_INPUT
+}
+
+// Send final response
+func (tx *ServerTransaction) act_final() fsm.Input {
+	err := tx.transport.Send(tx.dest, tx.lastResp)
+	if err != nil {
+		return server_input_transport_err
+	}
+
+	// Start timer J (we just reuse timer h)
+	tx.timer_h = time.AfterFunc(64*T1, func() {
+		tx.fsm.Spin(server_input_timer_h)
+	})
+
+	return fsm.NO_INPUT
+}
+
+// Inform user of transport error
+func (tx *ServerTransaction) act_trans_err() fsm.Input {
+	tx.tu_err <- errors.New("failed to send response")
+	return server_input_delete
+}
+
+// Inform user of timeout error
+func (tx *ServerTransaction) act_timeout() fsm.Input {
+	tx.tu_err <- errors.New("transaction timed out")
+	return server_input_delete
+}
+
+// Just delete the transaction.
+func (tx *ServerTransaction) act_delete() fsm.Input {
+	tx.Delete()
+	return fsm.NO_INPUT
+}
+
+// Send response and delete the transaction.
+func (tx *ServerTransaction) act_respond_delete() fsm.Input {
+	tx.Delete()
+
+	err := tx.transport.Send(tx.dest, tx.lastResp)
+	if err != nil {
+		return server_input_transport_err
+	}
+	return fsm.NO_INPUT
+}
+
 // Choose the right FSM init function depending on request method.
 func (tx *ServerTransaction) initFSM() {
 	if tx.origin.Method == base.INVITE {
@@ -45,58 +101,17 @@ func (tx *ServerTransaction) initFSM() {
 }
 
 func (tx *ServerTransaction) initInviteFSM() {
-	// Define Actions
-
-	// Send response
-	act_respond := func() fsm.Input {
-		err := tx.transport.Send(tx.dest, tx.lastResp)
-		if err != nil {
-			return server_input_transport_err
-		}
-
-		return fsm.NO_INPUT
-	}
-
-	// Inform user of transport error
-	act_trans_err := func() fsm.Input {
-		tx.tu_err <- errors.New("failed to send response")
-		return server_input_delete
-	}
-
-	// Inform user of timeout error
-	act_timeout := func() fsm.Input {
-		tx.tu_err <- errors.New("transaction timed out")
-		return server_input_delete
-	}
-
-	// Send response and delete the transaction.
-	act_respond_delete := func() fsm.Input {
-		tx.Delete()
-
-		err := tx.transport.Send(tx.dest, tx.lastResp)
-		if err != nil {
-			return server_input_transport_err
-		}
-		return fsm.NO_INPUT
-	}
-
-	// Just delete the transaction.
-	act_delete := func() fsm.Input {
-		tx.Delete()
-		return fsm.NO_INPUT
-	}
-
 	// Define States
 
 	// Proceeding
 	server_state_def_proceeding := fsm.State{
 		Index: server_state_proceeding,
 		Outcomes: map[fsm.Input]fsm.Outcome{
-			server_input_request:       {server_state_proceeding, act_respond},
-			server_input_user_1xx:      {server_state_proceeding, act_respond},
-			server_input_user_2xx:      {server_state_terminated, act_respond_delete},
-			server_input_user_300_plus: {server_state_completed, act_respond},
-			server_input_transport_err: {server_state_terminated, act_trans_err},
+			server_input_request:       {server_state_proceeding, tx.act_respond},
+			server_input_user_1xx:      {server_state_proceeding, tx.act_respond},
+			server_input_user_2xx:      {server_state_terminated, tx.act_respond_delete},
+			server_input_user_300_plus: {server_state_completed, tx.act_respond},
+			server_input_transport_err: {server_state_terminated, tx.act_trans_err},
 		},
 	}
 
@@ -104,14 +119,14 @@ func (tx *ServerTransaction) initInviteFSM() {
 	server_state_def_completed := fsm.State{
 		Index: server_state_completed,
 		Outcomes: map[fsm.Input]fsm.Outcome{
-			server_input_request:       {server_state_completed, act_respond},
+			server_input_request:       {server_state_completed, tx.act_respond},
 			server_input_ack:           {server_state_confirmed, fsm.NO_ACTION},
 			server_input_user_1xx:      {server_state_completed, fsm.NO_ACTION},
 			server_input_user_2xx:      {server_state_completed, fsm.NO_ACTION},
 			server_input_user_300_plus: {server_state_completed, fsm.NO_ACTION},
-			server_input_timer_g:       {server_state_completed, act_respond},
-			server_input_timer_h:       {server_state_terminated, act_timeout},
-			server_input_transport_err: {server_state_terminated, act_trans_err},
+			server_input_timer_g:       {server_state_completed, tx.act_respond},
+			server_input_timer_h:       {server_state_terminated, tx.act_timeout},
+			server_input_transport_err: {server_state_terminated, tx.act_trans_err},
 		},
 	}
 
@@ -123,7 +138,7 @@ func (tx *ServerTransaction) initInviteFSM() {
 			server_input_user_1xx:      {server_state_confirmed, fsm.NO_ACTION},
 			server_input_user_2xx:      {server_state_confirmed, fsm.NO_ACTION},
 			server_input_user_300_plus: {server_state_confirmed, fsm.NO_ACTION},
-			server_input_timer_i:       {server_state_terminated, act_delete},
+			server_input_timer_i:       {server_state_terminated, tx.act_delete},
 		},
 	}
 
@@ -136,7 +151,7 @@ func (tx *ServerTransaction) initInviteFSM() {
 			server_input_user_1xx:      {server_state_terminated, fsm.NO_ACTION},
 			server_input_user_2xx:      {server_state_terminated, fsm.NO_ACTION},
 			server_input_user_300_plus: {server_state_terminated, fsm.NO_ACTION},
-			server_input_delete:        {server_state_terminated, act_delete},
+			server_input_delete:        {server_state_terminated, tx.act_delete},
 		},
 	}
 
@@ -156,51 +171,6 @@ func (tx *ServerTransaction) initInviteFSM() {
 }
 
 func (tx *ServerTransaction) initNonInviteFSM() {
-	// Define Actions
-
-	// Send response
-	act_respond := func() fsm.Input {
-		err := tx.transport.Send(tx.dest, tx.lastResp)
-		if err != nil {
-			return server_input_transport_err
-		}
-
-		return fsm.NO_INPUT
-	}
-
-	// Send final response
-	act_final := func() fsm.Input {
-		err := tx.transport.Send(tx.dest, tx.lastResp)
-		if err != nil {
-			return server_input_transport_err
-		}
-
-		// Start timer J (we just reuse timer h)
-		tx.timer_h = time.AfterFunc(64*T1, func() {
-			tx.fsm.Spin(server_input_timer_h)
-		})
-
-		return fsm.NO_INPUT
-	}
-
-	// Inform user of transport error
-	act_trans_err := func() fsm.Input {
-		tx.tu_err <- errors.New("failed to send response")
-		return server_input_delete
-	}
-
-	// Inform user of timeout error
-	act_timeout := func() fsm.Input {
-		tx.tu_err <- errors.New("transaction timed out")
-		return server_input_delete
-	}
-
-	// Just delete the transaction.
-	act_delete := func() fsm.Input {
-		tx.Delete()
-		return fsm.NO_INPUT
-	}
-
 	// Define States
 
 	// Trying
@@ -208,9 +178,9 @@ func (tx *ServerTransaction) initNonInviteFSM() {
 		Index: server_state_trying,
 		Outcomes: map[fsm.Input]fsm.Outcome{
 			server_input_request:       {server_state_trying, fsm.NO_ACTION},
-			server_input_user_1xx:      {server_state_proceeding, act_respond},
-			server_input_user_2xx:      {server_state_completed, act_respond},
-			server_input_user_300_plus: {server_state_completed, act_respond},
+			server_input_user_1xx:      {server_state_proceeding, tx.act_respond},
+			server_input_user_2xx:      {server_state_completed, tx.act_respond},
+			server_input_user_300_plus: {server_state_completed, tx.act_respond},
 		},
 	}
 
@@ -218,11 +188,11 @@ func (tx *ServerTransaction) initNonInviteFSM() {
 	server_state_def_proceeding := fsm.State{
 		Index: server_state_proceeding,
 		Outcomes: map[fsm.Input]fsm.Outcome{
-			server_input_request:       {server_state_proceeding, act_respond},
-			server_input_user_1xx:      {server_state_proceeding, act_respond},
-			server_input_user_2xx:      {server_state_completed, act_final},
-			server_input_user_300_plus: {server_state_completed, act_final},
-			server_input_transport_err: {server_state_terminated, act_trans_err},
+			server_input_request:       {server_state_proceeding, tx.act_respond},
+			server_input_user_1xx:      {server_state_proceeding, tx.act_respond},
+			server_input_user_2xx:      {server_state_completed, tx.act_final},
+			server_input_user_300_plus: {server_state_completed, tx.act_final},
+			server_input_transport_err: {server_state_terminated, tx.act_trans_err},
 		},
 	}
 
@@ -230,12 +200,12 @@ func (tx *ServerTransaction) initNonInviteFSM() {
 	server_state_def_completed := fsm.State{
 		Index: server_state_completed,
 		Outcomes: map[fsm.Input]fsm.Outcome{
-			server_input_request:       {server_state_completed, act_respond},
+			server_input_request:       {server_state_completed, tx.act_respond},
 			server_input_user_1xx:      {server_state_completed, fsm.NO_ACTION},
 			server_input_user_2xx:      {server_state_completed, fsm.NO_ACTION},
 			server_input_user_300_plus: {server_state_completed, fsm.NO_ACTION},
-			server_input_timer_h:       {server_state_terminated, act_timeout},
-			server_input_transport_err: {server_state_terminated, act_trans_err},
+			server_input_timer_h:       {server_state_terminated, tx.act_timeout},
+			server_input_transport_err: {server_state_terminated, tx.act_trans_err},
 		},
 	}
 
@@ -248,7 +218,7 @@ func (tx *ServerTransaction) initNonInviteFSM() {
 			server_input_user_2xx:      {server_state_terminated, fsm.NO_ACTION},
 			server_input_user_300_plus: {server_state_terminated, fsm.NO_ACTION},
 			server_input_timer_h:       {server_state_terminated, fsm.NO_ACTION},
-			server_input_delete:        {server_state_terminated, act_delete},
+			server_input_delete:        {server_state_terminated, tx.act_delete},
 		},
 	}
 
