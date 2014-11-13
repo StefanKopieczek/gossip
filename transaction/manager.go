@@ -59,6 +59,8 @@ func NewManager(trans, addr string) (*Manager, error) {
 			select {
 			case t := <-mng.newtx:
 				mng.putTx(t)
+			case t := <-mng.deltx:
+				mng.delTx(t)
 			}
 		}
 	}()
@@ -95,7 +97,7 @@ func (mng *Manager) putTx(tx Transaction) {
 	mng.txs[key] = tx
 }
 
-func (mng *Manager) getTx(s base.SipMessage) (Transaction, bool) {
+func (mng *Manager) makeKey(s base.SipMessage) (key, bool) {
 	viaHeaders := s.Headers("Via")
 	via, ok := viaHeaders[0].(*base.ViaHeader)
 	if !ok {
@@ -104,9 +106,7 @@ func (mng *Manager) getTx(s base.SipMessage) (Transaction, bool) {
 
 	branch, ok := (*via)[0].Params["branch"]
 	if !ok {
-		// TODO: Here we should actually initiate searching as described in RFC3621 section 17.
-		log.Warn("No branch parameter on top Via header.  Transaction will be dropped.")
-		return nil, false
+		return key{}, false
 	}
 
 	var method string
@@ -129,10 +129,33 @@ func (mng *Manager) getTx(s base.SipMessage) (Transaction, bool) {
 		method = string(cseq.MethodName)
 	}
 
-	key := key{*branch, method}
+	return key{*branch, method}, true
+}
+
+// Gets a transaction from the transaction store.
+// Should only be called inside the storage handling goroutine to ensure concurrency safety.
+func (mng *Manager) getTx(s base.SipMessage) (Transaction, bool) {
+	key, ok := mng.makeKey(s)
+	if !ok {
+		// TODO: Here we should initiate more intense searching as specified in RFC3261 section 17
+		log.Warn("Could not correlate message to transaction by branch/method. Dropping.")
+		return nil, false
+	}
+
 	tx, ok := mng.txs[key]
 
 	return tx, ok
+}
+
+// Deletes a transaction from the transaction store.
+// Should only be called inside the storage handling goroutine to ensure concurrency safety.
+func (mng *Manager) delTx(t Transaction) {
+	key, ok := mng.makeKey(t.Origin())
+	if !ok {
+		log.Debug("Could not build lookup key for transaction. Is it missing a branch parameter?")
+	}
+
+	delete(mng.txs, key)
 }
 
 func (mng *Manager) handle(msg base.SipMessage) {

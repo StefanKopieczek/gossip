@@ -22,6 +22,7 @@ type Transaction interface {
 	Origin() *base.Request
 	Destination() string
 	Transport() *transport.Manager
+	Delete()
 }
 
 type transaction struct {
@@ -30,6 +31,7 @@ type transaction struct {
 	lastResp  *base.Response // Most recently received message.
 	dest      string         // Of the form hostname:port
 	transport *transport.Manager
+	tm        *Manager
 }
 
 func (tx *transaction) Origin() *base.Request {
@@ -42,6 +44,14 @@ func (tx *transaction) Destination() string {
 
 func (tx *transaction) Transport() *transport.Manager {
 	return tx.transport
+}
+
+func (tx *ServerTransaction) Delete() {
+	tx.tm.deltx <- tx
+}
+
+func (tx *ClientTransaction) Delete() {
+	tx.tm.deltx <- tx
 }
 
 type ClientTransaction struct {
