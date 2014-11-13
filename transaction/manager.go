@@ -20,6 +20,8 @@ type Manager struct {
 	txs       map[key]Transaction
 	transport *transport.Manager
 	requests  chan *ServerTransaction
+	newtx     chan Transaction
+	deltx     chan Transaction
 }
 
 // Transactions are identified by the branch parameter in the top Via header, and the method. (RFC 3261 17.1.3)
@@ -40,12 +42,24 @@ func NewManager(trans, addr string) (*Manager, error) {
 	}
 
 	mng.requests = make(chan *ServerTransaction, 5)
+	mng.newtx = make(chan Transaction, 5)
+	mng.deltx = make(chan Transaction, 5)
 
 	// Spin up a goroutine to pull messages up from the depths.
 	go func() {
 		c := mng.transport.GetChannel()
 		for msg := range c {
 			mng.handle(msg)
+		}
+	}()
+
+	// Spin up a goroutine to handle transaction storage.  This is to remove any concurrency issues accessing the map.
+	go func() {
+		for {
+			select {
+			case t := <-mng.newtx:
+				mng.putTx(t)
+			}
 		}
 	}()
 
@@ -164,7 +178,7 @@ func (mng *Manager) Send(r *base.Request, dest string) *ClientTransaction {
 		tx.fsm.Spin(client_input_transport_err)
 	}
 
-	mng.putTx(tx)
+	mng.newtx <- tx
 
 	return tx
 }
