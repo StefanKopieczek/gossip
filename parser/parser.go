@@ -40,7 +40,7 @@ type Parser interface {
 	// If a parser is not available for a header type in a message, the parser will produce a base.GenericHeader struct.
 	SetHeaderParser(headerName string, headerParser HeaderParser)
 
-	// TODO: Parser.Stop()
+	Stop()
 }
 
 // A HeaderParser is any function that turns raw header data into one or more SipHeader objects.
@@ -75,7 +75,8 @@ func ParseMessage(msgData []byte) (base.SipMessage, error) {
 	output := make(chan base.SipMessage, 0)
 	errors := make(chan error, 0)
 	parser := NewParser(output, errors, false)
-	// defer parser.Close()  // TODO!
+	defer parser.Stop()
+
 	parser.Write(msgData)
 	select {
 	case msg := <-output:
@@ -134,6 +135,7 @@ type parser struct {
 	output        chan<- base.SipMessage
 	errs          chan<- error
 	terminalErr   error
+	stopped       bool
 }
 
 func (p *parser) Write(data []byte) (n int, err error) {
@@ -141,6 +143,8 @@ func (p *parser) Write(data []byte) (n int, err error) {
 		// The parser has stopped due to a terminal error. Return it.
 		log.Fine("Parser %p ignores %d new bytes due to previous terminal error: %s", p, len(data), p.terminalErr.Error())
 		return 0, p.terminalErr
+	} else if p.stopped {
+		return 0, fmt.Errorf("Cannot write data to stopped parser %p", p)
 	}
 
 	if !p.streamed {
@@ -152,13 +156,36 @@ func (p *parser) Write(data []byte) (n int, err error) {
 	return len(data), nil
 }
 
+// Stop parser processing, and allow all resources to be garbage collected.
+// The parser will not release its resources until Stop() is called,
+// even if the parser object itself is garbage collected.
+func (p *parser) Stop() {
+	log.Debug("Stopping parser %p", p)
+	p.stopped = true
+	p.input.Stop()
+	log.Debug("Parser %p stopped", p)
+}
+
 // Consume input lines one at a time, producing base.SipMessage objects and sending them down p.output.
 func (p *parser) parse(requireContentLength bool) {
 	var message base.SipMessage
 
 	for {
 		// Parse the StartLine.
-		startLine := p.input.NextLine()
+		startLine, err := p.input.NextLine()
+
+		if err != nil {
+			if err == ERR_BUFFER_STOPPED {
+				log.Debug("Parser %p stopped", p)
+				break
+			} else {
+				log.Severe("Internal error in parser buffer: %s", err.Error())
+				p.terminalErr = err
+				p.errs <- err
+				break
+			}
+		}
+
 		if isRequest(startLine) {
 			method, recipient, sipVersion, err := parseRequestLine(startLine)
 			message = base.NewRequest(method, recipient, sipVersion, []base.SipHeader{}, "")
@@ -196,7 +223,20 @@ func (p *parser) parse(requireContentLength bool) {
 		}
 
 		for {
-			line := p.input.NextLine()
+			line, err := p.input.NextLine()
+
+			if err != nil {
+				if err == ERR_BUFFER_STOPPED {
+					log.Debug("Parser %p stopped", p)
+					break
+				} else {
+					log.Severe("Internal error in parser buffer: %s", err.Error())
+					p.terminalErr = err
+					p.errs <- err
+					break
+				}
+			}
+
 			if len(line) == 0 {
 				// We've hit the end of the header section.
 				// Parse anything remaining in the buffer, then break out.
@@ -258,7 +298,19 @@ func (p *parser) parse(requireContentLength bool) {
 		}
 
 		// Extract the message body.
-		body := p.input.NextChunk(contentLength)
+		body, err := p.input.NextChunk(contentLength)
+
+		if err != nil {
+			if err == ERR_BUFFER_STOPPED {
+				log.Debug("Parsed %p stopped", p)
+				break
+			} else {
+				log.Severe("Internal error in parser buffer: %s", err.Error())
+				p.terminalErr = err
+				p.errs <- err
+				break
+			}
+		}
 
 		switch message.(type) {
 		case *base.Request:
@@ -271,6 +323,11 @@ func (p *parser) parse(requireContentLength bool) {
 		p.output <- message
 	}
 
+	if !p.streamed {
+		// We're in unstreamed mode, so we created a bodyLengths ElasticChan which
+		// needs to be disposed.
+		close(p.bodyLengths.In)
+	}
 	return
 }
 

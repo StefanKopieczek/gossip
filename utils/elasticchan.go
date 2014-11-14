@@ -38,10 +38,10 @@ func (c *ElasticChan) manage() {
 					log.Debug("Chan %p will dispose", c)
 					break
 				}
-				log.Debug("Chan %p gets '%s'", c, in)
+				log.Debug("Chan %p gets '%v'", c, in)
 				c.buffer = append(c.buffer, in)
 			case c.Out <- c.buffer[0]:
-				log.Debug("Chan %p sends '%s'", c, c.buffer[0])
+				log.Debug("Chan %p sends '%v'", c, c.buffer[0])
 				c.buffer = c.buffer[1:]
 			}
 		} else {
@@ -52,7 +52,7 @@ func (c *ElasticChan) manage() {
 				log.Debug("Chan %p will dispose", c)
 				break
 			}
-			log.Debug("Chan %p gets '%s'", c, in)
+			log.Debug("Chan %p gets '%v'", c, in)
 			c.buffer = append(c.buffer, in)
 		}
 	}

@@ -1343,10 +1343,12 @@ func parseHeader(rawHeader string) (headers []base.SipHeader, err error) {
 	messages := make(chan base.SipMessage, 0)
 	errors := make(chan error, 0)
 	p := NewParser(messages, errors, false)
+	defer func() {
+		log.Debug("Stopping %p", p)
+		p.Stop()
+	}()
 
 	headers, err = (p.(*parser)).parseHeader(rawHeader)
-
-	// parser.Stop()
 
 	return
 }
@@ -1806,7 +1808,10 @@ func (test *ParserTest) Test(t *testing.T) {
 	testsRun++
 	output := make(chan base.SipMessage)
 	errs := make(chan error)
+
 	p := NewParser(output, errs, test.streamed)
+	defer p.Stop()
+
 	for stepIdx, step := range test.steps {
 		success, reason := step.Test(p, output, errs)
 		if !success {

@@ -64,7 +64,7 @@ func (connection *connection) Send(msg base.SipMessage) (err error) {
 }
 
 func (connection *connection) Close() error {
-	// TODO: Kill parser at this point, or we'll leak it.
+	connection.parser.Stop()
 	return connection.baseConn.Close()
 }
 

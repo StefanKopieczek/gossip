@@ -3,7 +3,6 @@ package transport
 import (
 	"github.com/stefankopieczek/gossip/base"
 	"github.com/stefankopieczek/gossip/log"
-	"github.com/stefankopieczek/gossip/parser"
 )
 
 import (
@@ -20,7 +19,6 @@ const c_SOCKET_EXPIRY time.Duration = time.Hour
 type Manager struct {
 	notifier
 	transport transport
-	parser    parser.Parser
 }
 
 type transport interface {
