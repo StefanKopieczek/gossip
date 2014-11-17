@@ -159,7 +159,7 @@ func (pb *parserBuffer) manage() {
 					}
 
 					if discardedLineBreaks < len(pb.lineBreaks) {
-						pb.lineBreaks = pb.lineBreaks[discardedLineBreaks+1:]
+						pb.lineBreaks = pb.lineBreaks[discardedLineBreaks:]
 					} else {
 						pb.lineBreaks = make([]int, 0)
 					}
