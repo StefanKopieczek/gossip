@@ -40,7 +40,7 @@ func TestMassUDP(t *testing.T) {
 				if len(receivedIDs) >= NUM_MSGS {
 					break recvloop
 				}
-			case <-time.After(time.Second / 10):
+			case <-time.After(time.Second):
 				break recvloop
 			}
 		}
