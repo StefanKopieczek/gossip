@@ -40,7 +40,7 @@ func TestMassUDP(t *testing.T) {
 				if len(receivedIDs) >= NUM_MSGS {
 					break recvloop
 				}
-			case <-time.After(time.Second):
+			case <-time.After(time.Second / 10):
 				break recvloop
 			}
 		}
@@ -70,6 +70,10 @@ func TestMassUDP(t *testing.T) {
 				base.NewRequest(base.ACK, &uri, "SIP/2.0",
 					[]base.SipHeader{base.ContentLength(len(fmt.Sprintf("%d", ii)))},
 					fmt.Sprintf("%d", ii)))
+
+			if ii%100 == 0 {
+				<-time.After(time.Millisecond)
+			}
 		}
 	}()
 
