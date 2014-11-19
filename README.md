@@ -15,10 +15,3 @@ It is still missing some compatibility features, isn't well tested and has a few
 **APIs will change without warning until V1.0.**
 
 This readme will be updated as work progresses.
-
-
-Branches
---------
-
-Branch 'master' receives all cutting-edge dev work.
-Branch 'stable' contains all commits in master that don't have any failing test cases.
