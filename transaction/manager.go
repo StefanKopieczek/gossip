@@ -67,6 +67,7 @@ func (mng *Manager) putTx(tx Transaction) {
 
 	via, ok := viaHeaders[0].(*base.ViaHeader)
 	if !ok {
+		// TODO: Handle this better.
 		panic(errors.New("Headers('Via') returned non-Via header!"))
 	}
 

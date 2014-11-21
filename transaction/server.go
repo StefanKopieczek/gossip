@@ -10,7 +10,7 @@ import (
 )
 
 // SIP Server Transaction FSM
-// Implements the behaviour described in RFC 3261 section 17.1
+// Implements the behaviour described in RFC 3261 section 17.2
 
 // FSM States
 const (

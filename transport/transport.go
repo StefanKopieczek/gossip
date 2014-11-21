@@ -80,7 +80,7 @@ func (n *notifier) init() {
 }
 
 func (n *notifier) register(l listener) {
-	log.Debug("Register for listener")
+	log.Debug("Notifier %p has new listener %p", n, l)
 	if n.listeners == nil {
 		n.listeners = make(map[listener]bool)
 	}
