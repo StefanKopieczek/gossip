@@ -105,6 +105,12 @@ func (mng *Manager) getTx(s base.SipMessage) (Transaction, bool) {
 			method = string(s.Method)
 		}
 	case *base.Response:
+		cseqs := s.Headers("CSeq")
+		if len(cseqs) == 0 {
+			// TODO - Handle non-existent CSeq
+			panic("No CSeq on response!")
+		}
+
 		cseq, _ := s.Headers("CSeq")[0].(*base.CSeq)
 		method = string(cseq.MethodName)
 	}
