@@ -65,6 +65,7 @@ func (manager *Manager) Send(addr string, message base.SipMessage) error {
 
 func (manager *Manager) Stop() {
 	manager.transport.Stop()
+	manager.notifier.stop()
 }
 
 type notifier struct {
@@ -108,10 +109,21 @@ func (n *notifier) forward() {
 		}
 		for _, deadListener := range deadListeners {
 			log.Debug(fmt.Sprintf("Expiring listener %#v", deadListener))
+			close(deadListener)
 			delete(n.listeners, deadListener)
 		}
 		n.listenerLock.Unlock()
 	}
+}
+
+func (n *notifier) stop() {
+	close(n.inputs)
+	n.listenerLock.Lock()
+	for c, _ := range n.listeners {
+		close(c)
+	}
+	n.listeners = nil
+	n.listenerLock.Unlock()
 }
 
 type listener chan base.SipMessage
