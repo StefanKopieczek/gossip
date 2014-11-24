@@ -109,7 +109,6 @@ func (n *notifier) forward() {
 		}
 		for _, deadListener := range deadListeners {
 			log.Debug(fmt.Sprintf("Expiring listener %#v", deadListener))
-			close(deadListener)
 			delete(n.listeners, deadListener)
 		}
 		n.listenerLock.Unlock()
@@ -117,7 +116,6 @@ func (n *notifier) forward() {
 }
 
 func (n *notifier) stop() {
-	close(n.inputs)
 	n.listenerLock.Lock()
 	for c, _ := range n.listeners {
 		close(c)

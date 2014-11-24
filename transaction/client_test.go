@@ -83,7 +83,7 @@ func (test *transactionTest) Execute(t *testing.T) {
 	var err error
 	test.client, err = NewManager("udp", c_CLIENT)
 	assertNoError(t, err)
-	// defer client_tx.Stop()
+	defer test.client.Stop()
 
 	test.server, err = transport.NewManager("udp")
 	assertNoError(t, err)

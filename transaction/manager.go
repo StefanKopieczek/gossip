@@ -38,11 +38,11 @@ func NewManager(trans, addr string) (*Manager, error) {
 
 	mng := &Manager{
 		txs:       map[key]Transaction{},
+		txLock:    &sync.RWMutex{},
 		transport: t,
 	}
 
 	mng.requests = make(chan *ServerTransaction, 5)
-	mng.txLock = &sync.RWMutex{}
 
 	// Spin up a goroutine to pull messages up from the depths.
 	go func() {
