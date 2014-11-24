@@ -3,6 +3,7 @@ package transaction
 import (
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/stefankopieczek/gossip/base"
@@ -20,8 +21,7 @@ type Manager struct {
 	txs       map[key]Transaction
 	transport *transport.Manager
 	requests  chan *ServerTransaction
-	newtx     chan Transaction
-	deltx     chan Transaction
+	txLock    *sync.RWMutex
 }
 
 // Transactions are identified by the branch parameter in the top Via header, and the method. (RFC 3261 17.1.3)
@@ -42,32 +42,25 @@ func NewManager(trans, addr string) (*Manager, error) {
 	}
 
 	mng.requests = make(chan *ServerTransaction, 5)
-	mng.newtx = make(chan Transaction, 5)
-	mng.deltx = make(chan Transaction, 5)
+	mng.txLock = &sync.RWMutex{}
 
 	// Spin up a goroutine to pull messages up from the depths.
 	go func() {
 		c := mng.transport.GetChannel()
 		for msg := range c {
-			mng.handle(msg)
-		}
-	}()
-
-	// Spin up a goroutine to handle transaction storage.  This is to remove any concurrency issues accessing the map.
-	go func() {
-		for {
-			select {
-			case t := <-mng.newtx:
-				mng.putTx(t)
-			case t := <-mng.deltx:
-				mng.delTx(t)
-			}
+			go mng.handle(msg)
 		}
 	}()
 
 	mng.transport.Listen(addr)
 
 	return mng, nil
+}
+
+// Stop the manager and close down all processing on it, losing all transactions in progress.
+func (mng *Manager) Stop() {
+	// Stop the transport layer.
+	mng.transport.Stop()
 }
 
 func (mng *Manager) Requests() <-chan *ServerTransaction {
@@ -94,7 +87,9 @@ func (mng *Manager) putTx(tx Transaction) {
 	}
 
 	key := key{*branch, string(tx.Origin().Method)}
+	mng.txLock.Lock()
 	mng.txs[key] = tx
+	mng.txLock.Unlock()
 }
 
 func (mng *Manager) makeKey(s base.SipMessage) (key, bool) {
@@ -142,7 +137,9 @@ func (mng *Manager) getTx(s base.SipMessage) (Transaction, bool) {
 		return nil, false
 	}
 
+	mng.txLock.RLock()
 	tx, ok := mng.txs[key]
+	mng.txLock.RUnlock()
 
 	return tx, ok
 }
@@ -155,7 +152,9 @@ func (mng *Manager) delTx(t Transaction) {
 		log.Debug("Could not build lookup key for transaction. Is it missing a branch parameter?")
 	}
 
+	mng.txLock.Lock()
 	delete(mng.txs, key)
+	mng.txLock.Unlock()
 }
 
 func (mng *Manager) handle(msg base.SipMessage) {
@@ -201,7 +200,7 @@ func (mng *Manager) Send(r *base.Request, dest string) *ClientTransaction {
 		tx.fsm.Spin(client_input_transport_err)
 	}
 
-	mng.newtx <- tx
+	mng.putTx(tx)
 
 	return tx
 }

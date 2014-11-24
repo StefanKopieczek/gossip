@@ -47,11 +47,11 @@ func (tx *transaction) Transport() *transport.Manager {
 }
 
 func (tx *ServerTransaction) Delete() {
-	tx.tm.deltx <- tx
+	tx.tm.delTx(tx)
 }
 
 func (tx *ClientTransaction) Delete() {
-	tx.tm.deltx <- tx
+	tx.tm.delTx(tx)
 }
 
 type ClientTransaction struct {
