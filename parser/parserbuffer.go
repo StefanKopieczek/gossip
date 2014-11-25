@@ -1,9 +1,10 @@
 package parser
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
-	"strings"
+	"io"
 
 	"github.com/stefankopieczek/gossip/log"
 )
@@ -21,15 +22,14 @@ const c_writeBuffSize int = 5
 // It exposes various blocking read methods, which wait until the requested
 // data is avaiable, and then return it.
 type parserBuffer struct {
+	io.Writer
 	buffer bytes.Buffer
 
-	lineBreaks []int
+	// Wraps parserBuffer.pipeReader
+	reader *bufio.Reader
 
-	dataIn       chan string
-	requestsIn   chan dataRequest
-	requestQueue []dataRequest
-
-	stop chan bool
+	// Don't access this directly except when closing.
+	pipeReader *io.PipeReader
 }
 
 // Create a new parserBuffer object (see struct comment for object details).
@@ -37,14 +37,8 @@ type parserBuffer struct {
 // until the Dispose() method is called.
 func newParserBuffer() *parserBuffer {
 	var pb parserBuffer
-	pb.lineBreaks = make([]int, 0)
-	pb.requestsIn = make(chan dataRequest, 0)
-	pb.requestQueue = make([]dataRequest, 0)
-	pb.dataIn = make(chan string, c_writeBuffSize)
-	pb.stop = make(chan bool)
-
-	go pb.manage()
-
+	pb.pipeReader, pb.Writer = io.Pipe()
+	pb.reader = bufio.NewReader(pb.pipeReader)
 	return &pb
 }
 
@@ -52,188 +46,54 @@ func newParserBuffer() *parserBuffer {
 // Return the line, excluding the terminal CRLF, and delete it from the buffer.
 // Returns an error if the parserbuffer has been stopped.
 func (pb *parserBuffer) NextLine() (response string, err error) {
-	var request lineRequest = make(chan string)
+	var buffer bytes.Buffer
+	var data string
+	var b byte
 
-	// Handle the case where pb has been stopped.
-	defer func() {
-		if r := recover(); r != nil {
-			err = ERR_BUFFER_STOPPED
+	// There has to be a better way!
+	for {
+		data, err = pb.reader.ReadString('\r')
+		if err != nil {
+			return
 		}
-	}()
 
-	pb.requestsIn <- request
+		buffer.WriteString(data)
 
-	var ok bool
-	response, ok = <-request
+		b, err = pb.reader.ReadByte()
+		if err != nil {
+			return
+		}
 
-	if !ok {
-		err = ERR_BUFFER_STOPPED
+		buffer.WriteByte(b)
+		if b == '\n' {
+			response = buffer.String()
+			response = response[:len(response)-2]
+			log.Debug("Parser buffer returns line '%s'", response)
+			return
+		}
 	}
-
-	return
 }
 
 // Block until the buffer contains at least n characters.
 // Return precisely those n characters, then delete them from the buffer.
 func (pb *parserBuffer) NextChunk(n int) (response string, err error) {
-	var request chunkRequest = chunkRequest{
-		n:        n,
-		response: make(chan string),
-	}
+	var data []byte = make([]byte, n)
 
-	// Handle the case where pb has been stopped.
-	defer func() {
-		if r := recover(); r != nil {
-			err = ERR_BUFFER_STOPPED
+	var read int
+	for total := 0; total < n; {
+		read, err = pb.reader.Read(data[total:])
+		total += read
+		if err != nil {
+			return
 		}
-	}()
-	pb.requestsIn <- request
-
-	var ok bool
-	response, ok = <-request.response
-
-	if !ok {
-		err = ERR_BUFFER_STOPPED
 	}
 
+	response = string(data)
+	log.Debug("Parser buffer returns chunk '%s'", response)
 	return
-}
-
-// Append the given string to the buffer.
-// This method is generally non-blocking, but is not guaranteed to be so depending
-// on the relative request and response load.
-// Specifically, it may block if a large number of requests are pending, and
-// then several writes are made in succession.
-func (pb *parserBuffer) Write(s string) {
-	pb.dataIn <- s
 }
 
 // Stop the parser buffer.
 func (pb *parserBuffer) Stop() {
-	pb.stop <- true
-}
-
-// The main management loop for the buffer.
-// Receives incoming requests and new buffer data, and handles the requests as data
-// becomes available.
-func (pb *parserBuffer) manage() {
-	// Inline the function for handling requests, as we need it in a couple of places.
-	handleRequests := func() {
-	requestLoop:
-		for len(pb.requestQueue) > 0 {
-			// See if we can respond to any requests.
-			switch pb.requestQueue[0].(type) {
-			case lineRequest:
-				if len(pb.lineBreaks) > 0 {
-					// The data in the buffer has at least one CRLF, so we're able to service
-					// this request as we do have a complete line.
-					breakpoint := pb.lineBreaks[0] + 2
-					s := string(pb.buffer.Next(breakpoint))
-					s = s[:len(s)-2] // Strip CRLF
-					pb.requestQueue[0].(lineRequest) <- s
-					pb.lineBreaks = pb.lineBreaks[1:]
-					pb.requestQueue = pb.requestQueue[1:]
-					for idx := range pb.lineBreaks {
-						pb.lineBreaks[idx] -= breakpoint
-					}
-				} else {
-					// Don't service any subsequent requests, as we can't yet process the first
-					// one, and they need to be handled in order. Wait for more data and try again.
-					break requestLoop
-				}
-			case chunkRequest:
-				chunkReq := pb.requestQueue[0].(chunkRequest)
-				if pb.buffer.Len() >= chunkReq.n {
-					// We have enough data in the buffer to service the request for chunkReq.n characters.
-					chunkReq.response <- string(pb.buffer.Next(chunkReq.n))
-					pb.requestQueue = pb.requestQueue[1:]
-
-					// Update the stored line-break indices, discarding any line breaks which were contained
-					// within the chunk we just returned.
-					discardedLineBreaks := 0
-					for idx := range pb.lineBreaks {
-						pb.lineBreaks[idx] -= chunkReq.n
-						if pb.lineBreaks[idx] < 0 {
-							discardedLineBreaks += 1
-						}
-					}
-
-					if discardedLineBreaks < len(pb.lineBreaks) {
-						pb.lineBreaks = pb.lineBreaks[discardedLineBreaks:]
-					} else {
-						pb.lineBreaks = make([]int, 0)
-					}
-				} else {
-					break requestLoop
-				}
-			}
-		}
-	}
-
-mainLoop:
-	for {
-		handleRequests()
-
-		// Now that we've handled all the requests we can, block until we have more data or new requests.
-		select {
-		case data := <-pb.dataIn:
-			bufferEndIdx := pb.buffer.Len()
-			pb.buffer.WriteString(data)
-			for _, idx := range indexAll(data, "\r\n") {
-				pb.lineBreaks = append(pb.lineBreaks, bufferEndIdx+idx)
-			}
-		case request := <-pb.requestsIn:
-			pb.requestQueue = append(pb.requestQueue, request)
-		case <-pb.stop:
-			// Stop main loop, dispatch all pending requests, and end.
-			log.Debug("Parserbuffer %p got the stop signal", pb)
-			break mainLoop
-		}
-	}
-
-	// We've received a stop signal, so stop handling new requests.
-	// Close all open request objects with an error.
-	close(pb.requestsIn)
-	log.Debug("Parserbuffer %p closing outstanding requests", pb)
-	for _, request := range pb.requestQueue {
-		switch request.(type) {
-		case lineRequest:
-			close(request.(lineRequest))
-		case chunkRequest:
-			close(request.(chunkRequest).response)
-		}
-	}
-}
-
-// Generic interface for data requests made to the buffer.
-// Requests generally take the form of a chan for the requested data to be sent
-// down, as well as additional parameters defining the exact request.
-type dataRequest interface{}
-
-// Request for the next CRLF-terminated line in the buffer.
-type lineRequest chan string
-
-// Request for the next n bytes in the buffer.
-type chunkRequest struct {
-	n        int
-	response chan string
-}
-
-// Utility method.
-// Returns a slice containing the indices of all instances of 'target' in 'source'.
-// Overlapping instances are considered, e.g. indexAll("banana", "ana") -> [1, 3].
-func indexAll(source string, target string) []int {
-	indices := make([]int, 0)
-	offset := 0
-	for offset < len(source) {
-		index := strings.Index(source[offset:], target)
-		if index == -1 {
-			break
-		}
-
-		indices = append(indices, offset+index)
-		offset += index + 1
-	}
-
-	return indices
+	pb.pipeReader.Close()
 }

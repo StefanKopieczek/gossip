@@ -152,7 +152,7 @@ func (p *parser) Write(data []byte) (n int, err error) {
 		p.bodyLengths.In <- l
 	}
 
-	p.input.Write(string(data))
+	p.input.Write(data)
 	return len(data), nil
 }
 
@@ -175,15 +175,8 @@ func (p *parser) parse(requireContentLength bool) {
 		startLine, err := p.input.NextLine()
 
 		if err != nil {
-			if err == ERR_BUFFER_STOPPED {
-				log.Debug("Parser %p stopped", p)
-				break
-			} else {
-				log.Severe("Internal error in parser buffer: %s", err.Error())
-				p.terminalErr = err
-				p.errs <- err
-				break
-			}
+			log.Debug("Parser %p stopped", p)
+			break
 		}
 
 		if isRequest(startLine) {
@@ -226,15 +219,8 @@ func (p *parser) parse(requireContentLength bool) {
 			line, err := p.input.NextLine()
 
 			if err != nil {
-				if err == ERR_BUFFER_STOPPED {
-					log.Debug("Parser %p stopped", p)
-					break
-				} else {
-					log.Severe("Internal error in parser buffer: %s", err.Error())
-					p.terminalErr = err
-					p.errs <- err
-					break
-				}
+				log.Debug("Parser %p stopped", p)
+				break
 			}
 
 			if len(line) == 0 {
@@ -301,15 +287,8 @@ func (p *parser) parse(requireContentLength bool) {
 		body, err := p.input.NextChunk(contentLength)
 
 		if err != nil {
-			if err == ERR_BUFFER_STOPPED {
-				log.Debug("Parsed %p stopped", p)
-				break
-			} else {
-				log.Severe("Internal error in parser buffer: %s", err.Error())
-				p.terminalErr = err
-				p.errs <- err
-				break
-			}
+			log.Debug("Parsed %p stopped", p)
+			break
 		}
 
 		switch message.(type) {
