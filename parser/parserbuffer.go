@@ -3,19 +3,10 @@ package parser
 import (
 	"bufio"
 	"bytes"
-	"fmt"
 	"io"
 
 	"github.com/stefankopieczek/gossip/log"
 )
-
-// The error returned by the GetNextChunk and GetNextLine methods of Parserbuffer
-// when the buffer has ben stopped.
-var ERR_BUFFER_STOPPED error = fmt.Errorf("Parser has stopped")
-
-// The number of writes to the buffer that can queue unhandled before
-// subsequent writes start to block.
-const c_writeBuffSize int = 5
 
 // parserBuffer is a specialized buffer for use in the parser package.
 // It is written to via the non-blocking Write.
