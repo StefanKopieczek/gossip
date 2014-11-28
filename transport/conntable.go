@@ -68,7 +68,7 @@ func (t *connTable) Notify(addr string, conn *connection) {
 				case stop := <-watcher.stop:
 					// We've received a termination signal; stop managing this connection.
 					if stop {
-						log.Debug("Connection watcher for address %s got the kill signal. Stopping.", watcher.addr)
+						log.Info("Connection watcher for address %s got the kill signal. Stopping.", watcher.addr)
 						watcher.timer.Stop()
 						watcher.conn.Close()
 						watcher.conn = nil
@@ -98,6 +98,7 @@ func (t *connTable) GetConn(addr string) *connection {
 // Close all sockets and stop socket management.
 // The table cannot be restarted after Stop() has been called, and GetConn() will return nil.
 func (t *connTable) Stop() {
+	log.Info("ksadbfkljahbdflkjasbdflksadlfkjh") // TODO more helpful log line
 	t.stopped = true
 	for _, watcher := range t.conns {
 		watcher.stop <- true

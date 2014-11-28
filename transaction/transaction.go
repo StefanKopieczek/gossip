@@ -51,6 +51,7 @@ func (tx *ServerTransaction) Delete() {
 }
 
 func (tx *ClientTransaction) Delete() {
+	log.Warn("Tx: %p, tm: %p", tx, tx.tm)
 	tx.tm.delTx(tx)
 }
 

@@ -45,8 +45,8 @@ func NewManager(trans, addr string) (*Manager, error) {
 	mng.requests = make(chan *ServerTransaction, 5)
 
 	// Spin up a goroutine to pull messages up from the depths.
+	c := mng.transport.GetChannel()
 	go func() {
-		c := mng.transport.GetChannel()
 		for msg := range c {
 			go mng.handle(msg)
 		}
@@ -177,6 +177,7 @@ func (mng *Manager) Send(r *base.Request, dest string) *ClientTransaction {
 	tx.origin = r
 	tx.dest = dest
 	tx.transport = mng.transport
+	tx.tm = mng
 
 	tx.initFSM()
 

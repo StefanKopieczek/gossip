@@ -60,14 +60,19 @@ func (udp *Udp) Send(addr string, msg base.SipMessage) error {
 }
 
 func (udp *Udp) listen(conn *net.UDPConn) {
-	log.Info("Begin listening for UDP on address %s", conn.LocalAddr())
+	log.Info("Begin listening for UDP on address %v", conn.LocalAddr())
 
 	buffer := make([]byte, c_BUFSIZE)
 	for {
 		num, _, err := conn.ReadFromUDP(buffer)
 		if err != nil {
-			log.Severe("Failed to read from UDP buffer: " + err.Error())
-			continue
+			if udp.stop {
+				log.Info("Stopped listening for UDP on %v", conn.LocalAddr())
+				break
+			} else {
+				log.Severe("Failed to read from UDP buffer: " + err.Error())
+				continue
+			}
 		}
 
 		pkt := append([]byte(nil), buffer[:num]...)

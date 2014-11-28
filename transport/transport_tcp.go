@@ -13,6 +13,7 @@ type Tcp struct {
 	listeningPoints []*net.TCPListener
 	parser          *parser.Parser
 	output          chan base.SipMessage
+	stop            bool
 }
 
 func NewTcp(output chan base.SipMessage) (*Tcp, error) {
@@ -97,5 +98,8 @@ func (tcp *Tcp) serve(listeningPoint *net.TCPListener) {
 
 func (tcp *Tcp) Stop() {
 	tcp.connTable.Stop()
-	// TODO: Close all listening points.
+	tcp.stop = true
+	for _, lp := range tcp.listeningPoints {
+		lp.Close()
+	}
 }

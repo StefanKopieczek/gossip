@@ -1,9 +1,6 @@
 package transaction
 
-import (
-	"testing"
-	"time"
-)
+import "testing"
 
 // Tests we can start/stop a transaction manager repeatedly on the same port.
 func TestStop(t *testing.T) {
@@ -14,7 +11,6 @@ func TestStop(t *testing.T) {
 			t.Fatalf("Failed to start manager on loop %v: %v\n", i, err)
 		}
 
-		<-time.After(10 * time.Millisecond)
 		m.Stop()
 	}
 }
