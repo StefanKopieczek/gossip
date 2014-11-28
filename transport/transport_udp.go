@@ -13,6 +13,7 @@ import (
 type Udp struct {
 	listeningPoints []*net.UDPConn
 	output          chan base.SipMessage
+	stop            bool
 }
 
 func NewUdp(output chan base.SipMessage) (*Udp, error) {
@@ -60,14 +61,14 @@ func (udp *Udp) Send(addr string, msg base.SipMessage) error {
 }
 
 func (udp *Udp) listen(conn *net.UDPConn) {
-	log.Info("Begin listening for UDP on address %v", conn.LocalAddr())
+	log.Info("Begin listening for UDP on address %s", conn.LocalAddr())
 
 	buffer := make([]byte, c_BUFSIZE)
 	for {
 		num, _, err := conn.ReadFromUDP(buffer)
 		if err != nil {
 			if udp.stop {
-				log.Info("Stopped listening for UDP on %v", conn.LocalAddr())
+				log.Info("Stopped listening for UDP on %s", conn.LocalAddr)
 				break
 			} else {
 				log.Severe("Failed to read from UDP buffer: " + err.Error())
@@ -88,5 +89,8 @@ func (udp *Udp) listen(conn *net.UDPConn) {
 }
 
 func (udp *Udp) Stop() {
-	// TODO: Close all listening points.
+	udp.stop = true
+	for _, lp := range udp.listeningPoints {
+		lp.Close()
+	}
 }
