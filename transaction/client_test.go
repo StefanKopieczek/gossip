@@ -161,7 +161,7 @@ func assert(t *testing.T, b bool, msg string) {
 
 func assertNoError(t *testing.T, err error) {
 	if err != nil {
-		t.Errorf("Unexpected error: %s", err.Error())
+		t.Fatalf("Unexpected error: %s", err.Error())
 	}
 }
 

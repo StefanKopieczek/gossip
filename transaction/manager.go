@@ -52,7 +52,10 @@ func NewManager(trans, addr string) (*Manager, error) {
 		}
 	}()
 
-	mng.transport.Listen(addr)
+	err = mng.transport.Listen(addr)
+	if err != nil {
+		return nil, err
+	}
 
 	return mng, nil
 }
