@@ -237,7 +237,9 @@ func (mng *Manager) request(r *base.Request) {
 
 	// Create a new transaction
 	tx := &ServerTransaction{}
+	tx.tm = mng
 	tx.origin = r
+	tx.transport = mng.transport
 
 	// Use the remote address in the top Via header.  This is not correct behaviour.
 	viaHeaders := tx.Origin().Headers("Via")
