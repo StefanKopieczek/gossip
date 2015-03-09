@@ -260,7 +260,13 @@ func (mng *Manager) request(r *base.Request) {
 
 	hop := (*via)[0]
 
-	tx.dest = fmt.Sprintf("%v:%v", hop.Host, *hop.Port)
+	var port = uint16(5060)
+
+	if hop.Port != nil {
+		port = *hop.Port
+	}
+
+	tx.dest = fmt.Sprintf("%s:%d", hop.Host, port)
 	tx.transport = mng.transport
 
 	tx.initFSM()
