@@ -20,7 +20,7 @@ var testLog *log.Logger = log.New(os.Stderr, ">>> ", 0)
 
 func TestAAAASetup(t *testing.T) {
 	log.SetDefaultLogLevel(log.WARN)
-	testLog.Level = log.INFO
+	testLog.Level = log.DEBUG
 }
 
 func TestSendInviteUDP(t *testing.T) {
@@ -93,7 +93,7 @@ func (test *transactionTest) Execute(t *testing.T) {
 
 	for _, actn := range test.actions {
 		testLog.Debug("Performing action %v", actn)
-		actn.Act(test)
+		assertNoError(t, actn.Act(test))
 	}
 }
 
@@ -102,6 +102,7 @@ type clientSend struct {
 }
 
 func (actn *clientSend) Act(test *transactionTest) error {
+	testLog.Debug("Client sending message\n%v", actn.msg.String())
 	test.lastTx = test.client.Send(actn.msg, c_SERVER)
 	return nil
 }
@@ -111,6 +112,7 @@ type serverSend struct {
 }
 
 func (actn *serverSend) Act(test *transactionTest) error {
+	testLog.Debug("Server sending message\n%v", actn.msg.String())
 	return test.server.Send(c_CLIENT, actn.msg)
 }
 
@@ -127,6 +129,7 @@ func (actn *clientRecv) Act(test *transactionTest) error {
 		} else if response.String() != actn.expected.String() {
 			return fmt.Errorf("Unexpected response:\n%s", response.String())
 		} else {
+			testLog.Debug("Client received correct message\n%v", response.String())
 			return nil
 		}
 	case <-time.After(time.Second):
@@ -146,6 +149,7 @@ func (actn *serverRecv) Act(test *transactionTest) error {
 		} else if msg.String() != actn.expected.String() {
 			return fmt.Errorf("Unexpected message arrived at server:\n%s", msg.String())
 		} else {
+			testLog.Debug("Server received correct message\n %v", msg.String())
 			return nil
 		}
 	case <-time.After(time.Second):
