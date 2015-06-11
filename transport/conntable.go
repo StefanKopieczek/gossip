@@ -38,7 +38,7 @@ func (t *connTable) Notify(addr string, conn *connection) {
 	watcher, ok := t.conns[addr]
 	if !ok {
 		log.Debug("No connection watcher registered for %s; spawn one", addr)
-		watcher = &connWatcher{addr, conn, &time.Timer{}, make(chan *connection), make(chan bool)}
+		watcher = &connWatcher{addr, conn, time.NewTimer(c_SOCKET_EXPIRY), make(chan *connection), make(chan bool)}
 		t.conns[addr] = watcher
 		go func(watcher *connWatcher) {
 			// We expect to close off connections explicitly, but let's be safe and clean up
@@ -63,8 +63,7 @@ func (t *connTable) Notify(addr string, conn *connection) {
 						log.Debug("Manager for address %s received new socket %p; update records", watcher.addr, watcher.conn)
 						watcher.conn = update
 					}
-					watcher.timer.Stop()
-					watcher.timer = time.NewTimer(c_SOCKET_EXPIRY)
+					watcher.timer.Reset(c_SOCKET_EXPIRY)
 				case stop := <-watcher.stop:
 					// We've received a termination signal; stop managing this connection.
 					if stop {
