@@ -5,9 +5,9 @@ import (
 	"time"
 
 	"github.com/discoviking/fsm"
-	"github.com/stefankopieczek/gossip/base"
-	"github.com/stefankopieczek/gossip/log"
-	"github.com/stefankopieczek/gossip/transport"
+	"github.com/weave-lab/gossip/base"
+	"github.com/weave-lab/gossip/log"
+	"github.com/weave-lab/gossip/transport"
 )
 
 // Generic Client Transaction
