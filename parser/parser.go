@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"unicode"
 	"unicode/utf8"
 )
@@ -77,11 +78,21 @@ func ParseMessage(msgData []byte) (base.SipMessage, error) {
 	parser := NewParser(output, errors, false)
 	defer parser.Stop()
 
-	parser.Write(msgData)
+	var wg sync.WaitGroup
+	go func() {
+		wg.Add(1)
+		parser.Write(msgData)
+		parser.Stop()
+		wg.Done()
+	}()
+
 	select {
 	case msg := <-output:
+		wg.Wait()
 		return msg, nil
 	case err := <-errors:
+		parser.Stop()
+		wg.Wait()
 		return nil, err
 	}
 }
@@ -138,7 +149,7 @@ type parser struct {
 	stopped       bool
 }
 
-func (p *parser) Write(data []byte) (n int, err error) {
+func (p *parser) Write(data []byte) (int, error) {
 	if p.terminalErr != nil {
 		// The parser has stopped due to a terminal error. Return it.
 		log.Fine("Parser %p ignores %d new bytes due to previous terminal error: %s", p, len(data), p.terminalErr.Error())
@@ -152,8 +163,12 @@ func (p *parser) Write(data []byte) (n int, err error) {
 		p.bodyLengths.In <- l
 	}
 
-	p.input.Write(data)
-	return len(data), nil
+	n, err := p.input.Write(data)
+	if err != nil {
+		return n, err
+	}
+
+	return n, nil
 }
 
 // Stop parser processing, and allow all resources to be garbage collected.
@@ -307,6 +322,9 @@ func (p *parser) parse(requireContentLength bool) {
 		// needs to be disposed.
 		close(p.bodyLengths.In)
 	}
+
+	p.Stop()
+
 	return
 }
 
