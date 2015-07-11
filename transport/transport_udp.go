@@ -1,9 +1,9 @@
 package transport
 
 import (
-	"github.com/stefankopieczek/gossip/base"
-	"github.com/stefankopieczek/gossip/log"
-	"github.com/stefankopieczek/gossip/parser"
+	"github.com/weave-lab/gossip/base"
+	"github.com/weave-lab/gossip/log"
+	"github.com/weave-lab/gossip/parser"
 )
 
 import (
