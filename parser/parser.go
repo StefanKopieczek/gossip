@@ -1,9 +1,9 @@
 package parser
 
 import (
-	"github.com/stefankopieczek/gossip/base"
-	"github.com/stefankopieczek/gossip/log"
-	"github.com/stefankopieczek/gossip/utils"
+	"github.com/weave-lab/gossip/base"
+	"github.com/weave-lab/gossip/log"
+	"github.com/weave-lab/gossip/utils"
 )
 
 import (
@@ -302,6 +302,8 @@ func (p *parser) parse(requireContentLength bool) {
 		body, err := p.input.NextChunk(contentLength)
 
 		if err != nil {
+			p.terminalErr = err
+			p.errs <- p.terminalErr
 			log.Debug("Parsed %p stopped", p)
 			break
 		}
