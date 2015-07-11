@@ -12,6 +12,27 @@ import "strings"
 // Whitespace recognised by SIP protocol.
 const c_ABNF_WS = " \t"
 
+// Maybestring contains a string, or nil.
+type MaybeString interface {
+	implementsMaybeString()
+}
+
+// NoString represents the absence of a string.
+type NoString struct{}
+
+func (n *NoString) implementsMaybeString() {}
+
+// String represents an actual string.
+type String struct {
+	s string
+}
+
+func (s *String) implementsMaybeString() {}
+
+func (s *String) S() string {
+	return s.s
+}
+
 // A single logical header from a SIP message.
 type SipHeader interface {
 	// Produce the string representation of the header.
