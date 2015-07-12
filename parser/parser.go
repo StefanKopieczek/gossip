@@ -807,9 +807,15 @@ func parseAddressHeader(headerName string, headerText string) (
 				switch uris[idx].(type) {
 				case base.ContactUri:
 					if uris[idx].(base.ContactUri).IsWildcard() {
-						if displayNames[idx] != nil || len(paramSets[idx]) > 0 {
-							// Wildcard headers do not contain display names or parameters.
-							err = fmt.Errorf("wildcard contact header should contain only '*' in %s",
+						if len(paramSets[idx]) > 0 {
+							// Wildcard headers do not contain or parameters.
+							err = fmt.Errorf("wildcard contact header should contain no parameters: '%s",
+								headerText)
+							return
+						}
+						if _, ok := displayNames[idx].(base.String); ok {
+							// Wildcard headers do not contain display names.
+							err = fmt.Errorf("wildcard contact header should contain no display name %s",
 								headerText)
 							return
 						}
@@ -1043,7 +1049,7 @@ func parseAddressValues(addresses string) (
 
 // parseAddressValue parses an address - such as from a From, To, or
 // Contact header. It returns:
-//   - a pointer to the display name (or nil if there was none present)
+//   - a MaybeString containing the display name (or not)
 //   - a parsed SipUri object
 //   - a map containing any header parameters present
 //   - the error object
@@ -1064,6 +1070,7 @@ func parseAddressValue(addressText string) (
 
 	firstAngleBracket := findUnescaped(addressText, '<', quotes_delim)
 	firstSpace := findAnyUnescaped(addressText, c_ABNF_WS, quotes_delim, angles_delim)
+	displayName = base.NoString{}
 	if firstAngleBracket != -1 && firstSpace != -1 &&
 		firstSpace < firstAngleBracket {
 		// There is a display name present. Let's parse it.
