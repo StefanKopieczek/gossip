@@ -468,8 +468,8 @@ func ParseSipUri(uriStr string) (uri base.SipUri, err error) {
 	// SIP URIs may contain a user-info part, ending in a '@'.
 	// This is the only place '@' may occur, so we can use it to check for the
 	// existence of a user-info part.
-	uri.User = NoString{}
-	uri.Password = NoString{}
+	uri.User = base.NoString{}
+	uri.Password = base.NoString{}
 	endOfUserInfoPart := strings.Index(uriStr, "@")
 	if endOfUserInfoPart != -1 {
 		// A user-info part is present. These take the form:
@@ -483,12 +483,12 @@ func ParseSipUri(uriStr string) (uri base.SipUri, err error) {
 			// No password component; the whole of the user-info part before
 			// the '@' is a username.
 			user := uriStr[:endOfUserInfoPart]
-			uri.User = String(user)
+			uri.User = base.String{user}
 		} else {
 			user := uriStr[:endOfUsernamePart]
 			pwd := uriStr[endOfUsernamePart+1 : endOfUserInfoPart]
-			uri.User = String(user)
-			uri.Password = String(pwd)
+			uri.User = base.String{user}
+			uri.Password = base.String{pwd}
 		}
 		uriStr = uriStr[endOfUserInfoPart+1:]
 	}
@@ -514,7 +514,7 @@ func ParseSipUri(uriStr string) (uri base.SipUri, err error) {
 	// These are key-value pairs separated by ';'.
 	// They end at the end of the URI, or at the start of any URI headers
 	// which may be present (denoted by an initial '?').
-	var uriParams Params
+	var uriParams base.Params
 	var n int
 	if uriStr[0] == ';' {
 		uriParams, n, err = parseParams(uriStr, ';', ';', '?', true, true)
@@ -522,14 +522,14 @@ func ParseSipUri(uriStr string) (uri base.SipUri, err error) {
 			return
 		}
 	} else {
-		uriParams, n = Params{}, 0
+		uriParams, n = base.Params{}, 0
 	}
 	uri.UriParams = uriParams
 	uriStr = uriStr[n:]
 
 	// Finally parse any URI headers.
 	// These are key-value pairs, starting with a '?' and separated by '&'.
-	var headers Params
+	var headers base.Params
 	headers, n, err = parseParams(uriStr, '?', '&', 0, true, false)
 	if err != nil {
 		return
@@ -579,9 +579,9 @@ func parseHostPort(rawText string) (host string, port *uint16, err error) {
 func parseParams(source string,
 	start uint8, sep uint8, end uint8,
 	quoteValues bool, permitSingletons bool) (
-	params Params, consumed int, err error) {
+	params base.Params, consumed int, err error) {
 
-	params = Params(make(map[string]MaybeString))
+	params = base.Params(make(map[string]base.MaybeString))
 
 	if len(source) == 0 {
 		// Key-value section is completely empty; return defaults.
@@ -624,14 +624,14 @@ parseLoop:
 				continue
 			}
 			if parsingKey && permitSingletons {
-				params[buffer.String()] = NoString{}
+				params[buffer.String()] = base.NoString{}
 			} else if parsingKey {
 				err = fmt.Errorf("Singleton param '%s' when parsing params which disallow singletons: \"%s\"",
 					buffer.String(), source)
 				return
 			} else {
 				value := buffer.String()
-				params[key] = String(value)
+				params[key] = base.String{value}
 			}
 			buffer.Reset()
 			parsingKey = true
@@ -695,13 +695,13 @@ parseLoop:
 	if inQuotes {
 		err = fmt.Errorf("Unclosed quotes in parameter string: %s", source)
 	} else if parsingKey && permitSingletons {
-		params[buffer.String()] = NoString{}
+		params[buffer.String()] = base.NoString{}
 	} else if parsingKey {
 		err = fmt.Errorf("Singleton param '%s' when parsing params which disallow singletons: \"%s\"",
 			buffer.String(), source)
 	} else {
 		value := buffer.String()
-		params[key] = String(value)
+		params[key] = base.String{value}
 	}
 	return
 }
@@ -740,9 +740,9 @@ func parseAddressHeader(headerName string, headerText string) (
 	headers []base.SipHeader, err error) {
 	switch headerName {
 	case "to", "from", "contact", "t", "f", "m":
-		var displayNames []*string
+		var displayNames []base.MaybeString
 		var uris []base.Uri
-		var paramSets []map[string]*string
+		var paramSets []base.Params
 
 		// Perform the actual parsing. The rest of this method is just typeclass bookkeeping.
 		displayNames, uris, paramSets, err = parseAddressValues(headerText)
@@ -1003,9 +1003,8 @@ func parseContentLength(headerName string, headerText string) (
 // parseAddressValues is aware of < > bracketing and quoting, and will not
 // break on commas within these structures.
 func parseAddressValues(addresses string) (
-	displayNames []*string, uris []base.Uri,
-	headerParams []map[string]*string,
-	err error) {
+	displayNames []base.MaybeString, uris []base.Uri,
+	headerParams []base.Params, err error) {
 
 	prevIdx := 0
 	inBrackets := false
@@ -1023,9 +1022,9 @@ func parseAddressValues(addresses string) (
 		} else if char == '"' {
 			inQuotes = !inQuotes
 		} else if !inQuotes && !inBrackets && char == ',' {
-			var displayName *string
+			var displayName base.MaybeString
 			var uri base.Uri
-			var params map[string]*string
+			var params base.Params
 			displayName, uri, params, err =
 				parseAddressValue(addresses[prevIdx:idx])
 			if err != nil {
@@ -1052,9 +1051,8 @@ func parseAddressValues(addresses string) (
 // Note that this method will not accept a comma-separated list of addresses;
 // addresses in that form should be handled by parseAddressValues.
 func parseAddressValue(addressText string) (
-	displayName *string, uri base.Uri,
-	headerParams map[string]*string,
-	err error) {
+	displayName base.MaybeString, uri base.Uri,
+	headerParams base.Params, err error) {
 
 	if len(addressText) == 0 {
 		err = fmt.Errorf("address-type header has empty body")
@@ -1082,13 +1080,13 @@ func parseAddressValue(addressText string) (
 			}
 
 			nameField := addressText[:nextQuote]
-			displayName = &nameField
+			displayName = base.String{nameField}
 			addressText = addressText[nextQuote+1:]
 		} else {
 			// The display name is unquoted, so match until the next whitespace
 			// character.
 			nameField := addressText[:firstSpace]
-			displayName = &nameField
+			displayName = base.String{nameField}
 			addressText = addressText[firstSpace+1:]
 		}
 	}
@@ -1098,7 +1096,7 @@ func parseAddressValue(addressText string) (
 	var endOfUri int
 	var startOfParams int
 	if addressText[0] != '<' {
-		if displayName != nil {
+		if _, ok := displayName.(base.String); ok {
 			// The address must be in <angle brackets> if a display name is
 			// present, so this is an invalid address line.
 			err = fmt.Errorf("Invalid character '%c' following display "+

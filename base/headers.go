@@ -24,13 +24,13 @@ func (n NoString) implementsMaybeString() {}
 
 // String represents an actual string.
 type String struct {
-	s string
+	S string
 }
 
 func (s String) implementsMaybeString() {}
 
 func (s String) String() string {
-	return s.s
+	return s.S
 }
 
 // A single logical header from a SIP message.
@@ -569,12 +569,15 @@ func ParamsToString(params Params, start uint8, sep uint8) string {
 		} else {
 			buffer.WriteString(fmt.Sprintf("%c", sep))
 		}
-		if value == nil {
+		switch value := value.(type) {
+		case NoString:
 			buffer.WriteString(fmt.Sprintf("%s", key))
-		} else if strings.ContainsAny(*value, c_ABNF_WS) {
-			buffer.WriteString(fmt.Sprintf("%s=\"%s\"", key, *value))
-		} else {
-			buffer.WriteString(fmt.Sprintf("%s=%s", key, *value))
+		case String:
+			if strings.ContainsAny(value.String(), c_ABNF_WS) {
+				buffer.WriteString(fmt.Sprintf("%s=\"%s\"", key, value.String()))
+			} else {
+				buffer.WriteString(fmt.Sprintf("%s=%s", key, value.String()))
+			}
 		}
 	}
 
@@ -593,7 +596,7 @@ func ParamsEqual(a Params, b Params) bool {
 		if !ok {
 			return false
 		}
-		if !utils.StrPtrEq(a_val, b_val) {
+		if a_val != b_val {
 			return false
 		}
 	}
