@@ -89,9 +89,19 @@ func (mng *Manager) putTx(tx Transaction) {
 		return
 	}
 
-	key := key{*branch, string(tx.Origin().Method)}
+	var k key
+	switch branch := branch.(type) {
+	case base.String:
+		k = key{branch.String(), string(tx.Origin().Method)}
+	case base.NoString:
+		log.Warn("Empty branch parameter on top Via header. Transaction will be dropped.")
+		return
+	default:
+		log.Warn("Unexpected type of branch value on top Via header: %T", branch)
+		return
+	}
 	mng.txLock.Lock()
-	mng.txs[key] = tx
+	mng.txs[k] = tx
 	mng.txLock.Unlock()
 }
 
@@ -102,7 +112,12 @@ func (mng *Manager) makeKey(s base.SipMessage) (key, bool) {
 		panic(errors.New("Headers('Via') returned non-Via header!"))
 	}
 
-	branch, ok := (*via)[0].Params["branch"]
+	b, ok := (*via)[0].Params["branch"]
+	if !ok {
+		return key{}, false
+	}
+
+	branch, ok := b.(base.String)
 	if !ok {
 		return key{}, false
 	}
@@ -127,7 +142,7 @@ func (mng *Manager) makeKey(s base.SipMessage) (key, bool) {
 		method = string(cseq.MethodName)
 	}
 
-	return key{*branch, method}, true
+	return key{branch.String(), method}, true
 }
 
 // Gets a transaction from the transaction store.
