@@ -1,9 +1,8 @@
 package transport
 
 import (
-	"time"
-
 	"github.com/stefankopieczek/gossip/log"
+	"github.com/stefankopieczek/gossip/time"
 )
 
 // Fields of connTable should only be modified by the dedicated goroutine called by Init().
@@ -16,7 +15,7 @@ type connTable struct {
 type connWatcher struct {
 	addr   string
 	conn   *connection
-	timer  *time.Timer
+	timer  time.Timer
 	update chan *connection
 	stop   chan bool
 }
@@ -52,7 +51,7 @@ func (t *connTable) Notify(addr string, conn *connection) {
 
 			for {
 				select {
-				case <-watcher.timer.C:
+				case <-watcher.timer.C():
 					// Socket expiry timer has run out. Close the connection.
 					log.Debug("Socket %p (%s) inactive for too long; close it", watcher.conn, watcher.addr)
 					watcher.conn.Close()
