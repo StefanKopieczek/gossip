@@ -23,6 +23,7 @@ type connWatcher struct {
 
 // Create a new connection table.
 func (t *connTable) Init() {
+	log.Info("Init conntable %p")
 	t.conns = make(map[string]*connWatcher)
 }
 
@@ -97,7 +98,7 @@ func (t *connTable) GetConn(addr string) *connection {
 // Close all sockets and stop socket management.
 // The table cannot be restarted after Stop() has been called, and GetConn() will return nil.
 func (t *connTable) Stop() {
-	log.Info("ksadbfkljahbdflkjasbdflksadlfkjh") // TODO more helpful log line
+	log.Info("Conntable %p stopped")
 	t.stopped = true
 	for _, watcher := range t.conns {
 		watcher.stop <- true
