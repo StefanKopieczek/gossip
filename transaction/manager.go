@@ -260,7 +260,7 @@ func (mng *Manager) request(r *base.Request) {
 
 	hop := (*via)[0]
 
-	var port = uint16(5060)
+	port := uint16(5060)
 
 	if hop.Port != nil {
 		port = *hop.Port
