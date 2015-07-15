@@ -375,10 +375,10 @@ func (h *ContactHeader) Copy() SipHeader {
 type CallId string
 
 func (callId CallId) String() string {
-	return "Call-Id: " + (string)(callId)
+	return "Call-ID: " + (string)(callId)
 }
 
-func (h *CallId) Name() string { return "Call-Id" }
+func (h *CallId) Name() string { return "Call-ID" }
 
 func (h *CallId) Copy() SipHeader {
 	temp := *h
