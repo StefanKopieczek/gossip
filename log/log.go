@@ -6,10 +6,21 @@ import (
 	"io"
 	"log"
 	"os"
+	"path"
+	"path/filepath"
 	"runtime"
+	"strings"
+	"time"
 )
 
 const c_STACK_BUFFER_SIZE int = 8192
+const c_NUM_STACK_FRAMES int = 5
+
+// The lengths of these two format strings should add up so that logs line up correctly.
+const c_STACK_INFO_FMT string = "%20.20s %03d %40.40s"
+const c_NO_STACK_FMT string = "%-65s"
+const c_LOG_LEVEL_FMT string = "[%-5.5s]"
+const c_TIMESTAMP_FMT string = "2006-01-02 15:04:05.000"
 
 type Level struct {
 	Name  string
@@ -49,14 +60,49 @@ func (l *Logger) Log(level Level, msg string, args ...interface{}) {
 		return
 	}
 
-	msg = fmt.Sprintf(msg, args...)
-	var buffer bytes.Buffer
-	buffer.WriteString(level.Name)
-	buffer.WriteString(": ")
-	buffer.WriteString(msg)
-	buffer.WriteString("\n")
+	// Get current time.
+	now := time.Now()
 
-	msg = level.Name + ": " + msg + "\n"
+	// Get information about the stack.
+	// Try and find the first stack frame outside the logging package.
+	// Only search up a few frames, it should never be very far.
+	stackInfo := ""
+	for depth := 0; depth < c_NUM_STACK_FRAMES; depth++ {
+		if pc, file, line, ok := runtime.Caller(depth); ok {
+			funcName := runtime.FuncForPC(pc).Name()
+			funcName = path.Base(funcName)
+
+			// Go up another stack frame if this function is in the logging package.
+			isLog := strings.HasPrefix(funcName, "log.")
+			if isLog {
+				continue
+			}
+
+			// Now generate the string.
+			stackInfo = fmt.Sprintf(c_STACK_INFO_FMT,
+				filepath.Base(file),
+				line,
+				funcName)
+			break
+		}
+
+		// If we get here, we failed to retrieve the stack information.
+		// Just give up.
+		stackInfo = fmt.Sprintf(c_NO_STACK_FMT, "[Unidentified Location]")
+		break
+	}
+
+	// Write all the data into a buffer.
+	// Format is:
+	// [LEVEL]<timestamp> <file> <line> <function> - <message>
+	var buffer bytes.Buffer
+	buffer.WriteString(fmt.Sprintf(c_LOG_LEVEL_FMT, level.Name))
+	buffer.WriteString(now.Format(c_TIMESTAMP_FMT))
+	buffer.WriteString(" ")
+	buffer.WriteString(stackInfo)
+	buffer.WriteString(" - ")
+	buffer.WriteString(fmt.Sprintf(msg, args...))
+	buffer.WriteString("\n")
 
 	if level.Level >= l.StackTraceLevel.Level {
 		buffer.WriteString("--- BEGIN stacktrace: ---\n")
