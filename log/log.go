@@ -14,12 +14,22 @@ import (
 )
 
 const c_STACK_BUFFER_SIZE int = 8192
+
+// Number of frames to search up the stack for a function not in the log package.
+// Used to find the function name of the entry point.
 const c_NUM_STACK_FRAMES int = 5
 
+// Format for stack info.
 // The lengths of these two format strings should add up so that logs line up correctly.
+// c_STACK_INFO_FMT takes three parameters: filename, line number, function name.
+// c_NO_STACK_FMT takes one parameter: [Unidentified Location]
 const c_STACK_INFO_FMT string = "%20.20s %03d %40.40s"
 const c_NO_STACK_FMT string = "%-65s"
+
+// Format for log level. ie. [FINE ]
 const c_LOG_LEVEL_FMT string = "[%-5.5s]"
+
+// Format for timestamps.
 const c_TIMESTAMP_FMT string = "2006-01-02 15:04:05.000"
 
 type Level struct {
@@ -66,7 +76,7 @@ func (l *Logger) Log(level Level, msg string, args ...interface{}) {
 	// Get information about the stack.
 	// Try and find the first stack frame outside the logging package.
 	// Only search up a few frames, it should never be very far.
-	stackInfo := ""
+	stackInfo := fmt.Sprintf(c_NO_STACK_FMT, "[Unidentified Location]")
 	for depth := 0; depth < c_NUM_STACK_FRAMES; depth++ {
 		if pc, file, line, ok := runtime.Caller(depth); ok {
 			funcName := runtime.FuncForPC(pc).Name()
@@ -88,7 +98,6 @@ func (l *Logger) Log(level Level, msg string, args ...interface{}) {
 
 		// If we get here, we failed to retrieve the stack information.
 		// Just give up.
-		stackInfo = fmt.Sprintf(c_NO_STACK_FMT, "[Unidentified Location]")
 		break
 	}
 
