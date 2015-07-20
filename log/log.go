@@ -23,8 +23,8 @@ const c_NUM_STACK_FRAMES int = 5
 // The lengths of these two format strings should add up so that logs line up correctly.
 // c_STACK_INFO_FMT takes three parameters: filename, line number, function name.
 // c_NO_STACK_FMT takes one parameter: [Unidentified Location]
-const c_STACK_INFO_FMT string = "%20.20s %03d %40.40s"
-const c_NO_STACK_FMT string = "%-65s"
+const c_STACK_INFO_FMT string = "%20.20s %04d %40.40s"
+const c_NO_STACK_FMT string = "%-66s"
 
 // Format for log level. ie. [FINE ]
 const c_LOG_LEVEL_FMT string = "[%-5.5s]"
