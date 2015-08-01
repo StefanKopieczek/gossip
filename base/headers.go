@@ -178,8 +178,10 @@ func (uri *SipUri) String() string {
 		buffer.WriteString(user.String())
 		switch pw := uri.Password.(type) {
 		case String:
+			buffer.WriteString(":")
 			buffer.WriteString(pw.String())
 		}
+		buffer.WriteString("@")
 	}
 
 	// Compulsory hostname.

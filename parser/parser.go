@@ -808,7 +808,7 @@ func parseAddressHeader(headerName string, headerText string) (
 				case base.ContactUri:
 					if uris[idx].(base.ContactUri).IsWildcard() {
 						if len(paramSets[idx]) > 0 {
-							// Wildcard headers do not contain or parameters.
+							// Wildcard headers do not contain parameters.
 							err = fmt.Errorf("wildcard contact header should contain no parameters: '%s",
 								headerText)
 							return
@@ -1103,7 +1103,8 @@ func parseAddressValue(addressText string) (
 	var endOfUri int
 	var startOfParams int
 	if addressText[0] != '<' {
-		if _, ok := displayName.(base.String); ok {
+		switch displayName.(type) {
+		case base.String:
 			// The address must be in <angle brackets> if a display name is
 			// present, so this is an invalid address line.
 			err = fmt.Errorf("Invalid character '%c' following display "+
