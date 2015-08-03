@@ -63,7 +63,8 @@ func TestMassUDP(t *testing.T) {
 	}()
 
 	go func() {
-		uri := base.SipUri{User: base.String{"alice"}, Host: "127.0.0.1", Port: nil}
+		user := "alice"
+		uri := base.SipUri{User: &user, Host: "127.0.0.1", Port: nil}
 		for ii := 1; ii <= NUM_MSGS; ii++ {
 			from.Send(fmt.Sprintf("%s:%d", alice.host, alice.port),
 				base.NewRequest(base.ACK, &uri, "SIP/2.0",

@@ -468,8 +468,6 @@ func ParseSipUri(uriStr string) (uri base.SipUri, err error) {
 	// SIP URIs may contain a user-info part, ending in a '@'.
 	// This is the only place '@' may occur, so we can use it to check for the
 	// existence of a user-info part.
-	uri.User = base.NoString{}
-	uri.Password = base.NoString{}
 	endOfUserInfoPart := strings.Index(uriStr, "@")
 	if endOfUserInfoPart != -1 {
 		// A user-info part is present. These take the form:
@@ -483,12 +481,12 @@ func ParseSipUri(uriStr string) (uri base.SipUri, err error) {
 			// No password component; the whole of the user-info part before
 			// the '@' is a username.
 			user := uriStr[:endOfUserInfoPart]
-			uri.User = base.String{user}
+			uri.User = &user
 		} else {
 			user := uriStr[:endOfUsernamePart]
 			pwd := uriStr[endOfUsernamePart+1 : endOfUserInfoPart]
-			uri.User = base.String{user}
-			uri.Password = base.String{pwd}
+			uri.User = &user
+			uri.Password = &pwd
 		}
 		uriStr = uriStr[endOfUserInfoPart+1:]
 	}
@@ -514,7 +512,7 @@ func ParseSipUri(uriStr string) (uri base.SipUri, err error) {
 	// These are key-value pairs separated by ';'.
 	// They end at the end of the URI, or at the start of any URI headers
 	// which may be present (denoted by an initial '?').
-	var uriParams base.Params
+	var uriParams map[string]*string
 	var n int
 	if uriStr[0] == ';' {
 		uriParams, n, err = parseParams(uriStr, ';', ';', '?', true, true)
@@ -522,14 +520,14 @@ func ParseSipUri(uriStr string) (uri base.SipUri, err error) {
 			return
 		}
 	} else {
-		uriParams, n = base.Params{}, 0
+		uriParams, n = map[string]*string{}, 0
 	}
 	uri.UriParams = uriParams
 	uriStr = uriStr[n:]
 
 	// Finally parse any URI headers.
 	// These are key-value pairs, starting with a '?' and separated by '&'.
-	var headers base.Params
+	var headers map[string]*string
 	headers, n, err = parseParams(uriStr, '?', '&', 0, true, false)
 	if err != nil {
 		return
@@ -579,9 +577,9 @@ func parseHostPort(rawText string) (host string, port *uint16, err error) {
 func parseParams(source string,
 	start uint8, sep uint8, end uint8,
 	quoteValues bool, permitSingletons bool) (
-	params base.Params, consumed int, err error) {
+	params map[string]*string, consumed int, err error) {
 
-	params = base.Params(make(map[string]base.MaybeString))
+	params = make(map[string]*string)
 
 	if len(source) == 0 {
 		// Key-value section is completely empty; return defaults.
@@ -624,14 +622,14 @@ parseLoop:
 				continue
 			}
 			if parsingKey && permitSingletons {
-				params[buffer.String()] = base.NoString{}
+				params[buffer.String()] = nil
 			} else if parsingKey {
 				err = fmt.Errorf("Singleton param '%s' when parsing params which disallow singletons: \"%s\"",
 					buffer.String(), source)
 				return
 			} else {
 				value := buffer.String()
-				params[key] = base.String{value}
+				params[key] = &value
 			}
 			buffer.Reset()
 			parsingKey = true
@@ -695,13 +693,13 @@ parseLoop:
 	if inQuotes {
 		err = fmt.Errorf("Unclosed quotes in parameter string: %s", source)
 	} else if parsingKey && permitSingletons {
-		params[buffer.String()] = base.NoString{}
+		params[buffer.String()] = nil
 	} else if parsingKey {
 		err = fmt.Errorf("Singleton param '%s' when parsing params which disallow singletons: \"%s\"",
 			buffer.String(), source)
 	} else {
 		value := buffer.String()
-		params[key] = base.String{value}
+		params[key] = &value
 	}
 	return
 }
@@ -740,9 +738,9 @@ func parseAddressHeader(headerName string, headerText string) (
 	headers []base.SipHeader, err error) {
 	switch headerName {
 	case "to", "from", "contact", "t", "f", "m":
-		var displayNames []base.MaybeString
+		var displayNames []*string
 		var uris []base.Uri
-		var paramSets []base.Params
+		var paramSets []map[string]*string
 
 		// Perform the actual parsing. The rest of this method is just typeclass bookkeeping.
 		displayNames, uris, paramSets, err = parseAddressValues(headerText)
@@ -807,15 +805,9 @@ func parseAddressHeader(headerName string, headerText string) (
 				switch uris[idx].(type) {
 				case base.ContactUri:
 					if uris[idx].(base.ContactUri).IsWildcard() {
-						if len(paramSets[idx]) > 0 {
-							// Wildcard headers do not contain parameters.
-							err = fmt.Errorf("wildcard contact header should contain no parameters: '%s",
-								headerText)
-							return
-						}
-						if _, ok := displayNames[idx].(base.String); ok {
-							// Wildcard headers do not contain display names.
-							err = fmt.Errorf("wildcard contact header should contain no display name %s",
+						if displayNames[idx] != nil || len(paramSets[idx]) > 0 {
+							// Wildcard headers do not contain display names or parameters.
+							err = fmt.Errorf("wildcard contact header should contain only '*' in %s",
 								headerText)
 							return
 						}
@@ -1009,8 +1001,9 @@ func parseContentLength(headerName string, headerText string) (
 // parseAddressValues is aware of < > bracketing and quoting, and will not
 // break on commas within these structures.
 func parseAddressValues(addresses string) (
-	displayNames []base.MaybeString, uris []base.Uri,
-	headerParams []base.Params, err error) {
+	displayNames []*string, uris []base.Uri,
+	headerParams []map[string]*string,
+	err error) {
 
 	prevIdx := 0
 	inBrackets := false
@@ -1028,9 +1021,9 @@ func parseAddressValues(addresses string) (
 		} else if char == '"' {
 			inQuotes = !inQuotes
 		} else if !inQuotes && !inBrackets && char == ',' {
-			var displayName base.MaybeString
+			var displayName *string
 			var uri base.Uri
-			var params base.Params
+			var params map[string]*string
 			displayName, uri, params, err =
 				parseAddressValue(addresses[prevIdx:idx])
 			if err != nil {
@@ -1049,7 +1042,7 @@ func parseAddressValues(addresses string) (
 
 // parseAddressValue parses an address - such as from a From, To, or
 // Contact header. It returns:
-//   - a MaybeString containing the display name (or not)
+//   - a pointer to the display name (or nil if there was none present)
 //   - a parsed SipUri object
 //   - a map containing any header parameters present
 //   - the error object
@@ -1057,8 +1050,9 @@ func parseAddressValues(addresses string) (
 // Note that this method will not accept a comma-separated list of addresses;
 // addresses in that form should be handled by parseAddressValues.
 func parseAddressValue(addressText string) (
-	displayName base.MaybeString, uri base.Uri,
-	headerParams base.Params, err error) {
+	displayName *string, uri base.Uri,
+	headerParams map[string]*string,
+	err error) {
 
 	if len(addressText) == 0 {
 		err = fmt.Errorf("address-type header has empty body")
@@ -1070,7 +1064,6 @@ func parseAddressValue(addressText string) (
 
 	firstAngleBracket := findUnescaped(addressText, '<', quotes_delim)
 	firstSpace := findAnyUnescaped(addressText, c_ABNF_WS, quotes_delim, angles_delim)
-	displayName = base.NoString{}
 	if firstAngleBracket != -1 && firstSpace != -1 &&
 		firstSpace < firstAngleBracket {
 		// There is a display name present. Let's parse it.
@@ -1087,13 +1080,13 @@ func parseAddressValue(addressText string) (
 			}
 
 			nameField := addressText[:nextQuote]
-			displayName = base.String{nameField}
+			displayName = &nameField
 			addressText = addressText[nextQuote+1:]
 		} else {
 			// The display name is unquoted, so match until the next whitespace
 			// character.
 			nameField := addressText[:firstSpace]
-			displayName = base.String{nameField}
+			displayName = &nameField
 			addressText = addressText[firstSpace+1:]
 		}
 	}
@@ -1103,8 +1096,7 @@ func parseAddressValue(addressText string) (
 	var endOfUri int
 	var startOfParams int
 	if addressText[0] != '<' {
-		switch displayName.(type) {
-		case base.String:
+		if displayName != nil {
 			// The address must be in <angle brackets> if a display name is
 			// present, so this is an invalid address line.
 			err = fmt.Errorf("Invalid character '%c' following display "+
