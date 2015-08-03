@@ -12,6 +12,27 @@ import "strings"
 // Whitespace recognised by SIP protocol.
 const c_ABNF_WS = " \t"
 
+// Maybestring contains a string, or nil.
+type MaybeString interface {
+	implementsMaybeString()
+}
+
+// NoString represents the absence of a string.
+type NoString struct{}
+
+func (n NoString) implementsMaybeString() {}
+
+// String represents an actual string.
+type String struct {
+	S string
+}
+
+func (s String) implementsMaybeString() {}
+
+func (s String) String() string {
+	return s.S
+}
+
 // A single logical header from a SIP message.
 type SipHeader interface {
 	// Produce the string representation of the header.
@@ -53,14 +74,14 @@ type SipUri struct {
 
 	// The user part of the URI: the 'joe' in sip:joe@bloggs.com
 	// This is a pointer, so that URIs without a user part can have 'nil'.
-	User *string
+	User MaybeString
 
 	// The password field of the URI. This is represented in the URI as joe:hunter2@bloggs.com.
 	// Note that if a URI has a password field, it *must* have a user field as well.
 	// This is a pointer, so that URIs without a password field can have 'nil'.
 	// Note that RFC 3261 strongly recommends against the use of password fields in SIP URIs,
 	// as they are fundamentally insecure.
-	Password *string
+	Password MaybeString
 
 	// The host part of the URI. This can be a domain, or a string representation of an IP address.
 	Host string
@@ -85,16 +106,7 @@ type SipUri struct {
 
 // Copy the Sip URI.
 func (uri *SipUri) Copy() Uri {
-	var user, password *string
 	var port *uint16
-	if uri.User != nil {
-		temp := *uri.User
-		user = &temp
-	}
-	if uri.Password != nil {
-		temp := *uri.Password
-		password = &temp
-	}
 	if uri.Port != nil {
 		temp := *uri.Port
 		port = &temp
@@ -102,8 +114,8 @@ func (uri *SipUri) Copy() Uri {
 
 	return &SipUri{
 		uri.IsEncrypted,
-		user,
-		password,
+		uri.User,
+		uri.Password,
 		uri.Host,
 		port,
 		uri.UriParams.Copy(),
@@ -127,8 +139,8 @@ func (uri *SipUri) Equals(otherUri Uri) bool {
 
 	other := *otherPtr
 	result := uri.IsEncrypted == other.IsEncrypted &&
-		utils.StrPtrEq(uri.User, other.User) &&
-		utils.StrPtrEq(uri.Password, other.Password) &&
+		uri.User == other.User &&
+		uri.Password == other.Password &&
 		uri.Host == other.Host &&
 		utils.Uint16PtrEq(uri.Port, other.Port)
 
@@ -161,14 +173,14 @@ func (uri *SipUri) String() string {
 	}
 
 	// Optional userinfo part.
-	if uri.User != nil {
-		buffer.WriteString(*uri.User)
-
-		if uri.Password != nil {
+	switch user := uri.User.(type) {
+	case String:
+		buffer.WriteString(user.String())
+		switch pw := uri.Password.(type) {
+		case String:
 			buffer.WriteString(":")
-			buffer.WriteString(*uri.Password)
+			buffer.WriteString(pw.String())
 		}
-
 		buffer.WriteString("@")
 	}
 
@@ -215,18 +227,13 @@ func (uri WildcardUri) Equals(other Uri) bool {
 }
 
 // Generic list of parameters on a header.
-type Params map[string]*string
+type Params map[string]MaybeString
 
 // Copy a list of params.
 func (p Params) Copy() Params {
-	dup := make(map[string]*string, len(p))
+	dup := make(map[string]MaybeString, len(p))
 	for k, v := range p {
-		if v != nil {
-			s := *v
-			dup[k] = &s
-		} else {
-			dup[k] = nil
-		}
+		dup[k] = v
 	}
 	return dup
 }
@@ -258,8 +265,8 @@ func (h *GenericHeader) Copy() SipHeader {
 }
 
 type ToHeader struct {
-	// The display name from the header - this is a pointer type as it is optional.
-	DisplayName *string
+	// The display name from the header, may be omitted.
+	DisplayName MaybeString
 
 	Address Uri
 
@@ -271,8 +278,9 @@ func (to *ToHeader) String() string {
 	var buffer bytes.Buffer
 	buffer.WriteString("To: ")
 
-	if to.DisplayName != nil {
-		buffer.WriteString(fmt.Sprintf("\"%s\" ", *to.DisplayName))
+	switch s := to.DisplayName.(type) {
+	case String:
+		buffer.WriteString(fmt.Sprintf("\"%s\" ", s.String()))
 	}
 
 	buffer.WriteString(fmt.Sprintf("<%s>", to.Address))
@@ -283,19 +291,14 @@ func (to *ToHeader) String() string {
 
 func (h *ToHeader) Name() string { return "To" }
 
-// Copy the header. A little tricky due to string pointers.
+// Copy the header.
 func (h *ToHeader) Copy() SipHeader {
-	var name *string
-	if h.DisplayName != nil {
-		temp := *h.DisplayName
-		name = &temp
-	}
-	return &ToHeader{name, h.Address.Copy(), h.Params.Copy()}
+	return &ToHeader{h.DisplayName, h.Address.Copy(), h.Params.Copy()}
 }
 
 type FromHeader struct {
-	// The display name from the header - this is a pointer type as it is optional.
-	DisplayName *string
+	// The display name from the header, may be omitted.
+	DisplayName MaybeString
 
 	Address Uri
 
@@ -307,8 +310,9 @@ func (from *FromHeader) String() string {
 	var buffer bytes.Buffer
 	buffer.WriteString("From: ")
 
-	if from.DisplayName != nil {
-		buffer.WriteString(fmt.Sprintf("\"%s\" ", *from.DisplayName))
+	switch s := from.DisplayName.(type) {
+	case String:
+		buffer.WriteString(fmt.Sprintf("\"%s\" ", s.String()))
 	}
 
 	buffer.WriteString(fmt.Sprintf("<%s>", from.Address))
@@ -319,19 +323,14 @@ func (from *FromHeader) String() string {
 
 func (h *FromHeader) Name() string { return "From" }
 
-// Copy the header. A little tricky due to string pointers.
+// Copy the header.
 func (h *FromHeader) Copy() SipHeader {
-	var name *string
-	if h.DisplayName != nil {
-		temp := *h.DisplayName
-		name = &temp
-	}
-	return &FromHeader{name, h.Address.Copy(), h.Params.Copy()}
+	return &FromHeader{h.DisplayName, h.Address.Copy(), h.Params.Copy()}
 }
 
 type ContactHeader struct {
-	// The display name from the header - this is a pointer type as it is optional.
-	DisplayName *string
+	// The display name from the header, may be omitted.
+	DisplayName MaybeString
 
 	Address ContactUri
 
@@ -343,8 +342,9 @@ func (contact *ContactHeader) String() string {
 	var buffer bytes.Buffer
 	buffer.WriteString("Contact: ")
 
-	if contact.DisplayName != nil {
-		buffer.WriteString(fmt.Sprintf("\"%s\" ", *contact.DisplayName))
+	switch s := contact.DisplayName.(type) {
+	case String:
+		buffer.WriteString(fmt.Sprintf("\"%s\" ", s.String()))
 	}
 
 	switch contact.Address.(type) {
@@ -362,14 +362,9 @@ func (contact *ContactHeader) String() string {
 
 func (h *ContactHeader) Name() string { return "Contact" }
 
-// Copy the header. A little tricky due to string pointers.
+// Copy the header.
 func (h *ContactHeader) Copy() SipHeader {
-	var name *string
-	if h.DisplayName != nil {
-		temp := *h.DisplayName
-		name = &temp
-	}
-	return &ContactHeader{name, h.Address.Copy().(ContactUri), h.Params.Copy()}
+	return &ContactHeader{h.DisplayName, h.Address.Copy().(ContactUri), h.Params.Copy()}
 }
 
 type CallId string
@@ -576,12 +571,15 @@ func ParamsToString(params Params, start uint8, sep uint8) string {
 		} else {
 			buffer.WriteString(fmt.Sprintf("%c", sep))
 		}
-		if value == nil {
+		switch value := value.(type) {
+		case NoString:
 			buffer.WriteString(fmt.Sprintf("%s", key))
-		} else if strings.ContainsAny(*value, c_ABNF_WS) {
-			buffer.WriteString(fmt.Sprintf("%s=\"%s\"", key, *value))
-		} else {
-			buffer.WriteString(fmt.Sprintf("%s=%s", key, *value))
+		case String:
+			if strings.ContainsAny(value.String(), c_ABNF_WS) {
+				buffer.WriteString(fmt.Sprintf("%s=\"%s\"", key, value.String()))
+			} else {
+				buffer.WriteString(fmt.Sprintf("%s=%s", key, value.String()))
+			}
 		}
 	}
 
@@ -600,7 +598,7 @@ func ParamsEqual(a Params, b Params) bool {
 		if !ok {
 			return false
 		}
-		if !utils.StrPtrEq(a_val, b_val) {
+		if a_val != b_val {
 			return false
 		}
 	}
