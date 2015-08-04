@@ -80,6 +80,7 @@ type transactionTest struct {
 }
 
 func (test *transactionTest) Execute(t *testing.T) {
+	defer func() { <-time.After(time.Millisecond * 200) }()
 	var err error
 	test.client, err = NewManager("udp", c_CLIENT)
 	assertNoError(t, err)
