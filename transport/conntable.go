@@ -1,6 +1,8 @@
 package transport
 
 import (
+	"time"
+
 	"github.com/stefankopieczek/gossip/log"
 	"github.com/stefankopieczek/gossip/timing"
 )
@@ -8,22 +10,67 @@ import (
 // Fields of connTable should only be modified by the dedicated goroutine called by Init().
 // All other callers should use connTable's associated public methods to access it.
 type connTable struct {
-	conns   map[string]*connWatcher
-	stopped bool
+	conns        map[string]*connWatcher
+	connRequests chan *connRequest
+	updates      chan *connUpdate
+	expiries     chan string
+	stop         chan bool
+	stopped      bool
 }
 
 type connWatcher struct {
-	addr   string
-	conn   *connection
-	timer  timing.Timer
-	update chan *connection
-	stop   chan bool
+	addr       string
+	conn       *connection
+	timer      timing.Timer
+	updated    chan bool
+	expiryTime time.Time
+	expiry     chan<- string
+	stop       chan bool
 }
 
 // Create a new connection table.
 func (t *connTable) Init() {
-	log.Info("Init conntable %p")
+	log.Info("Init conntable %p", t)
 	t.conns = make(map[string]*connWatcher)
+	t.connRequests = make(chan *connRequest)
+	t.updates = make(chan *connUpdate)
+	t.expiries = make(chan string)
+	t.stop = make(chan bool)
+	go t.manage()
+}
+
+// Management loop for the connTable.
+// Handles notifications of connection updates, expiries of connections, and
+// the termination of the routine.
+func (t *connTable) manage() {
+	for {
+		select {
+		case request := <-t.connRequests:
+			watcher := t.conns[request.addr]
+			if watcher != nil {
+				request.responseChan <- watcher.conn
+			} else {
+				request.responseChan <- nil
+			}
+		case update := <-t.updates:
+			t.handleUpdate(update)
+		case addr := <-t.expiries:
+			if t.conns[addr].expiryTime.Before(time.Now()) {
+				log.Debug("Conntable %p notified that the watcher for address %s has expired. Remove it.", t, addr)
+				t.conns[addr].stop <- true
+				t.conns[addr].conn.Close()
+				delete(t.conns, addr)
+			}
+		case <-t.stop:
+			log.Info("Conntable %p stopped")
+			t.stopped = true
+			for _, watcher := range t.conns {
+				watcher.stop <- true
+				watcher.conn.Close()
+			}
+			break
+		}
+	}
 }
 
 // Push a connection to the connection table, registered under a specific address.
@@ -35,71 +82,94 @@ func (t *connTable) Notify(addr string, conn *connection) {
 		return
 	}
 
-	watcher, ok := t.conns[addr]
-	if !ok {
-		log.Debug("No connection watcher registered for %s; spawn one", addr)
-		watcher = &connWatcher{addr, conn, timing.NewTimer(c_SOCKET_EXPIRY), make(chan *connection), make(chan bool)}
-		t.conns[addr] = watcher
-		go func(watcher *connWatcher) {
-			// We expect to close off connections explicitly, but let's be safe and clean up
-			// if we close unexpectedly.
-			defer func(c *connection) {
-				if c != nil {
-					c.Close()
-				}
-			}(watcher.conn)
+	t.updates <- &connUpdate{addr, conn}
+}
 
-			for {
-				select {
-				case <-watcher.timer.C():
-					// Socket expiry timer has run out. Close the connection.
-					log.Debug("Socket %p (%s) inactive for too long; close it", watcher.conn, watcher.addr)
-					watcher.conn.Close()
-					watcher.conn = nil
-				case update := <-watcher.update:
-					// We've been pinged with a connection; update it and refresh the
-					// timer.
-					if update != watcher.conn {
-						log.Debug("Manager for address %s received new socket %p; update records", watcher.addr, watcher.conn)
-						watcher.conn = update
-					}
-					watcher.timer.Reset(c_SOCKET_EXPIRY)
-				case stop := <-watcher.stop:
-					// We've received a termination signal; stop managing this connection.
-					if stop {
-						log.Info("Connection watcher for address %s got the kill signal. Stopping.", watcher.addr)
-						watcher.timer.Stop()
-						watcher.conn.Close()
-						watcher.conn = nil
-						break
-					}
-				}
-			}
-		}(watcher)
+func (t *connTable) handleUpdate(update *connUpdate) {
+	log.Debug("Update received in connTable %p for address %s", t, update.addr)
+	watcher, entry_exists := t.conns[update.addr]
+	if !entry_exists {
+		log.Debug("No connection watcher registered for %s; spawn one", update.addr)
+		watcher = &connWatcher{update.addr, update.conn, timing.NewTimer(c_SOCKET_EXPIRY), make(chan bool), timing.Now().Add(c_SOCKET_EXPIRY), t.expiries, make(chan bool)}
+		t.conns[update.addr] = watcher
+		go watcher.loop()
 	}
 
-	watcher.update <- conn
+	watcher.Update(update.conn)
 }
 
 // Return an existing open socket for the given address, or nil if no such socket
 // exists.
 func (t *connTable) GetConn(addr string) *connection {
-	watcher, ok := t.conns[addr]
-	if ok {
-		log.Debug("Query connection for address %s returns %p", addr, watcher.conn)
-		return watcher.conn
-	} else {
-		log.Debug("Query connection for address %s returns nil (no registered watcher)", addr)
-		return nil
-	}
+	responseChan := make(chan *connection)
+	t.connRequests <- &connRequest{addr, responseChan}
+	conn := <-responseChan
+
+	log.Debug("Query connection for address %s returns %p", conn)
+	return conn
 }
 
 // Close all sockets and stop socket management.
 // The table cannot be restarted after Stop() has been called, and GetConn() will return nil.
 func (t *connTable) Stop() {
-	log.Info("Conntable %p stopped")
-	t.stopped = true
-	for _, watcher := range t.conns {
-		watcher.stop <- true
+	t.stop <- true
+}
+
+// Update the connection associated with a given connWatcher, and reset the
+// timeout timer.
+// Must only be called from the connTable goroutine (and in particular, must
+// *not* be called from the connWatcher goroutine).
+func (watcher *connWatcher) Update(c *connection) {
+	if watcher.timer != nil {
+		watcher.timer.Stop()
 	}
+
+	watcher.expiryTime = timing.Now().Add(c_SOCKET_EXPIRY)
+	watcher.timer = timing.NewTimer(c_SOCKET_EXPIRY)
+	watcher.conn = c
+}
+
+// connWatcher main loop. Waits for the connection to expire, and notifies the connTable
+// when it does.
+func (watcher *connWatcher) loop() {
+	// We expect to close off connections explicitly, but let's be safe and clean up
+	// if we close unexpectedly.
+	defer func(c *connection) {
+		if c != nil {
+			c.Close()
+		}
+	}(watcher.conn)
+
+	for {
+		select {
+		case <-watcher.timer.C():
+			// Socket expiry timer has run out. Close the connection.
+			log.Debug("Socket %p (%s) inactive for too long; close it", watcher.conn, watcher.addr)
+			watcher.expiry <- watcher.addr
+
+		case <-watcher.updated:
+			// The connTable just updated our associated connection and refreshed our timer.
+			// We don't need to do anything here except cycle the for loop so we're selecting on
+			// the new timer channel rather than the old one.
+			log.Debug("Connection watcher for address %s received an update ping", watcher.addr)
+
+		case stop := <-watcher.stop:
+			// We've received a termination signal; stop managing this connection.
+			if stop {
+				log.Info("Connection watcher for address %s got the kill signal. Stopping.", watcher.addr)
+				watcher.timer.Stop()
+				break
+			}
+		}
+	}
+}
+
+type connUpdate struct {
+	addr string
+	conn *connection
+}
+
+type connRequest struct {
+	addr         string
+	responseChan chan *connection
 }
