@@ -1,15 +1,13 @@
 package transport
 
 import (
-	"github.com/stefankopieczek/gossip/base"
-	"github.com/stefankopieczek/gossip/log"
-)
-
-import (
 	"fmt"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/stefankopieczek/gossip/base"
+	"github.com/stefankopieczek/gossip/log"
 )
 
 const c_BUFSIZE int = 65507
