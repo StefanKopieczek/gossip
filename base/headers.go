@@ -93,14 +93,13 @@ type SipUri struct {
 	// These are used to provide information about requests that may be constructed from the URI.
 	// (For more details, see RFC 3261 section 19.1.1).
 	// These appear as a semicolon-separated list of key=value pairs following the host[:port] part.
-	// Note that not all keys have an associated value, so the values of the map may be nil.
 	UriParams *Params
 
 	// Any headers to be included on requests constructed from this URI.
 	// These appear as a '&'-separated list at the end of the URI, introduced by '?'.
-	// Although the values of the map are pointers, they will never be nil in practice as the parser
-	// guarantees to not return nil values for header elements in SIP URIs.
-	// You should not set the values of headers to nil.
+	// Although the values of the map are MaybeStrings, they will never be NoString in practice as the parser
+	// guarantees to not return blank values for header elements in SIP URIs.
+	// You should not set the values of headers to NoString.
 	Headers *Params
 }
 
@@ -193,12 +192,12 @@ func (uri *SipUri) String() string {
 		buffer.WriteString(strconv.Itoa(int(*uri.Port)))
 	}
 
-	if uri.UriParams != nil && len(uri.UriParams.Params()) > 0 {
+	if uri.UriParams.Length() > 0 {
 		buffer.WriteString(";")
 		buffer.WriteString(uri.UriParams.ToString(';'))
 	}
 
-	if uri.Headers != nil && len(uri.Headers.Params()) > 0 {
+	if uri.Headers.Length() > 0 {
 		buffer.WriteString("?")
 		buffer.WriteString(uri.Headers.ToString('&'))
 	}
@@ -390,7 +389,7 @@ func (to *ToHeader) String() string {
 
 	buffer.WriteString(fmt.Sprintf("<%s>", to.Address))
 
-	if to.Params != nil && len(to.Params.Params()) > 0 {
+	if to.Params.Length() > 0 {
 		buffer.WriteString(";")
 		buffer.WriteString(to.Params.ToString(';'))
 	}
@@ -425,7 +424,7 @@ func (from *FromHeader) String() string {
 	}
 
 	buffer.WriteString(fmt.Sprintf("<%s>", from.Address))
-	if from.Params != nil && len(from.Params.Params()) > 0 {
+	if from.Params.Length() > 0 {
 		buffer.WriteString(";")
 		buffer.WriteString(from.Params.ToString(';'))
 	}
@@ -467,7 +466,7 @@ func (contact *ContactHeader) String() string {
 		buffer.WriteString(fmt.Sprintf("<%s>", contact.Address.String()))
 	}
 
-	if contact.Params != nil && len(contact.Params.Params()) > 0 {
+	if contact.Params.Length() > 0 {
 		buffer.WriteString(";")
 		buffer.WriteString(contact.Params.ToString(';'))
 	}
@@ -557,7 +556,7 @@ func (hop *ViaHop) String() string {
 		buffer.WriteString(fmt.Sprintf(":%d", *hop.Port))
 	}
 
-	if hop.Params != nil && len(hop.Params.Params()) > 0 {
+	if hop.Params.Length() > 0 {
 		buffer.WriteString(";")
 		buffer.WriteString(hop.Params.ToString(';'))
 	}
