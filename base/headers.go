@@ -193,10 +193,15 @@ func (uri *SipUri) String() string {
 		buffer.WriteString(strconv.Itoa(int(*uri.Port)))
 	}
 
-	buffer.WriteString(";")
-	buffer.WriteString(uri.UriParams.ToString(';'))
-	buffer.WriteString("?")
-	buffer.WriteString(uri.Headers.ToString('&'))
+	if uri.UriParams != nil && len(uri.UriParams.Params()) > 0 {
+		buffer.WriteString(";")
+		buffer.WriteString(uri.UriParams.ToString(';'))
+	}
+
+	if uri.Headers != nil && len(uri.Headers.Params()) > 0 {
+		buffer.WriteString("?")
+		buffer.WriteString(uri.Headers.ToString('&'))
+	}
 
 	return buffer.String()
 }
@@ -234,6 +239,11 @@ type Params struct {
 	paramOrder []string
 }
 
+// Create an empty set of parameters.
+func NewParams() *Params {
+	return &Params{map[string]MaybeString{}, []string{}}
+}
+
 // Returns the entire parameter map.
 func (p *Params) Params() map[string]MaybeString {
 	return p.params
@@ -245,7 +255,7 @@ func (p *Params) Get(k string) (MaybeString, bool) {
 	return v, ok
 }
 
-func (p *Params) Add(k string, v MaybeString) {
+func (p *Params) Add(k string, v MaybeString) *Params {
 	if p.params == nil {
 		p.params = map[string]MaybeString{}
 		p.paramOrder = []string{}
@@ -258,6 +268,9 @@ func (p *Params) Add(k string, v MaybeString) {
 
 	// Set param value.
 	p.params[k] = v
+
+	// Return the params so calls can be chained.
+	return p
 }
 
 // Copy a list of params.
@@ -280,15 +293,16 @@ func (p *Params) ToString(sep uint8) string {
 		if !first {
 			buffer.WriteString(fmt.Sprintf("%c", sep))
 		}
+		first = false
 
 		buffer.WriteString(fmt.Sprintf("%s", k))
 
 		switch v := v.(type) {
 		case String:
 			if strings.ContainsAny(v.String(), c_ABNF_WS) {
-				buffer.WriteString(fmt.Sprintf("\"%s\"", v.String()))
+				buffer.WriteString(fmt.Sprintf("=\"%s\"", v.String()))
 			} else {
-				buffer.WriteString(fmt.Sprintf("%s", v.String()))
+				buffer.WriteString(fmt.Sprintf("=%s", v.String()))
 			}
 		}
 	}
@@ -362,8 +376,11 @@ func (to *ToHeader) String() string {
 	}
 
 	buffer.WriteString(fmt.Sprintf("<%s>", to.Address))
-	buffer.WriteString(";")
-	buffer.WriteString(to.Params.ToString(';'))
+
+	if to.Params != nil && len(to.Params.Params()) > 0 {
+		buffer.WriteString(";")
+		buffer.WriteString(to.Params.ToString(';'))
+	}
 
 	return buffer.String()
 }
@@ -395,8 +412,10 @@ func (from *FromHeader) String() string {
 	}
 
 	buffer.WriteString(fmt.Sprintf("<%s>", from.Address))
-	buffer.WriteString(";")
-	buffer.WriteString(from.Params.ToString(';'))
+	if from.Params != nil && len(from.Params.Params()) > 0 {
+		buffer.WriteString(";")
+		buffer.WriteString(from.Params.ToString(';'))
+	}
 
 	return buffer.String()
 }
@@ -435,8 +454,10 @@ func (contact *ContactHeader) String() string {
 		buffer.WriteString(fmt.Sprintf("<%s>", contact.Address.String()))
 	}
 
-	buffer.WriteString(";")
-	buffer.WriteString(contact.Params.ToString(';'))
+	if contact.Params != nil && len(contact.Params.Params()) > 0 {
+		buffer.WriteString(";")
+		buffer.WriteString(contact.Params.ToString(';'))
+	}
 
 	return buffer.String()
 }
@@ -523,7 +544,10 @@ func (hop *ViaHop) String() string {
 		buffer.WriteString(fmt.Sprintf(":%d", *hop.Port))
 	}
 
-	buffer.WriteString(hop.Params.ToString(';'))
+	if hop.Params != nil && len(hop.Params.Params()) > 0 {
+		buffer.WriteString(";")
+		buffer.WriteString(hop.Params.ToString(';'))
+	}
 
 	return buffer.String()
 }
