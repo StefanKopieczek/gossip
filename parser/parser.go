@@ -807,7 +807,7 @@ func parseAddressHeader(headerName string, headerText string) (
 				switch uris[idx].(type) {
 				case base.ContactUri:
 					if uris[idx].(base.ContactUri).IsWildcard() {
-						if len(paramSets[idx].Params()) > 0 {
+						if paramSets[idx].Length() > 0 {
 							// Wildcard headers do not contain parameters.
 							err = fmt.Errorf("wildcard contact header should contain no parameters: '%s",
 								headerText)

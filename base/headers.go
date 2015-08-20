@@ -310,10 +310,23 @@ func (p *Params) ToString(sep uint8) string {
 	return buffer.String()
 }
 
+// Returns number of params.
+func (p *Params) Length() int {
+	if p == nil {
+		return 0
+	}
+
+	return len(p.params)
+}
+
 // Check if two maps of parameters are equal in the sense of having the same keys with the same values.
 // This does not rely on any ordering of the keys of the map in memory.
 func (p *Params) Equals(q *Params) bool {
-	if len(p.params) != len(q.params) {
+	if p.Length() == 0 && q.Length() == 0 {
+		return true
+	}
+
+	if p.Length() != q.Length() {
 		return false
 	}
 

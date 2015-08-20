@@ -66,75 +66,75 @@ func TestAAAASetup(t *testing.T) {
 func TestParams(t *testing.T) {
 	doTests([]test{
 		// TEST: parseParams
-		test{&paramInput{";foo=bar", ';', ';', 0, false, true}, &paramResult{pass, base.Params{"foo": base.String{"bar"}}, 8}},
-		test{&paramInput{";foo=", ';', ';', 0, false, true}, &paramResult{pass, base.Params{"foo": base.String{""}}, 5}},
-		test{&paramInput{";foo", ';', ';', 0, false, true}, &paramResult{pass, base.Params{"foo": base.NoString{}}, 4}},
-		test{&paramInput{";foo=bar!hello", ';', ';', '!', false, true}, &paramResult{pass, base.Params{"foo": base.String{"bar"}}, 8}},
-		test{&paramInput{";foo!hello", ';', ';', '!', false, true}, &paramResult{pass, base.Params{"foo": base.NoString{}}, 4}},
-		test{&paramInput{";foo=!hello", ';', ';', '!', false, true}, &paramResult{pass, base.Params{"foo": base.String{""}}, 5}},
-		test{&paramInput{";foo=bar!h;l!o", ';', ';', '!', false, true}, &paramResult{pass, base.Params{"foo": base.String{"bar"}}, 8}},
-		test{&paramInput{";foo!h;l!o", ';', ';', '!', false, true}, &paramResult{pass, base.Params{"foo": base.NoString{}}, 4}},
-		test{&paramInput{"foo!h;l!o", ';', ';', '!', false, true}, &paramResult{fail, base.Params{}, 0}},
-		test{&paramInput{"foo;h;l!o", ';', ';', '!', false, true}, &paramResult{fail, base.Params{}, 0}},
-		test{&paramInput{";foo=bar;baz=boop", ';', ';', 0, false, true}, &paramResult{pass, base.Params{"foo": base.String{"bar"}, "baz": base.String{"boop"}}, 17}},
-		test{&paramInput{";foo=bar;baz=boop!lol", ';', ';', '!', false, true}, &paramResult{pass, base.Params{"foo": base.String{"bar"}, "baz": base.String{"boop"}}, 17}},
-		test{&paramInput{";foo=bar;baz", ';', ';', 0, false, true}, &paramResult{pass, base.Params{"foo": base.String{"bar"}, "baz": base.NoString{}}, 12}},
-		test{&paramInput{";foo;baz=boop", ';', ';', 0, false, true}, &paramResult{pass, base.Params{"foo": base.NoString{}, "baz": base.String{"boop"}}, 13}},
-		test{&paramInput{";foo=bar;baz=boop;a=b", ';', ';', 0, false, true}, &paramResult{pass, base.Params{"foo": base.String{"bar"}, "baz": base.String{"boop"}, "a": base.String{"b"}}, 21}},
-		test{&paramInput{";foo;baz=boop;a=b", ';', ';', 0, false, true}, &paramResult{pass, base.Params{"foo": base.NoString{}, "baz": base.String{"boop"}, "a": base.String{"b"}}, 17}},
-		test{&paramInput{";foo=bar;baz;a=b", ';', ';', 0, false, true}, &paramResult{pass, base.Params{"foo": base.String{"bar"}, "baz": base.NoString{}, "a": base.String{"b"}}, 16}},
-		test{&paramInput{";foo=bar;baz=boop;a", ';', ';', 0, false, true}, &paramResult{pass, base.Params{"foo": base.String{"bar"}, "baz": base.String{"boop"}, "a": base.NoString{}}, 19}},
-		test{&paramInput{";foo=bar;baz=;a", ';', ';', 0, false, true}, &paramResult{pass, base.Params{"foo": base.String{"bar"}, "baz": base.String{""}, "a": base.NoString{}}, 15}},
-		test{&paramInput{";foo=;baz=bob;a", ';', ';', 0, false, true}, &paramResult{pass, base.Params{"foo": base.String{""}, "baz": base.String{"bob"}, "a": base.NoString{}}, 15}},
-		test{&paramInput{"foo=bar", ';', ';', 0, false, true}, &paramResult{fail, base.Params{}, 0}},
-		test{&paramInput{"$foo=bar", '$', ',', 0, false, true}, &paramResult{pass, base.Params{"foo": base.String{"bar"}}, 8}},
-		test{&paramInput{"$foo", '$', ',', 0, false, true}, &paramResult{pass, base.Params{"foo": base.NoString{}}, 4}},
-		test{&paramInput{"$foo=bar!hello", '$', ',', '!', false, true}, &paramResult{pass, base.Params{"foo": base.String{"bar"}}, 8}},
-		test{&paramInput{"$foo#hello", '$', ',', '#', false, true}, &paramResult{pass, base.Params{"foo": base.NoString{}}, 4}},
-		test{&paramInput{"$foo=bar!h;,!o", '$', ',', '!', false, true}, &paramResult{pass, base.Params{"foo": base.String{"bar"}}, 8}},
-		test{&paramInput{"$foo!h;l!,", '$', ',', '!', false, true}, &paramResult{pass, base.Params{"foo": base.NoString{}}, 4}},
-		test{&paramInput{"foo!h;l!o", '$', ',', '!', false, true}, &paramResult{fail, base.Params{}, 0}},
-		test{&paramInput{"foo,h,l!o", '$', ',', '!', false, true}, &paramResult{fail, base.Params{}, 0}},
-		test{&paramInput{"$foo=bar,baz=boop", '$', ',', 0, false, true}, &paramResult{pass, base.Params{"foo": base.String{"bar"}, "baz": base.String{"boop"}}, 17}},
-		test{&paramInput{"$foo=bar;baz", '$', ',', 0, false, true}, &paramResult{pass, base.Params{"foo": base.String{"bar;baz"}}, 12}},
-		test{&paramInput{"$foo=bar,baz=boop!lol", '$', ',', '!', false, true}, &paramResult{pass, base.Params{"foo": base.String{"bar"}, "baz": base.String{"boop"}}, 17}},
-		test{&paramInput{"$foo=bar,baz", '$', ',', 0, false, true}, &paramResult{pass, base.Params{"foo": base.String{"bar"}, "baz": base.NoString{}}, 12}},
-		test{&paramInput{"$foo=,baz", '$', ',', 0, false, true}, &paramResult{pass, base.Params{"foo": base.String{""}, "baz": base.NoString{}}, 9}},
-		test{&paramInput{"$foo,baz=boop", '$', ',', 0, false, true}, &paramResult{pass, base.Params{"foo": base.NoString{}, "baz": base.String{"boop"}}, 13}},
-		test{&paramInput{"$foo=bar,baz=boop,a=b", '$', ',', 0, false, true}, &paramResult{pass, base.Params{"foo": base.String{"bar"}, "baz": base.String{"boop"}, "a": base.String{"b"}}, 21}},
-		test{&paramInput{"$foo,baz=boop,a=b", '$', ',', 0, false, true}, &paramResult{pass, base.Params{"foo": base.NoString{}, "baz": base.String{"boop"}, "a": base.String{"b"}}, 17}},
-		test{&paramInput{"$foo=bar,baz,a=b", '$', ',', 0, false, true}, &paramResult{pass, base.Params{"foo": base.String{"bar"}, "baz": base.NoString{}, "a": base.String{"b"}}, 16}},
-		test{&paramInput{"$foo=bar,baz=boop,a", '$', ',', 0, false, true}, &paramResult{pass, base.Params{"foo": base.String{"bar"}, "baz": base.String{"boop"}, "a": base.NoString{}}, 19}},
-		test{&paramInput{";foo", ';', ';', 0, false, false}, &paramResult{fail, base.Params{}, 0}},
-		test{&paramInput{";foo=", ';', ';', 0, false, false}, &paramResult{pass, base.Params{"foo": base.String{""}}, 5}},
-		test{&paramInput{";foo=bar;baz=boop", ';', ';', 0, false, false}, &paramResult{pass, base.Params{"foo": base.String{"bar"}, "baz": base.String{"boop"}}, 17}},
-		test{&paramInput{";foo=bar;baz", ';', ';', 0, false, false}, &paramResult{fail, base.Params{}, 0}},
-		test{&paramInput{";foo;bar=baz", ';', ';', 0, false, false}, &paramResult{fail, base.Params{}, 0}},
-		test{&paramInput{";foo=;baz=boop", ';', ';', 0, false, false}, &paramResult{pass, base.Params{"foo": base.String{""}, "baz": base.String{"boop"}}, 14}},
-		test{&paramInput{";foo=bar;baz=", ';', ';', 0, false, false}, &paramResult{pass, base.Params{"foo": base.String{"bar"}, "baz": base.String{""}}, 13}},
+		test{&paramInput{";foo=bar", ';', ';', 0, false, true}, &paramResult{pass, base.NewParams().Add("foo", base.String{"bar"}), 8}},
+		test{&paramInput{";foo=", ';', ';', 0, false, true}, &paramResult{pass, base.NewParams().Add("foo", base.String{""}), 5}},
+		test{&paramInput{";foo", ';', ';', 0, false, true}, &paramResult{pass, base.NewParams().Add("foo", base.NoString{}), 4}},
+		test{&paramInput{";foo=bar!hello", ';', ';', '!', false, true}, &paramResult{pass, base.NewParams().Add("foo", base.String{"bar"}), 8}},
+		test{&paramInput{";foo!hello", ';', ';', '!', false, true}, &paramResult{pass, base.NewParams().Add("foo", base.NoString{}), 4}},
+		test{&paramInput{";foo=!hello", ';', ';', '!', false, true}, &paramResult{pass, base.NewParams().Add("foo", base.String{""}), 5}},
+		test{&paramInput{";foo=bar!h;l!o", ';', ';', '!', false, true}, &paramResult{pass, base.NewParams().Add("foo", base.String{"bar"}), 8}},
+		test{&paramInput{";foo!h;l!o", ';', ';', '!', false, true}, &paramResult{pass, base.NewParams().Add("foo", base.NoString{}), 4}},
+		test{&paramInput{"foo!h;l!o", ';', ';', '!', false, true}, &paramResult{fail, base.NewParams(), 0}},
+		test{&paramInput{"foo;h;l!o", ';', ';', '!', false, true}, &paramResult{fail, base.NewParams(), 0}},
+		test{&paramInput{";foo=bar;baz=boop", ';', ';', 0, false, true}, &paramResult{pass, base.NewParams().Add("foo", base.String{"bar"}).Add("baz", base.String{"boop"}), 17}},
+		test{&paramInput{";foo=bar;baz=boop!lol", ';', ';', '!', false, true}, &paramResult{pass, base.NewParams().Add("foo", base.String{"bar"}).Add("baz", base.String{"boop"}), 17}},
+		test{&paramInput{";foo=bar;baz", ';', ';', 0, false, true}, &paramResult{pass, base.NewParams().Add("foo", base.String{"bar"}).Add("baz", base.NoString{}), 12}},
+		test{&paramInput{";foo;baz=boop", ';', ';', 0, false, true}, &paramResult{pass, base.NewParams().Add("foo", base.NoString{}).Add("baz", base.String{"boop"}), 13}},
+		test{&paramInput{";foo=bar;baz=boop;a=b", ';', ';', 0, false, true}, &paramResult{pass, base.NewParams().Add("foo", base.String{"bar"}).Add("baz", base.String{"boop"}).Add("a", base.String{"b"}), 21}},
+		test{&paramInput{";foo;baz=boop;a=b", ';', ';', 0, false, true}, &paramResult{pass, base.NewParams().Add("foo", base.NoString{}).Add("baz", base.String{"boop"}).Add("a", base.String{"b"}), 17}},
+		test{&paramInput{";foo=bar;baz;a=b", ';', ';', 0, false, true}, &paramResult{pass, base.NewParams().Add("foo", base.String{"bar"}).Add("baz", base.NoString{}).Add("a", base.String{"b"}), 16}},
+		test{&paramInput{";foo=bar;baz=boop;a", ';', ';', 0, false, true}, &paramResult{pass, base.NewParams().Add("foo", base.String{"bar"}).Add("baz", base.String{"boop"}).Add("a", base.NoString{}), 19}},
+		test{&paramInput{";foo=bar;baz=;a", ';', ';', 0, false, true}, &paramResult{pass, base.NewParams().Add("foo", base.String{"bar"}).Add("baz", base.String{""}).Add("a", base.NoString{}), 15}},
+		test{&paramInput{";foo=;baz=bob;a", ';', ';', 0, false, true}, &paramResult{pass, base.NewParams().Add("foo", base.String{""}).Add("baz", base.String{"bob"}).Add("a", base.NoString{}), 15}},
+		test{&paramInput{"foo=bar", ';', ';', 0, false, true}, &paramResult{fail, base.NewParams(), 0}},
+		test{&paramInput{"$foo=bar", '$', ',', 0, false, true}, &paramResult{pass, base.NewParams().Add("foo", base.String{"bar"}), 8}},
+		test{&paramInput{"$foo", '$', ',', 0, false, true}, &paramResult{pass, base.NewParams().Add("foo", base.NoString{}), 4}},
+		test{&paramInput{"$foo=bar!hello", '$', ',', '!', false, true}, &paramResult{pass, base.NewParams().Add("foo", base.String{"bar"}), 8}},
+		test{&paramInput{"$foo#hello", '$', ',', '#', false, true}, &paramResult{pass, base.NewParams().Add("foo", base.NoString{}), 4}},
+		test{&paramInput{"$foo=bar!h;,!o", '$', ',', '!', false, true}, &paramResult{pass, base.NewParams().Add("foo", base.String{"bar"}), 8}},
+		test{&paramInput{"$foo!h;l!,", '$', ',', '!', false, true}, &paramResult{pass, base.NewParams().Add("foo", base.NoString{}), 4}},
+		test{&paramInput{"foo!h;l!o", '$', ',', '!', false, true}, &paramResult{fail, base.NewParams(), 0}},
+		test{&paramInput{"foo,h,l!o", '$', ',', '!', false, true}, &paramResult{fail, base.NewParams(), 0}},
+		test{&paramInput{"$foo=bar,baz=boop", '$', ',', 0, false, true}, &paramResult{pass, base.NewParams().Add("foo", base.String{"bar"}).Add("baz", base.String{"boop"}), 17}},
+		test{&paramInput{"$foo=bar;baz", '$', ',', 0, false, true}, &paramResult{pass, base.NewParams().Add("foo", base.String{"bar;baz"}), 12}},
+		test{&paramInput{"$foo=bar,baz=boop!lol", '$', ',', '!', false, true}, &paramResult{pass, base.NewParams().Add("foo", base.String{"bar"}).Add("baz", base.String{"boop"}), 17}},
+		test{&paramInput{"$foo=bar,baz", '$', ',', 0, false, true}, &paramResult{pass, base.NewParams().Add("foo", base.String{"bar"}).Add("baz", base.NoString{}), 12}},
+		test{&paramInput{"$foo=,baz", '$', ',', 0, false, true}, &paramResult{pass, base.NewParams().Add("foo", base.String{""}).Add("baz", base.NoString{}), 9}},
+		test{&paramInput{"$foo,baz=boop", '$', ',', 0, false, true}, &paramResult{pass, base.NewParams().Add("foo", base.NoString{}).Add("baz", base.String{"boop"}), 13}},
+		test{&paramInput{"$foo=bar,baz=boop,a=b", '$', ',', 0, false, true}, &paramResult{pass, base.NewParams().Add("foo", base.String{"bar"}).Add("baz", base.String{"boop"}).Add("a", base.String{"b"}), 21}},
+		test{&paramInput{"$foo,baz=boop,a=b", '$', ',', 0, false, true}, &paramResult{pass, base.NewParams().Add("foo", base.NoString{}).Add("baz", base.String{"boop"}).Add("a", base.String{"b"}), 17}},
+		test{&paramInput{"$foo=bar,baz,a=b", '$', ',', 0, false, true}, &paramResult{pass, base.NewParams().Add("foo", base.String{"bar"}).Add("baz", base.NoString{}).Add("a", base.String{"b"}), 16}},
+		test{&paramInput{"$foo=bar,baz=boop,a", '$', ',', 0, false, true}, &paramResult{pass, base.NewParams().Add("foo", base.String{"bar"}).Add("baz", base.String{"boop"}).Add("a", base.NoString{}), 19}},
+		test{&paramInput{";foo", ';', ';', 0, false, false}, &paramResult{fail, base.NewParams(), 0}},
+		test{&paramInput{";foo=", ';', ';', 0, false, false}, &paramResult{pass, base.NewParams().Add("foo", base.String{""}), 5}},
+		test{&paramInput{";foo=bar;baz=boop", ';', ';', 0, false, false}, &paramResult{pass, base.NewParams().Add("foo", base.String{"bar"}).Add("baz", base.String{"boop"}), 17}},
+		test{&paramInput{";foo=bar;baz", ';', ';', 0, false, false}, &paramResult{fail, base.NewParams(), 0}},
+		test{&paramInput{";foo;bar=baz", ';', ';', 0, false, false}, &paramResult{fail, base.NewParams(), 0}},
+		test{&paramInput{";foo=;baz=boop", ';', ';', 0, false, false}, &paramResult{pass, base.NewParams().Add("foo", base.String{""}).Add("baz", base.String{"boop"}), 14}},
+		test{&paramInput{";foo=bar;baz=", ';', ';', 0, false, false}, &paramResult{pass, base.NewParams().Add("foo", base.String{"bar"}).Add("baz", base.String{""}), 13}},
 		test{&paramInput{"$foo=bar,baz=,a=b", '$', ',', 0, false, true}, &paramResult{pass,
-			base.Params{"foo": base.String{"bar"}, "baz": base.String{""}, "a": base.String{"b"}}, 17}},
-		test{&paramInput{"$foo=bar,baz,a=b", '$', ',', 0, false, false}, &paramResult{fail, base.Params{}, 17}},
-		test{&paramInput{";foo=\"bar\"", ';', ';', 0, false, true}, &paramResult{pass, base.Params{"foo": base.String{"\"bar\""}}, 10}},
-		test{&paramInput{";foo=\"bar", ';', ';', 0, false, true}, &paramResult{pass, base.Params{"foo": base.String{"\"bar"}}, 9}},
-		test{&paramInput{";foo=bar\"", ';', ';', 0, false, true}, &paramResult{pass, base.Params{"foo": base.String{"bar\""}}, 9}},
-		test{&paramInput{";\"foo\"=bar", ';', ';', 0, false, true}, &paramResult{pass, base.Params{"\"foo\"": base.String{"bar"}}, 10}},
-		test{&paramInput{";foo\"=bar", ';', ';', 0, false, true}, &paramResult{pass, base.Params{"foo\"": base.String{"bar"}}, 9}},
-		test{&paramInput{";\"foo=bar", ';', ';', 0, false, true}, &paramResult{pass, base.Params{"\"foo": base.String{"bar"}}, 9}},
-		test{&paramInput{";foo=\"bar\"", ';', ';', 0, true, true}, &paramResult{pass, base.Params{"foo": base.String{"bar"}}, 10}},
-		test{&paramInput{";foo=\"ba\"r", ';', ';', 0, true, true}, &paramResult{fail, base.Params{}, 0}},
-		test{&paramInput{";foo=ba\"r", ';', ';', 0, true, true}, &paramResult{fail, base.Params{}, 0}},
-		test{&paramInput{";foo=bar\"", ';', ';', 0, true, true}, &paramResult{fail, base.Params{}, 0}},
-		test{&paramInput{";foo=\"bar", ';', ';', 0, true, true}, &paramResult{fail, base.Params{}, 0}},
-		test{&paramInput{";\"foo\"=bar", ';', ';', 0, true, true}, &paramResult{fail, base.Params{}, 0}},
-		test{&paramInput{";\"foo=bar", ';', ';', 0, true, true}, &paramResult{fail, base.Params{}, 0}},
-		test{&paramInput{";foo\"=bar", ';', ';', 0, true, true}, &paramResult{fail, base.Params{}, 0}},
-		test{&paramInput{";foo=\"bar;baz\"", ';', ';', 0, true, true}, &paramResult{pass, base.Params{"foo": base.String{"bar;baz"}}, 14}},
-		test{&paramInput{";foo=\"bar;baz\";a=b", ';', ';', 0, true, true}, &paramResult{pass, base.Params{"foo": base.String{"bar;baz"}, "a": base.String{"b"}}, 18}},
-		test{&paramInput{";foo=\"bar;baz\";a", ';', ';', 0, true, true}, &paramResult{pass, base.Params{"foo": base.String{"bar;baz"}, "a": base.NoString{}}, 16}},
-		test{&paramInput{";foo=bar", ';', ';', 0, true, true}, &paramResult{pass, base.Params{"foo": base.String{"bar"}}, 8}},
-		test{&paramInput{";foo=", ';', ';', 0, true, true}, &paramResult{pass, base.Params{"foo": base.String{""}}, 5}},
-		test{&paramInput{";foo=\"\"", ';', ';', 0, true, true}, &paramResult{pass, base.Params{"foo": base.String{""}}, 7}},
+			base.NewParams().Add("foo", base.String{"bar"}).Add("baz", base.String{""}).Add("a", base.String{"b"}), 17}},
+		test{&paramInput{"$foo=bar,baz,a=b", '$', ',', 0, false, false}, &paramResult{fail, base.NewParams(), 17}},
+		test{&paramInput{";foo=\"bar\"", ';', ';', 0, false, true}, &paramResult{pass, base.NewParams().Add("foo", base.String{"\"bar\""}), 10}},
+		test{&paramInput{";foo=\"bar", ';', ';', 0, false, true}, &paramResult{pass, base.NewParams().Add("foo", base.String{"\"bar"}), 9}},
+		test{&paramInput{";foo=bar\"", ';', ';', 0, false, true}, &paramResult{pass, base.NewParams().Add("foo", base.String{"bar\""}), 9}},
+		test{&paramInput{";\"foo\"=bar", ';', ';', 0, false, true}, &paramResult{pass, base.NewParams().Add("\"foo\"", base.String{"bar"}), 10}},
+		test{&paramInput{";foo\"=bar", ';', ';', 0, false, true}, &paramResult{pass, base.NewParams().Add("foo\"", base.String{"bar"}), 9}},
+		test{&paramInput{";\"foo=bar", ';', ';', 0, false, true}, &paramResult{pass, base.NewParams().Add("\"foo", base.String{"bar"}), 9}},
+		test{&paramInput{";foo=\"bar\"", ';', ';', 0, true, true}, &paramResult{pass, base.NewParams().Add("foo", base.String{"bar"}), 10}},
+		test{&paramInput{";foo=\"ba\"r", ';', ';', 0, true, true}, &paramResult{fail, base.NewParams(), 0}},
+		test{&paramInput{";foo=ba\"r", ';', ';', 0, true, true}, &paramResult{fail, base.NewParams(), 0}},
+		test{&paramInput{";foo=bar\"", ';', ';', 0, true, true}, &paramResult{fail, base.NewParams(), 0}},
+		test{&paramInput{";foo=\"bar", ';', ';', 0, true, true}, &paramResult{fail, base.NewParams(), 0}},
+		test{&paramInput{";\"foo\"=bar", ';', ';', 0, true, true}, &paramResult{fail, base.NewParams(), 0}},
+		test{&paramInput{";\"foo=bar", ';', ';', 0, true, true}, &paramResult{fail, base.NewParams(), 0}},
+		test{&paramInput{";foo\"=bar", ';', ';', 0, true, true}, &paramResult{fail, base.NewParams(), 0}},
+		test{&paramInput{";foo=\"bar;baz\"", ';', ';', 0, true, true}, &paramResult{pass, base.NewParams().Add("foo", base.String{"bar;baz"}), 14}},
+		test{&paramInput{";foo=\"bar;baz\";a=b", ';', ';', 0, true, true}, &paramResult{pass, base.NewParams().Add("foo", base.String{"bar;baz"}).Add("a", base.String{"b"}), 18}},
+		test{&paramInput{";foo=\"bar;baz\";a", ';', ';', 0, true, true}, &paramResult{pass, base.NewParams().Add("foo", base.String{"bar;baz"}).Add("a", base.NoString{}), 16}},
+		test{&paramInput{";foo=bar", ';', ';', 0, true, true}, &paramResult{pass, base.NewParams().Add("foo", base.String{"bar"}), 8}},
+		test{&paramInput{";foo=", ';', ';', 0, true, true}, &paramResult{pass, base.NewParams().Add("foo", base.String{""}), 5}},
+		test{&paramInput{";foo=\"\"", ';', ';', 0, true, true}, &paramResult{pass, base.NewParams().Add("foo", base.String{""}), 7}},
 	}, t)
 }
 
@@ -155,64 +155,62 @@ func TestSipUris(t *testing.T) {
 			Host: "example.com", Port: &ui16_5060}}},
 		test{sipUriInput("sip:bob@example.com:5"), &sipUriResult{pass, base.SipUri{User: base.String{"bob"}, Password: base.NoString{}, Host: "example.com", Port: &ui16_5}}},
 		test{sipUriInput("sip:bob@example.com;foo=bar"), &sipUriResult{pass, base.SipUri{User: base.String{"bob"}, Password: base.NoString{}, Host: "example.com",
-			UriParams: base.Params{"foo": base.String{"bar"}}}}},
+			UriParams: base.NewParams().Add("foo", base.String{"bar"})}}},
 		test{sipUriInput("sip:bob@example.com:5060;foo=bar"), &sipUriResult{pass, base.SipUri{User: base.String{"bob"}, Password: base.NoString{}, Host: "example.com", Port: &ui16_5060,
-			UriParams: base.Params{"foo": base.String{"bar"}}}}},
+			UriParams: base.NewParams().Add("foo", base.String{"bar"})}}},
 		test{sipUriInput("sip:bob@example.com:5;foo"), &sipUriResult{pass, base.SipUri{User: base.String{"bob"}, Password: base.NoString{}, Host: "example.com", Port: &ui16_5,
-			UriParams: base.Params{"foo": base.NoString{}}}}},
+			UriParams: base.NewParams().Add("foo", base.NoString{})}}},
 		test{sipUriInput("sip:bob@example.com:5;foo;baz=bar"), &sipUriResult{pass, base.SipUri{User: base.String{"bob"}, Password: base.NoString{}, Host: "example.com", Port: &ui16_5,
-			UriParams: base.Params{"foo": base.NoString{}, "baz": base.String{"bar"}}}}},
+			UriParams: base.NewParams().Add("foo", base.NoString{}).Add("baz", base.String{"bar"})}}},
 		test{sipUriInput("sip:bob@example.com:5;baz=bar;foo"), &sipUriResult{pass, base.SipUri{User: base.String{"bob"}, Password: base.NoString{}, Host: "example.com", Port: &ui16_5,
-			UriParams: base.Params{"foo": base.NoString{}, "baz": base.String{"bar"}}}}},
+			UriParams: base.NewParams().Add("foo", base.NoString{}).Add("baz", base.String{"bar"})}}},
 		test{sipUriInput("sip:bob@example.com:5;foo;baz=bar;a=b"), &sipUriResult{pass, base.SipUri{User: base.String{"bob"}, Password: base.NoString{}, Host: "example.com", Port: &ui16_5,
-			UriParams: base.Params{"foo": base.NoString{}, "baz": base.String{"bar"}, "a": base.String{"b"}}}}},
+			UriParams: base.NewParams().Add("foo", base.NoString{}).Add("baz", base.String{"bar"}).Add("a", base.String{"b"})}}},
 		test{sipUriInput("sip:bob@example.com:5;baz=bar;foo;a=b"), &sipUriResult{pass, base.SipUri{User: base.String{"bob"}, Password: base.NoString{}, Host: "example.com", Port: &ui16_5,
-			UriParams: base.Params{"foo": base.NoString{}, "baz": base.String{"bar"}, "a": base.String{"b"}}}}},
+			UriParams: base.NewParams().Add("foo", base.NoString{}).Add("baz", base.String{"bar"}).Add("a", base.String{"b"})}}},
 		test{sipUriInput("sip:bob@example.com?foo=bar"), &sipUriResult{pass, base.SipUri{User: base.String{"bob"}, Password: base.NoString{}, Host: "example.com",
-			Headers: base.Params{"foo": base.String{"bar"}}}}},
+			Headers: base.NewParams().Add("foo", base.String{"bar"})}}},
 		test{sipUriInput("sip:bob@example.com?foo="), &sipUriResult{pass, base.SipUri{User: base.String{"bob"}, Password: base.NoString{}, Host: "example.com",
-			Headers: base.Params{"foo": base.String{""}}}}},
+			Headers: base.NewParams().Add("foo", base.String{""})}}},
 		test{sipUriInput("sip:bob@example.com:5060?foo=bar"), &sipUriResult{pass, base.SipUri{User: base.String{"bob"}, Password: base.NoString{}, Host: "example.com", Port: &ui16_5060,
-			Headers: base.Params{"foo": base.String{"bar"}}}}},
+			Headers: base.NewParams().Add("foo", base.String{"bar"})}}},
 		test{sipUriInput("sip:bob@example.com:5?foo=bar"), &sipUriResult{pass, base.SipUri{User: base.String{"bob"}, Password: base.NoString{}, Host: "example.com", Port: &ui16_5,
-			Headers: base.Params{"foo": base.String{"bar"}}}}},
+			Headers: base.NewParams().Add("foo", base.String{"bar"})}}},
 		test{sipUriInput("sips:bob@example.com:5?baz=bar&foo=&a=b"), &sipUriResult{pass, base.SipUri{IsEncrypted: true, User: base.String{"bob"}, Password: base.NoString{}, Host: "example.com", Port: &ui16_5,
-			Headers: base.Params{"baz": base.String{"bar"}, "a": base.String{"b"},
-				"foo": base.String{""}}}}},
+			Headers: base.NewParams().Add("baz", base.String{"bar"}).Add("a", base.String{"b"}).Add("foo", base.String{""})}}},
 		test{sipUriInput("sip:bob@example.com:5?baz=bar&foo&a=b"), &sipUriResult{fail, base.SipUri{}}},
 		test{sipUriInput("sip:bob@example.com:5?foo"), &sipUriResult{fail, base.SipUri{}}},
 		test{sipUriInput("sip:bob@example.com:50?foo"), &sipUriResult{fail, base.SipUri{}}},
 		test{sipUriInput("sip:bob@example.com:50?foo=bar&baz"), &sipUriResult{fail, base.SipUri{}}},
 		test{sipUriInput("sip:bob@example.com;foo?foo=bar"), &sipUriResult{pass, base.SipUri{User: base.String{"bob"}, Password: base.NoString{}, Host: "example.com",
-			UriParams: base.Params{"foo": base.NoString{}},
-			Headers:   base.Params{"foo": base.String{"bar"}}}}},
+			UriParams: base.NewParams().Add("foo", base.NoString{}),
+			Headers:   base.NewParams().Add("foo", base.String{"bar"})}}},
 		test{sipUriInput("sip:bob@example.com:5060;foo?foo=bar"), &sipUriResult{pass, base.SipUri{User: base.String{"bob"}, Password: base.NoString{}, Host: "example.com", Port: &ui16_5060,
-			UriParams: base.Params{"foo": base.NoString{}},
-			Headers:   base.Params{"foo": base.String{"bar"}}}}},
+			UriParams: base.NewParams().Add("foo", base.NoString{}),
+			Headers:   base.NewParams().Add("foo", base.String{"bar"})}}},
 		test{sipUriInput("sip:bob@example.com:5;foo?foo=bar"), &sipUriResult{pass, base.SipUri{User: base.String{"bob"}, Password: base.NoString{}, Host: "example.com", Port: &ui16_5,
-			UriParams: base.Params{"foo": base.NoString{}},
-			Headers:   base.Params{"foo": base.String{"bar"}}}}},
+			UriParams: base.NewParams().Add("foo", base.NoString{}),
+			Headers:   base.NewParams().Add("foo", base.String{"bar"})}}},
 		test{sipUriInput("sips:bob@example.com:5;foo?baz=bar&a=b&foo="), &sipUriResult{pass, base.SipUri{IsEncrypted: true, User: base.String{"bob"},
 			Password: base.NoString{}, Host: "example.com", Port: &ui16_5,
-			UriParams: base.Params{"foo": base.NoString{}},
-			Headers: base.Params{"baz": base.String{"bar"}, "a": base.String{"b"},
-				"foo": base.String{""}}}}},
+			UriParams: base.NewParams().Add("foo", base.NoString{}),
+			Headers:   base.NewParams().Add("baz", base.String{"bar"}).Add("a", base.String{"b"}).Add("foo", base.String{""})}}},
 		test{sipUriInput("sip:bob@example.com:5;foo?baz=bar&foo&a=b"), &sipUriResult{fail, base.SipUri{}}},
 		test{sipUriInput("sip:bob@example.com:5;foo?foo"), &sipUriResult{fail, base.SipUri{}}},
 		test{sipUriInput("sip:bob@example.com:50;foo?foo"), &sipUriResult{fail, base.SipUri{}}},
 		test{sipUriInput("sip:bob@example.com:50;foo?foo=bar&baz"), &sipUriResult{fail, base.SipUri{}}},
 		test{sipUriInput("sip:bob@example.com;foo=baz?foo=bar"), &sipUriResult{pass, base.SipUri{User: base.String{"bob"}, Password: base.NoString{}, Host: "example.com",
-			UriParams: base.Params{"foo": base.String{"baz"}},
-			Headers:   base.Params{"foo": base.String{"bar"}}}}},
+			UriParams: base.NewParams().Add("foo", base.String{"baz"}),
+			Headers:   base.NewParams().Add("foo", base.String{"bar"})}}},
 		test{sipUriInput("sip:bob@example.com:5060;foo=baz?foo=bar"), &sipUriResult{pass, base.SipUri{User: base.String{"bob"}, Password: base.NoString{}, Host: "example.com", Port: &ui16_5060,
-			UriParams: base.Params{"foo": base.String{"baz"}},
-			Headers:   base.Params{"foo": base.String{"bar"}}}}},
+			UriParams: base.NewParams().Add("foo", base.String{"baz"}),
+			Headers:   base.NewParams().Add("foo", base.String{"bar"})}}},
 		test{sipUriInput("sip:bob@example.com:5;foo=baz?foo=bar"), &sipUriResult{pass, base.SipUri{User: base.String{"bob"}, Password: base.NoString{}, Host: "example.com", Port: &ui16_5,
-			UriParams: base.Params{"foo": base.String{"baz"}},
-			Headers:   base.Params{"foo": base.String{"bar"}}}}},
+			UriParams: base.NewParams().Add("foo", base.String{"baz"}),
+			Headers:   base.NewParams().Add("foo", base.String{"bar"})}}},
 		test{sipUriInput("sips:bob@example.com:5;foo=baz?baz=bar&a=b"), &sipUriResult{pass, base.SipUri{IsEncrypted: true, User: base.String{"bob"}, Password: base.NoString{}, Host: "example.com", Port: &ui16_5,
-			UriParams: base.Params{"foo": base.String{"baz"}},
-			Headers:   base.Params{"baz": base.String{"bar"}, "a": base.String{"b"}}}}},
+			UriParams: base.NewParams().Add("foo", base.String{"baz"}),
+			Headers:   base.NewParams().Add("baz", base.String{"bar"}).Add("a", base.String{"b"})}}},
 		test{sipUriInput("sip:bob@example.com:5;foo=baz?baz=bar&foo&a=b"), &sipUriResult{fail, base.SipUri{}}},
 		test{sipUriInput("sip:bob@example.com:5;foo=baz?foo"), &sipUriResult{fail, base.SipUri{}}},
 		test{sipUriInput("sip:bob@example.com:50;foo=baz?foo"), &sipUriResult{fail, base.SipUri{}}},
@@ -255,9 +253,9 @@ func TestHeaderBlocks(t *testing.T) {
 }
 */
 func TestToHeaders(t *testing.T) {
-	fooEqBar := base.Params{"foo": base.String{"bar"}}
-	fooSingleton := base.Params{"foo": base.NoString{}}
-	noParams := base.Params{}
+	fooEqBar := base.NewParams().Add("foo", base.String{"bar"})
+	fooSingleton := base.NewParams().Add("foo", base.NoString{})
+	noParams := base.NewParams()
 	doTests([]test{
 		test{toHeaderInput("To: \"Alice Liddell\" <sip:alice@wonderland.com>"), &toHeaderResult{pass,
 			&base.ToHeader{DisplayName: base.String{"Alice Liddell"},
@@ -390,9 +388,9 @@ func TestToHeaders(t *testing.T) {
 
 func TestFromHeaders(t *testing.T) {
 	// These are identical to the To: header tests, but there's no clean way to share them :(
-	fooEqBar := base.Params{"foo": base.String{"bar"}}
-	fooSingleton := base.Params{"foo": base.NoString{}}
-	noParams := base.Params{}
+	fooEqBar := base.NewParams().Add("foo", base.String{"bar"})
+	fooSingleton := base.NewParams().Add("foo", base.NoString{})
+	noParams := base.NewParams()
 	doTests([]test{
 		test{fromHeaderInput("From: \"Alice Liddell\" <sip:alice@wonderland.com>"), &fromHeaderResult{pass,
 			&base.FromHeader{DisplayName: base.String{"Alice Liddell"},
@@ -524,9 +522,9 @@ func TestFromHeaders(t *testing.T) {
 }
 
 func TestContactHeaders(t *testing.T) {
-	fooEqBar := base.Params{"foo": base.String{"bar"}}
-	fooSingleton := base.Params{"foo": base.NoString{}}
-	noParams := base.Params{}
+	fooEqBar := base.NewParams().Add("foo", base.String{"bar"})
+	fooSingleton := base.NewParams().Add("foo", base.NoString{})
+	noParams := base.NewParams()
 	doTests([]test{
 		test{contactHeaderInput("Contact: \"Alice Liddell\" <sip:alice@wonderland.com>"), &contactHeaderResult{
 			pass,
@@ -906,10 +904,10 @@ func TestContentLength(t *testing.T) {
 
 func TestViaHeaders(t *testing.T) {
 	// branch=z9hG4bKnashds8
-	noParams := base.Params{}
-	fooEqBar := base.Params{"foo": base.String{"bar"}}
-	fooEqSlashBar := base.Params{"foo": base.String{"//bar"}}
-	singleFoo := base.Params{"foo": base.NoString{}}
+	noParams := base.NewParams()
+	fooEqBar := base.NewParams().Add("foo", base.String{"bar"})
+	fooEqSlashBar := base.NewParams().Add("foo", base.String{"//bar"})
+	singleFoo := base.NewParams().Add("foo", base.NoString{})
 	doTests([]test{
 		test{viaInput("Via: SIP/2.0/UDP pc33.atlanta.com"), &viaResult{pass, &base.ViaHeader{&base.ViaHop{"SIP", "2.0", "UDP", "pc33.atlanta.com", nil, noParams}}}},
 		test{viaInput("Via: bAzz/fooo/BAAR pc33.atlanta.com"), &viaResult{pass, &base.ViaHeader{&base.ViaHop{"bAzz", "fooo", "BAAR", "pc33.atlanta.com", nil, noParams}}}},
@@ -942,12 +940,12 @@ func TestViaHeaders(t *testing.T) {
 
 // Basic test of unstreamed parsing, using empty INVITE.
 func TestUnstreamedParse1(t *testing.T) {
-	nilMap := make(base.Params)
+	noParams := base.NewParams()
 	test := ParserTest{false, []parserTestStep{
 		// Steps each have: Input, result, sent error, returned error
 		parserTestStep{"INVITE sip:bob@biloxi.com SIP/2.0\r\n\r\n",
 			base.NewRequest(base.INVITE,
-				&base.SipUri{false, base.String{"bob"}, base.NoString{}, "biloxi.com", nil, nilMap, nilMap},
+				&base.SipUri{false, base.String{"bob"}, base.NoString{}, "biloxi.com", nil, noParams, noParams},
 				"SIP/2.0",
 				make([]base.SipHeader, 0),
 				""),
@@ -960,7 +958,7 @@ func TestUnstreamedParse1(t *testing.T) {
 
 // Test unstreamed parsing with a header and body.
 func TestUnstreamedParse2(t *testing.T) {
-	nilMap := make(base.Params)
+	noParams := base.NewParams()
 	test := ParserTest{false, []parserTestStep{
 		// Steps each have: Input, result, sent error, returned error
 		parserTestStep{"INVITE sip:bob@biloxi.com SIP/2.0\r\n" +
@@ -968,7 +966,7 @@ func TestUnstreamedParse2(t *testing.T) {
 			"\r\n" +
 			"I am a banana",
 			base.NewRequest(base.INVITE,
-				&base.SipUri{false, base.String{"bob"}, base.NoString{}, "biloxi.com", nil, nilMap, nilMap},
+				&base.SipUri{false, base.String{"bob"}, base.NoString{}, "biloxi.com", nil, noParams, noParams},
 				"SIP/2.0",
 				[]base.SipHeader{&base.CSeq{13, base.INVITE}},
 				"I am a banana"),
@@ -1074,12 +1072,12 @@ func TestUnstreamedParse6(t *testing.T) {
 
 // Test requests of minimal length.
 func TestUnstreamedParse7(t *testing.T) {
-	nilMap := make(base.Params)
+	noParams := base.NewParams()
 
 	test := ParserTest{false, []parserTestStep{
 		parserTestStep{"ACK sip:foo@bar.com SIP/2.0\r\n\r\n",
 			base.NewRequest(base.ACK,
-				&base.SipUri{false, base.String{"foo"}, base.NoString{}, "bar.com", nil, nilMap, nilMap},
+				&base.SipUri{false, base.String{"foo"}, base.NoString{}, "bar.com", nil, noParams, noParams},
 				"SIP/2.0",
 				[]base.SipHeader{},
 				""),
@@ -1095,14 +1093,14 @@ func TestUnstreamedParse7(t *testing.T) {
 
 // Basic streamed parsing, using empty INVITE.
 func TestStreamedParse1(t *testing.T) {
-	nilMap := make(base.Params)
+	noParams := base.NewParams()
 	contentLength := base.ContentLength(0)
 	test := ParserTest{true, []parserTestStep{
 		// Steps each have: Input, result, sent error, returned error
 		parserTestStep{"INVITE sip:bob@biloxi.com SIP/2.0\r\n" +
 			"Content-Length: 0\r\n\r\n",
 			base.NewRequest(base.INVITE,
-				&base.SipUri{false, base.String{"bob"}, base.NoString{}, "biloxi.com", nil, nilMap, nilMap},
+				&base.SipUri{false, base.String{"bob"}, base.NoString{}, "biloxi.com", nil, noParams, noParams},
 				"SIP/2.0",
 				[]base.SipHeader{&contentLength},
 				""),
@@ -1115,14 +1113,14 @@ func TestStreamedParse1(t *testing.T) {
 
 // Test writing a single message in two stages (breaking after the start line).
 func TestStreamedParse2(t *testing.T) {
-	nilMap := make(base.Params)
+	noParams := base.NewParams()
 	contentLength := base.ContentLength(0)
 	test := ParserTest{true, []parserTestStep{
 		// Steps each have: Input, result, sent error, returned error
 		parserTestStep{"INVITE sip:bob@biloxi.com SIP/2.0\r\n", nil, nil, nil},
 		parserTestStep{"Content-Length: 0\r\n\r\n",
 			base.NewRequest(base.INVITE,
-				&base.SipUri{false, base.String{"bob"}, base.NoString{}, "biloxi.com", nil, nilMap, nilMap},
+				&base.SipUri{false, base.String{"bob"}, base.NoString{}, "biloxi.com", nil, noParams, noParams},
 				"SIP/2.0",
 				[]base.SipHeader{&contentLength},
 				""),
@@ -1135,7 +1133,7 @@ func TestStreamedParse2(t *testing.T) {
 
 // Test writing two successive messages, both with bodies.
 func TestStreamedParse3(t *testing.T) {
-	nilMap := make(base.Params)
+	noParams := base.NewParams()
 	contentLength23 := base.ContentLength(23)
 	contentLength33 := base.ContentLength(33)
 	test := ParserTest{true, []parserTestStep{
@@ -1144,7 +1142,7 @@ func TestStreamedParse3(t *testing.T) {
 		parserTestStep{"Content-Length: 23\r\n\r\n" +
 			"Hello!\r\nThis is a test.",
 			base.NewRequest(base.INVITE,
-				&base.SipUri{false, base.String{"bob"}, base.NoString{}, "biloxi.com", nil, nilMap, nilMap},
+				&base.SipUri{false, base.String{"bob"}, base.NoString{}, "biloxi.com", nil, noParams, noParams},
 				"SIP/2.0",
 				[]base.SipHeader{&contentLength23},
 				"Hello!\r\nThis is a test."),
@@ -1155,11 +1153,11 @@ func TestStreamedParse3(t *testing.T) {
 			"Contact: sip:alice@biloxi.com\r\n\r\n" +
 			"This is an ack! : \n ! \r\n contact:",
 			base.NewRequest(base.ACK,
-				&base.SipUri{false, base.String{"bob"}, base.NoString{}, "biloxi.com", nil, nilMap, nilMap},
+				&base.SipUri{false, base.String{"bob"}, base.NoString{}, "biloxi.com", nil, noParams, noParams},
 				"SIP/2.0",
 				[]base.SipHeader{
 					&contentLength33,
-					&base.ContactHeader{nil, &base.SipUri{false, base.String{"alice"}, base.NoString{}, "biloxi.com", nil, nilMap, nilMap}, nilMap},
+					&base.ContactHeader{nil, &base.SipUri{false, base.String{"alice"}, base.NoString{}, "biloxi.com", nil, noParams, noParams}, noParams},
 				},
 				"This is an ack! : \n ! \r\n contact:"),
 			nil,
@@ -1189,7 +1187,7 @@ func (data *paramInput) evaluate() result {
 
 type paramResult struct {
 	err      error
-	params   base.Params
+	params   *base.Params
 	consumed int
 }
 
@@ -1198,10 +1196,10 @@ func (expected *paramResult) equals(other result) (equal bool, reason string) {
 	if expected.err == nil && actual.err != nil {
 		return false, fmt.Sprintf("unexpected error: %s", actual.err.Error())
 	} else if expected.err != nil && actual.err == nil {
-		return false, fmt.Sprintf("unexpected success: got \"%s\"", base.ParamsToString(actual.params, '$', '-'))
-	} else if actual.err == nil && !base.ParamsEqual(expected.params, actual.params) {
+		return false, fmt.Sprintf("unexpected success: got \"%s\"", actual.params.ToString('-'))
+	} else if actual.err == nil && !expected.params.Equals(actual.params) {
 		return false, fmt.Sprintf("unexpected result: expected \"%s\", got \"%s\"",
-			base.ParamsToString(expected.params, '$', '-'), base.ParamsToString(actual.params, '$', '-'))
+			expected.params.ToString('-'), actual.params.ToString('-'))
 	} else if actual.err == nil && expected.consumed != actual.consumed {
 		return false, fmt.Sprintf("unexpected consumed value: expected %d, got %d", expected.consumed, actual.consumed)
 	}
@@ -1390,10 +1388,10 @@ func (expected *toHeaderResult) equals(other result) (equal bool, reason string)
 		return false, fmt.Sprintf("no support for testing Uri schema in Uri \"%s\" - fix me!", expected.header.Address)
 	}
 
-	if !base.ParamsEqual(expected.header.Params, actual.header.Params) {
+	if !expected.header.Params.Equals(actual.header.Params) {
 		return false, fmt.Sprintf("unexpected parameters \"%s\" (expected \"%s\")",
-			base.ParamsToString(actual.header.Params, '$', '-'),
-			base.ParamsToString(expected.header.Params, '$', '-'))
+			actual.header.Params.ToString('-'),
+			expected.header.Params.ToString('-'))
 	}
 
 	return true, ""
@@ -1458,10 +1456,10 @@ func (expected *fromHeaderResult) equals(other result) (equal bool, reason strin
 		return false, fmt.Sprintf("no support for testing Uri schema in Uri \"%s\" - fix me!", expected.header.Address)
 	}
 
-	if !base.ParamsEqual(expected.header.Params, actual.header.Params) {
+	if !expected.header.Params.Equals(actual.header.Params) {
 		return false, fmt.Sprintf("unexpected parameters \"%s\" (expected \"%s\")",
-			base.ParamsToString(actual.header.Params, '$', '-'),
-			base.ParamsToString(expected.header.Params, '$', '-'))
+			actual.header.Params.ToString('-'),
+			expected.header.Params.ToString('-'))
 	}
 
 	return true, ""
@@ -1530,10 +1528,10 @@ func (expected *contactHeaderResult) equals(other result) (equal bool, reason st
 			return false, fmt.Sprintf("expected Uri %#v; got Uri %#v", expected.headers[idx].Address, actual.headers[idx].Address)
 		}
 
-		if !base.ParamsEqual(expected.headers[idx].Params, actual.headers[idx].Params) {
+		if !expected.headers[idx].Params.Equals(actual.headers[idx].Params) {
 			return false, fmt.Sprintf("unexpected parameters \"%s\" (expected \"%s\")",
-				base.ParamsToString(actual.headers[idx].Params, '$', '-'),
-				base.ParamsToString(expected.headers[idx].Params, '$', '-'))
+				actual.headers[idx].Params.ToString('-'),
+				expected.headers[idx].Params.ToString('-'))
 		}
 	}
 
@@ -1766,11 +1764,11 @@ func (expected *viaResult) equals(other result) (equal bool, reason string) {
 		} else if !utils.Uint16PtrEq(expectedHop.Port, actualHop.Port) {
 			return false, fmt.Sprintf("unexpected port '%d' in via entry %d - expected '%d'",
 				uint16PtrStr(actualHop.Port), idx, uint16PtrStr(expectedHop.Port))
-		} else if !base.ParamsEqual(expectedHop.Params, actualHop.Params) {
+		} else if !expectedHop.Params.Equals(actualHop.Params) {
 			return false, fmt.Sprintf("unexpected params '%s' in via entry %d - expected '%s'",
-				base.ParamsToString(actualHop.Params, '$', '-'),
+				actualHop.Params.ToString('-'),
 				idx,
-				base.ParamsToString(expectedHop.Params, '$', '-'))
+				expectedHop.Params.ToString('-'))
 		}
 	}
 
