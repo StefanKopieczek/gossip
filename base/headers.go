@@ -234,6 +234,11 @@ type Params struct {
 	paramOrder []string
 }
 
+// Returns the parameter map.
+func (p *Params) Params() map[string]MaybeString {
+	return p.params
+}
+
 func (p *Params) Add(k string, v MaybeString) {
 	if p.params == nil {
 		p.params = map[string]MaybeString{}
