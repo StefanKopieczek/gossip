@@ -234,9 +234,15 @@ type Params struct {
 	paramOrder []string
 }
 
-// Returns the parameter map.
+// Returns the entire parameter map.
 func (p *Params) Params() map[string]MaybeString {
 	return p.params
+}
+
+// Returns the requested parameter value.
+func (p *Params) Get(k string) (MaybeString, bool) {
+	v, ok := p.params[k]
+	return v, ok
 }
 
 func (p *Params) Add(k string, v MaybeString) {
