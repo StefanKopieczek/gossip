@@ -16,10 +16,9 @@ import (
 
 var c_LOG_LEVEL = log.WARN
 
-func TestMain(m *testing.M) {
+func TestAAAAA(t *testing.T) {
 	timing.MockMode = true
 	log.SetDefaultLogLevel(c_LOG_LEVEL)
-    os.Exit(m.Run())
 }
 
 // Test that we can store and retrieve a connection.
