@@ -22,7 +22,6 @@ type connWatcher struct {
 	addr       string
 	conn       *connection
 	timer      timing.Timer
-	updated    chan bool
 	expiryTime time.Time
 	expiry     chan<- string
 	stop       chan bool
@@ -60,7 +59,10 @@ func (t *connTable) manage() {
 				t.conns[addr].stop <- true
 				t.conns[addr].conn.Close()
 				delete(t.conns, addr)
-			}
+			} else {
+                // Due to a race condition, the socket has been updated since this expiry happened.
+                // Ignore the expiry since we already have a new socket for this address.
+            }
 		case <-t.stop:
 			log.Info("Conntable %p stopped")
 			t.stopped = true
@@ -90,7 +92,7 @@ func (t *connTable) handleUpdate(update *connUpdate) {
 	watcher, entry_exists := t.conns[update.addr]
 	if !entry_exists {
 		log.Debug("No connection watcher registered for %s; spawn one", update.addr)
-		watcher = &connWatcher{update.addr, update.conn, timing.NewTimer(c_SOCKET_EXPIRY), make(chan bool), timing.Now().Add(c_SOCKET_EXPIRY), t.expiries, make(chan bool)}
+		watcher = &connWatcher{update.addr, update.conn, timing.NewTimer(c_SOCKET_EXPIRY), timing.Now().Add(c_SOCKET_EXPIRY), t.expiries, make(chan bool)}
 		t.conns[update.addr] = watcher
 		go watcher.loop()
 	}
@@ -120,12 +122,8 @@ func (t *connTable) Stop() {
 // Must only be called from the connTable goroutine (and in particular, must
 // *not* be called from the connWatcher goroutine).
 func (watcher *connWatcher) Update(c *connection) {
-	if watcher.timer != nil {
-		watcher.timer.Stop()
-	}
-
 	watcher.expiryTime = timing.Now().Add(c_SOCKET_EXPIRY)
-	watcher.timer = timing.NewTimer(c_SOCKET_EXPIRY)
+	watcher.timer.Reset(c_SOCKET_EXPIRY)
 	watcher.conn = c
 }
 
@@ -146,12 +144,6 @@ func (watcher *connWatcher) loop() {
 			// Socket expiry timer has run out. Close the connection.
 			log.Debug("Socket %p (%s) inactive for too long; close it", watcher.conn, watcher.addr)
 			watcher.expiry <- watcher.addr
-
-		case <-watcher.updated:
-			// The connTable just updated our associated connection and refreshed our timer.
-			// We don't need to do anything here except cycle the for loop so we're selecting on
-			// the new timer channel rather than the old one.
-			log.Debug("Connection watcher for address %s received an update ping", watcher.addr)
 
 		case stop := <-watcher.stop:
 			// We've received a termination signal; stop managing this connection.

@@ -1,6 +1,7 @@
 package transport
 
 import (
+    "os"
 	"testing"
 	"time"
 )
@@ -15,9 +16,10 @@ import (
 
 var c_LOG_LEVEL = log.WARN
 
-func TestAAAASetup(t *testing.T) {
+func TestMain(m *testing.M) {
 	timing.MockMode = true
 	log.SetDefaultLogLevel(c_LOG_LEVEL)
+    os.Exit(m.Run())
 }
 
 // Test that we can store and retrieve a connection.
@@ -43,7 +45,7 @@ func TestBasicExpiry(t *testing.T) {
 
 	table.Notify("bar", makeTestConn())
 	timing.Elapse(c_SOCKET_EXPIRY)
-	timing.Elapse(time.Millisecond * 20)
+	timing.Elapse(time.Nanosecond)
 
 	if table.GetConn("bar") != nil {
 		t.FailNow()
@@ -93,7 +95,7 @@ func TestReuse1(t *testing.T) {
 	conn := makeTestConn()
 	table.Notify("foo", conn)
 	timing.Elapse(c_SOCKET_EXPIRY)
-	timing.Elapse(time.Millisecond * 20)
+	timing.Elapse(time.Nanosecond)
 
 	table.Notify("foo", conn)
 	if table.GetConn("foo") != conn {
@@ -110,7 +112,7 @@ func TestReuse2(t *testing.T) {
 
 	table.Notify("foo", makeTestConn())
 	timing.Elapse(c_SOCKET_EXPIRY)
-	timing.Elapse(time.Millisecond * 20)
+	timing.Elapse(time.Nanosecond)
 
 	conn2 := makeTestConn()
 	table.Notify("foo", conn2)

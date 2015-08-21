@@ -56,11 +56,14 @@ func (t *mockTimer) Reset(d time.Duration) bool {
 	wasActive := removeMockTimer(t)
 
 	t.EndTime = currentTimeMock.Add(d)
-	if d == 0 {
+	if d > 0 {
+        mockTimers = append(mockTimers, t)
+	} else {
+        // The new timer has an expiry time of 0.
+        // Fire it right away, and don't bother tracking it.
 		t.Chan <- currentTimeMock
-	}
+    }
 
-	mockTimers = append(mockTimers, t)
 
 	return wasActive
 }
