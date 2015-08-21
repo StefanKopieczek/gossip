@@ -1,7 +1,6 @@
 package transport
 
 import (
-    "os"
 	"testing"
 	"time"
 )
