@@ -91,6 +91,7 @@ func TestSipUri(t *testing.T) {
 
 func TestHeaders(t *testing.T) {
 	doTests([]stringTest{
+		// To Headers.
 		{"Basic To Header",
 			&ToHeader{DisplayName: NoString{},
 				Address: &SipUri{User: String{"alice"}, Password: NoString{}, Host: "wonderland.com", UriParams: noParams, Headers: noParams},
@@ -106,6 +107,8 @@ func TestHeaders(t *testing.T) {
 				Address: &SipUri{User: String{"alice"}, Password: NoString{}, Host: "wonderland.com", UriParams: noParams, Headers: noParams},
 				Params:  NewParams().Add("food", String{"cake"})},
 			"To: <sip:alice@wonderland.com>;food=cake"},
+
+		// From Headers.
 		{"Basic From Header",
 			&FromHeader{DisplayName: NoString{},
 				Address: &SipUri{User: String{"alice"}, Password: NoString{}, Host: "wonderland.com", UriParams: noParams, Headers: noParams},
@@ -121,6 +124,8 @@ func TestHeaders(t *testing.T) {
 				Address: &SipUri{User: String{"alice"}, Password: NoString{}, Host: "wonderland.com", UriParams: noParams, Headers: noParams},
 				Params:  NewParams().Add("food", String{"cake"})},
 			"From: <sip:alice@wonderland.com>;food=cake"},
+
+		// Contact Headers
 		{"Basic Contact Header",
 			&ContactHeader{DisplayName: NoString{},
 				Address: &SipUri{User: String{"alice"}, Password: NoString{}, Host: "wonderland.com", UriParams: noParams, Headers: noParams},
@@ -145,5 +150,48 @@ func TestHeaders(t *testing.T) {
 		{"Contact Header with Wildcard URI and parameters",
 			&ContactHeader{DisplayName: NoString{}, Address: &WildcardUri{}, Params: NewParams().Add("food", String{"cake"})},
 			"Contact: *;food=cake"},
+
+		// Via Headers.
+		{"Basic Via Header", ViaHeader{&ViaHop{"SIP", "2.0", "UDP", "wonderland.com", nil, NewParams()}}, "Via: SIP/2.0/UDP wonderland.com"},
+		{"Via Header with port", ViaHeader{&ViaHop{"SIP", "2.0", "UDP", "wonderland.com", &port6060, NewParams()}}, "Via: SIP/2.0/UDP wonderland.com:6060"},
+		{"Via Header with params", ViaHeader{
+			&ViaHop{"SIP", "2.0", "UDP", "wonderland.com", &port6060, NewParams().Add("food", String{"cake"}).Add("delicious", NoString{})}},
+			"Via: SIP/2.0/UDP wonderland.com:6060;food=cake;delicious"},
+		{"Via Header with 3 simple hops", ViaHeader{
+			&ViaHop{"SIP", "2.0", "UDP", "wonderland.com", nil, NewParams()},
+			&ViaHop{"SIP", "2.0", "TCP", "looking-glass.net", nil, NewParams()},
+			&ViaHop{"SIP", "2.0", "UDP", "oxford.co.uk", nil, NewParams()},
+		}, "Via: SIP/2.0/UDP wonderland.com, SIP/2.0/TCP looking-glass.net, SIP/2.0/UDP oxford.co.uk"},
+		{"Via Header with 3 complex hops", ViaHeader{
+			&ViaHop{"SIP", "2.0", "UDP", "wonderland.com", &port5060, NewParams()},
+			&ViaHop{"SIP", "2.0", "TCP", "looking-glass.net", &port6060, NewParams().Add("food", String{"cake"})},
+			&ViaHop{"SIP", "2.0", "UDP", "oxford.co.uk", nil, NewParams().Add("delicious", NoString{})},
+		}, "Via: SIP/2.0/UDP wonderland.com:5060, SIP/2.0/TCP looking-glass.net:6060;food=cake, SIP/2.0/UDP oxford.co.uk;delicious"},
+
+		// Require Headers.
+		{"Require Header (empty)", &RequireHeader{[]string{}}, "Require: "},
+		{"Require Header (one option)", &RequireHeader{[]string{"NewFeature1"}}, "Require: NewFeature1"},
+		{"Require Header (three options)", &RequireHeader{[]string{"NewFeature1", "FunkyExtension", "UnnecessaryAddition"}}, "Require: NewFeature1, FunkyExtension, UnnecessaryAddition"},
+
+		// Supported Headers.
+		{"Supported Header (empty)", &SupportedHeader{[]string{}}, "Supported: "},
+		{"Supported Header (one option)", &SupportedHeader{[]string{"NewFeature1"}}, "Supported: NewFeature1"},
+		{"Supported Header (three options)", &SupportedHeader{[]string{"NewFeature1", "FunkyExtension", "UnnecessaryAddition"}}, "Supported: NewFeature1, FunkyExtension, UnnecessaryAddition"},
+
+		// Proxy-Require Headers.
+		{"Proxy-Require Header (empty)", &ProxyRequireHeader{[]string{}}, "Proxy-Require: "},
+		{"Proxy-Require Header (one option)", &ProxyRequireHeader{[]string{"NewFeature1"}}, "Proxy-Require: NewFeature1"},
+		{"Proxy-Require Header (three options)", &ProxyRequireHeader{[]string{"NewFeature1", "FunkyExtension", "UnnecessaryAddition"}}, "Proxy-Require: NewFeature1, FunkyExtension, UnnecessaryAddition"},
+
+		// Unsupported Headers.
+		{"Unsupported Header (empty)", &UnsupportedHeader{[]string{}}, "Unsupported: "},
+		{"Unsupported Header (one option)", &UnsupportedHeader{[]string{"NewFeature1"}}, "Unsupported: NewFeature1"},
+		{"Unsupported Header (three options)", &UnsupportedHeader{[]string{"NewFeature1", "FunkyExtension", "UnnecessaryAddition"}}, "Unsupported: NewFeature1, FunkyExtension, UnnecessaryAddition"},
+
+		// Various simple headers.
+		{"Call-Id Header", CallId("call-id-1"), "Call-Id: call-id-1"},
+		{"CSeq Header", &CSeq{1234, "INVITE"}, "CSeq: 1234 INVITE"},
+		{"Max Forwards Header", MaxForwards(70), "Max-Forwards: 70"},
+		{"Content Length Header", ContentLength(70), "Content-Length: 70"},
 	}, t)
 }
