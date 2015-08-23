@@ -75,7 +75,7 @@ func (t *mockTimer) Stop() bool {
 // depending on whether MockMode is set.
 func NewTimer(d time.Duration) Timer {
 	if MockMode {
-		t := mockTimer{currentTimeMock.Add(d), make(chan time.Time)}
+		t := mockTimer{currentTimeMock.Add(d), make(chan time.Time, 1)}
 		if d == 0 {
 			t.Chan <- currentTimeMock
 		} else {
@@ -117,7 +117,7 @@ func Elapse(d time.Duration) {
 
 	// Fire any timers whose time has come up.
 	for _, t := range mockTimers {
-		if currentTimeMock.After(t.EndTime) {
+		if !t.EndTime.Before(currentTimeMock) {
 			t.Chan <- currentTimeMock
 			fired = append(fired, t)
 		}
