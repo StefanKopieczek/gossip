@@ -202,7 +202,9 @@ func (mng *Manager) Send(r *base.Request, dest string) *ClientTransaction {
 	tx.timer_a = timing.AfterFunc(tx.timer_a_time, func() {
 		tx.fsm.Spin(client_input_timer_a)
 	})
+	log.Debug("Client transaction %p, timer_b set to %v!", tx, 64*T1)
 	tx.timer_b = timing.AfterFunc(64*T1, func() {
+		log.Debug("Client transaction %p, timer_b fired!", tx)
 		tx.fsm.Spin(client_input_timer_b)
 	})
 

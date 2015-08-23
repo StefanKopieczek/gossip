@@ -142,6 +142,7 @@ func (tx *ClientTransaction) Receive(m base.SipMessage) {
 
 // Resend the originating request.
 func (tx *ClientTransaction) resend() {
+	log.Info("Client transaction %p resending request: %v", tx, tx.origin.Short())
 	err := tx.transport.Send(tx.dest, tx.origin)
 	if err != nil {
 		tx.fsm.Spin(client_input_transport_err)
@@ -150,16 +151,19 @@ func (tx *ClientTransaction) resend() {
 
 // Pass up the most recently received response to the TU.
 func (tx *ClientTransaction) passUp() {
+	log.Info("Client transaction %p passing up response: %v", tx, tx.lastResp.Short())
 	tx.tu <- tx.lastResp
 }
 
 // Send an error to the TU.
 func (tx *ClientTransaction) transportError() {
+	log.Info("Client transaction %p had a transport-level error", tx)
 	tx.tu_err <- errors.New("failed to send message.")
 }
 
 // Inform the TU that the transaction timed out.
 func (tx *ClientTransaction) timeoutError() {
+	log.Info("Client transaction %p timed out", tx)
 	tx.tu_err <- errors.New("transaction timed out.")
 }
 
