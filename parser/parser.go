@@ -509,10 +509,10 @@ func ParseSipUri(uriStr string) (uri base.SipUri, err error) {
 	if err != nil {
 		return
 	} else if len(uriStr) == 0 {
-        uri.UriParams = base.NewParams()
-        uri.Headers = base.NewParams()
-        return
-    }
+		uri.UriParams = base.NewParams()
+		uri.Headers = base.NewParams()
+		return
+	}
 
 	// Now parse any URI parameters.
 	// These are key-value pairs separated by ';'.
@@ -966,6 +966,7 @@ func parseViaHeader(headerName string, headerText string) (
 			if err != nil {
 				return
 			}
+			hop.Params = base.NewParams()
 		} else {
 			host, port, err = parseHostPort(viaBody[:paramsIdx])
 			if err != nil {
