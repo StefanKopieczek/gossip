@@ -137,3 +137,43 @@ func TestNotExpiredReset(t *testing.T) {
 		t.Fatal("Timer didn't fire at it's new end time after being reset.")
 	}
 }
+
+// This is a regression test for a bug where:
+//  - Create 3 timers.
+//  - Reset() the first one.
+//  - The third timer is now no longer tracked and won't fire.
+func TestThreeTimersWithReset(t *testing.T) {
+	MockMode = true
+	timer1 := NewTimer(1 * time.Second)
+	done1 := make(chan struct{})
+
+	timer2 := NewTimer(2 * time.Second)
+	done2 := make(chan struct{})
+
+	timer3 := NewTimer(3 * time.Second)
+	done3 := make(chan struct{})
+
+	go func() {
+		<-timer1.C()
+		done1 <- struct{}{}
+	}()
+
+	go func() {
+		<-timer2.C()
+		done2 <- struct{}{}
+	}()
+
+	go func() {
+		<-timer3.C()
+		done3 <- struct{}{}
+	}()
+
+	timer1.Reset(4 * time.Second)
+
+	Elapse(2 * time.Second)
+	<-done2
+
+	Elapse(1 * time.Second)
+	// Panic here if bug exists.
+	<-done3
+}
