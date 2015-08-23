@@ -40,18 +40,24 @@ func (tx *ClientTransaction) initFSM() {
 }
 
 func (tx *ClientTransaction) initInviteFSM() {
+	log.Debug("Initialising client INVITE transaction FSM")
+
 	// Define Actions
 
 	// Resend the request.
 	act_resend := func() fsm.Input {
+		log.Debug("Client transaction %p, act_resend", tx)
 		tx.timer_a_time *= 2
-		tx.timer_a.Reset(tx.timer_a_time)
+		tx.timer_a = timing.AfterFunc(tx.timer_a_time, func() {
+			tx.fsm.Spin(client_input_timer_a)
+		})
 		tx.resend()
 		return fsm.NO_INPUT
 	}
 
 	// Just pass up the latest response.
 	act_passup := func() fsm.Input {
+		log.Debug("Client transaction %p, act_passup", tx)
 		tx.passUp()
 		return fsm.NO_INPUT
 	}
@@ -59,6 +65,7 @@ func (tx *ClientTransaction) initInviteFSM() {
 	// Handle 300+ responses.
 	// Pass up response and send ACK, start timer D.
 	act_300 := func() fsm.Input {
+		log.Debug("Client transaction %p, act_300", tx)
 		tx.passUp()
 		tx.Ack()
 		if tx.timer_d != nil {
@@ -72,24 +79,28 @@ func (tx *ClientTransaction) initInviteFSM() {
 
 	// Send an ACK.
 	act_ack := func() fsm.Input {
+		log.Debug("Client transaction %p, act_ack", tx)
 		tx.Ack()
 		return fsm.NO_INPUT
 	}
 
 	// Send up transport failure error.
 	act_trans_err := func() fsm.Input {
+		log.Debug("Client transaction %p, act_trans_err", tx)
 		tx.transportError()
 		return client_input_delete
 	}
 
 	// Send up timeout error.
 	act_timeout := func() fsm.Input {
+		log.Debug("Client transaction %p, act_timeout", tx)
 		tx.timeoutError()
 		return client_input_delete
 	}
 
 	// Pass up the response and delete the transaction.
 	act_passup_delete := func() fsm.Input {
+		log.Debug("Client transaction %p, act_passup_delete", tx)
 		tx.passUp()
 		tx.Delete()
 		return fsm.NO_INPUT
@@ -97,6 +108,7 @@ func (tx *ClientTransaction) initInviteFSM() {
 
 	// Just delete the transaction.
 	act_delete := func() fsm.Input {
+		log.Debug("Client transaction %p, act_delete", tx)
 		tx.Delete()
 		return fsm.NO_INPUT
 	}
@@ -170,6 +182,8 @@ func (tx *ClientTransaction) initInviteFSM() {
 }
 
 func (tx *ClientTransaction) initNonInviteFSM() {
+	log.Debug("Initialising client non-INVITE transaction FSM")
+
 	// Define Actions
 
 	// Resend the request.

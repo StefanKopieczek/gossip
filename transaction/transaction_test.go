@@ -3,6 +3,7 @@ package transaction
 import (
 	"fmt"
 	"github.com/stefankopieczek/gossip/base"
+	"github.com/stefankopieczek/gossip/log"
 	"github.com/stefankopieczek/gossip/parser"
 	"github.com/stefankopieczek/gossip/timing"
 	"github.com/stefankopieczek/gossip/transport"
@@ -66,6 +67,7 @@ type transactionTest struct {
 func (test *transactionTest) Execute() {
 	var err error
 	timing.MockMode = true
+	log.SetDefaultLogLevel(log.DEBUG)
 	transport := newDummyTransport()
 	test.tm, err = NewManager(transport, c_CLIENT)
 	assertNoError(test.t, err)
