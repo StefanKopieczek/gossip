@@ -57,13 +57,12 @@ func (t *mockTimer) Reset(d time.Duration) bool {
 
 	t.EndTime = currentTimeMock.Add(d)
 	if d > 0 {
-        mockTimers = append(mockTimers, t)
+		mockTimers = append(mockTimers, t)
 	} else {
-        // The new timer has an expiry time of 0.
-        // Fire it right away, and don't bother tracking it.
+		// The new timer has an expiry time of 0.
+		// Fire it right away, and don't bother tracking it.
 		t.Chan <- currentTimeMock
-    }
-
+	}
 
 	return wasActive
 }
@@ -91,6 +90,17 @@ func NewTimer(d time.Duration) Timer {
 // See built-in time.After() function.
 func After(d time.Duration) <-chan time.Time {
 	return NewTimer(d).C()
+}
+
+// See built-in time.AfterFunc() function.
+func AfterFunc(d time.Duration, f func()) Timer {
+	t := NewTimer(d)
+	go func() {
+		if _, ok := <-t.C(); ok {
+			f()
+		}
+	}()
+	return t
 }
 
 // See built-in time.Sleep() function.
