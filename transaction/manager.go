@@ -83,7 +83,7 @@ func (mng *Manager) putTx(tx Transaction) {
 		panic(errors.New("Headers('Via') returned non-Via header!"))
 	}
 
-	branch, ok := (*via)[0].Params["branch"]
+	branch, ok := (*via)[0].Params.Get("branch")
 	if !ok {
 		log.Warn("No branch parameter on top Via header.  Transaction will be dropped.")
 		return
@@ -112,7 +112,7 @@ func (mng *Manager) makeKey(s base.SipMessage) (key, bool) {
 		panic(errors.New("Headers('Via') returned non-Via header!"))
 	}
 
-	b, ok := (*via)[0].Params["branch"]
+	b, ok := (*via)[0].Params.Get("branch")
 	if !ok {
 		return key{}, false
 	}

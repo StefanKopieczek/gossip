@@ -1,6 +1,7 @@
 package base
 
 import (
+	"github.com/stefankopieczek/gossip/log"
 	"github.com/stefankopieczek/gossip/utils"
 )
 
@@ -93,14 +94,13 @@ type SipUri struct {
 	// These are used to provide information about requests that may be constructed from the URI.
 	// (For more details, see RFC 3261 section 19.1.1).
 	// These appear as a semicolon-separated list of key=value pairs following the host[:port] part.
-	// Note that not all keys have an associated value, so the values of the map may be nil.
 	UriParams Params
 
 	// Any headers to be included on requests constructed from this URI.
 	// These appear as a '&'-separated list at the end of the URI, introduced by '?'.
-	// Although the values of the map are pointers, they will never be nil in practice as the parser
-	// guarantees to not return nil values for header elements in SIP URIs.
-	// You should not set the values of headers to nil.
+	// Although the values of the map are MaybeStrings, they will never be NoString in practice as the parser
+	// guarantees to not return blank values for header elements in SIP URIs.
+	// You should not set the values of headers to NoString.
 	Headers Params
 }
 
@@ -148,11 +148,11 @@ func (uri *SipUri) Equals(otherUri Uri) bool {
 		return false
 	}
 
-	if !ParamsEqual(uri.UriParams, other.UriParams) {
+	if !uri.UriParams.Equals(other.UriParams) {
 		return false
 	}
 
-	if !ParamsEqual(uri.Headers, other.Headers) {
+	if !uri.Headers.Equals(other.Headers) {
 		return false
 	}
 
@@ -193,8 +193,15 @@ func (uri *SipUri) String() string {
 		buffer.WriteString(strconv.Itoa(int(*uri.Port)))
 	}
 
-	buffer.WriteString(ParamsToString(uri.UriParams, ';', ';'))
-	buffer.WriteString(ParamsToString(uri.Headers, '?', '&'))
+	if uri.UriParams.Length() > 0 {
+		buffer.WriteString(";")
+		buffer.WriteString(uri.UriParams.ToString(';'))
+	}
+
+	if uri.Headers.Length() > 0 {
+		buffer.WriteString("?")
+		buffer.WriteString(uri.Headers.ToString('&'))
+	}
 
 	return buffer.String()
 }
@@ -227,15 +234,131 @@ func (uri WildcardUri) Equals(other Uri) bool {
 }
 
 // Generic list of parameters on a header.
-type Params map[string]MaybeString
+type Params interface {
+	Get(k string) (MaybeString, bool)
+	Add(k string, v MaybeString) Params
+	Copy() Params
+	Equals(p Params) bool
+	ToString(sep uint8) string
+	Length() int
+	Items() map[string]MaybeString
+	Keys() []string
+}
+
+type params struct {
+	params     map[string]MaybeString
+	paramOrder []string
+}
+
+// Create an empty set of parameters.
+func NewParams() Params {
+	return &params{map[string]MaybeString{}, []string{}}
+}
+
+// Returns the entire parameter map.
+func (p *params) Items() map[string]MaybeString {
+	return p.params
+}
+
+// Returns a slice of keys, in order.
+func (p *params) Keys() []string {
+	return p.paramOrder
+}
+
+// Returns the requested parameter value.
+func (p *params) Get(k string) (MaybeString, bool) {
+	v, ok := p.params[k]
+	return v, ok
+}
+
+// Add a new parameter.
+func (p *params) Add(k string, v MaybeString) Params {
+	// Add param to order list if new.
+	if _, ok := p.params[k]; !ok {
+		p.paramOrder = append(p.paramOrder, k)
+	}
+
+	// Set param value.
+	p.params[k] = v
+
+	// Return the params so calls can be chained.
+	return p
+}
 
 // Copy a list of params.
-func (p Params) Copy() Params {
-	dup := make(map[string]MaybeString, len(p))
-	for k, v := range p {
-		dup[k] = v
+func (p *params) Copy() Params {
+	dup := NewParams()
+	for _, k := range p.Keys() {
+		if v, ok := p.Get(k); ok {
+			dup.Add(k, v)
+		} else {
+			log.Severe("Internal consistency error. Key %v present in param.Keys() but failed to Get()!", k)
+		}
 	}
+
 	return dup
+}
+
+// Render params to a string.
+// Note that this does not escape special characters, this should already have been done before calling this method.
+func (p *params) ToString(sep uint8) string {
+	var buffer bytes.Buffer
+	first := true
+
+	for _, k := range p.Keys() {
+		v, ok := p.Get(k)
+		if !ok {
+			log.Severe("Internal consistency error. Key %v present in param.Keys() but failed to Get()!", k)
+			continue
+		}
+
+		if !first {
+			buffer.WriteString(fmt.Sprintf("%c", sep))
+		}
+		first = false
+
+		buffer.WriteString(fmt.Sprintf("%s", k))
+
+		switch v := v.(type) {
+		case String:
+			if strings.ContainsAny(v.String(), c_ABNF_WS) {
+				buffer.WriteString(fmt.Sprintf("=\"%s\"", v.String()))
+			} else {
+				buffer.WriteString(fmt.Sprintf("=%s", v.String()))
+			}
+		}
+	}
+
+	return buffer.String()
+}
+
+// Returns number of params.
+func (p *params) Length() int {
+	return len(p.params)
+}
+
+// Check if two maps of parameters are equal in the sense of having the same keys with the same values.
+// This does not rely on any ordering of the keys of the map in memory.
+func (p *params) Equals(q Params) bool {
+	if p.Length() == 0 && q.Length() == 0 {
+		return true
+	}
+
+	if p.Length() != q.Length() {
+		return false
+	}
+
+	for k, p_val := range p.Items() {
+		q_val, ok := q.Get(k)
+		if !ok {
+			return false
+		}
+		if p_val != q_val {
+			return false
+		}
+	}
+
+	return true
 }
 
 // Encapsulates a header that gossip does not natively support.
@@ -284,7 +407,11 @@ func (to *ToHeader) String() string {
 	}
 
 	buffer.WriteString(fmt.Sprintf("<%s>", to.Address))
-	buffer.WriteString(ParamsToString(to.Params, ';', ';'))
+
+	if to.Params.Length() > 0 {
+		buffer.WriteString(";")
+		buffer.WriteString(to.Params.ToString(';'))
+	}
 
 	return buffer.String()
 }
@@ -316,7 +443,10 @@ func (from *FromHeader) String() string {
 	}
 
 	buffer.WriteString(fmt.Sprintf("<%s>", from.Address))
-	buffer.WriteString(ParamsToString(from.Params, ';', ';'))
+	if from.Params.Length() > 0 {
+		buffer.WriteString(";")
+		buffer.WriteString(from.Params.ToString(';'))
+	}
 
 	return buffer.String()
 }
@@ -355,7 +485,10 @@ func (contact *ContactHeader) String() string {
 		buffer.WriteString(fmt.Sprintf("<%s>", contact.Address.String()))
 	}
 
-	buffer.WriteString(ParamsToString(contact.Params, ';', ';'))
+	if contact.Params.Length() > 0 {
+		buffer.WriteString(";")
+		buffer.WriteString(contact.Params.ToString(';'))
+	}
 
 	return buffer.String()
 }
@@ -442,7 +575,10 @@ func (hop *ViaHop) String() string {
 		buffer.WriteString(fmt.Sprintf(":%d", *hop.Port))
 	}
 
-	buffer.WriteString(ParamsToString(hop.Params, ';', ';'))
+	if hop.Params.Length() > 0 {
+		buffer.WriteString(";")
+		buffer.WriteString(hop.Params.ToString(';'))
+	}
 
 	return buffer.String()
 }
@@ -555,53 +691,4 @@ func (h *UnsupportedHeader) Copy() SipHeader {
 	dup := make([]string, len(h.Options))
 	copy(h.Options, dup)
 	return &UnsupportedHeader{dup}
-}
-
-// Utility method for converting a map of parameters to a flat string representation.
-// Takes the map of parameters, and start and end characters (e.g. '?' and '&').
-// It is assumed that key/value pairs are always represented as "key=value".
-// Note that this method does not escape special characters - that should be done before calling this method.
-func ParamsToString(params Params, start uint8, sep uint8) string {
-	var buffer bytes.Buffer
-	first := true
-	for key, value := range params {
-		if first {
-			buffer.WriteString(fmt.Sprintf("%c", start))
-			first = false
-		} else {
-			buffer.WriteString(fmt.Sprintf("%c", sep))
-		}
-		switch value := value.(type) {
-		case NoString:
-			buffer.WriteString(fmt.Sprintf("%s", key))
-		case String:
-			if strings.ContainsAny(value.String(), c_ABNF_WS) {
-				buffer.WriteString(fmt.Sprintf("%s=\"%s\"", key, value.String()))
-			} else {
-				buffer.WriteString(fmt.Sprintf("%s=%s", key, value.String()))
-			}
-		}
-	}
-
-	return buffer.String()
-}
-
-// Check if two maps of parameters are equal in the sense of having the same keys with the same values.
-// This does not rely on any ordering of the keys of the map in memory.
-func ParamsEqual(a Params, b Params) bool {
-	if len(a) != len(b) {
-		return false
-	}
-
-	for key, a_val := range a {
-		b_val, ok := b[key]
-		if !ok {
-			return false
-		}
-		if a_val != b_val {
-			return false
-		}
-	}
-
-	return true
 }

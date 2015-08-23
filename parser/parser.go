@@ -506,7 +506,11 @@ func ParseSipUri(uriStr string) (uri base.SipUri, err error) {
 
 	uri.Host, uri.Port, err = parseHostPort(uriStr[:endOfUriPart])
 	uriStr = uriStr[endOfUriPart:]
-	if err != nil || len(uriStr) == 0 {
+	if err != nil {
+		return
+	} else if len(uriStr) == 0 {
+		uri.UriParams = base.NewParams()
+		uri.Headers = base.NewParams()
 		return
 	}
 
@@ -522,7 +526,7 @@ func ParseSipUri(uriStr string) (uri base.SipUri, err error) {
 			return
 		}
 	} else {
-		uriParams, n = base.Params{}, 0
+		uriParams, n = base.NewParams(), 0
 	}
 	uri.UriParams = uriParams
 	uriStr = uriStr[n:]
@@ -581,7 +585,7 @@ func parseParams(source string,
 	quoteValues bool, permitSingletons bool) (
 	params base.Params, consumed int, err error) {
 
-	params = base.Params(make(map[string]base.MaybeString))
+	params = base.NewParams()
 
 	if len(source) == 0 {
 		// Key-value section is completely empty; return defaults.
@@ -624,14 +628,14 @@ parseLoop:
 				continue
 			}
 			if parsingKey && permitSingletons {
-				params[buffer.String()] = base.NoString{}
+				params.Add(buffer.String(), base.NoString{})
 			} else if parsingKey {
 				err = fmt.Errorf("Singleton param '%s' when parsing params which disallow singletons: \"%s\"",
 					buffer.String(), source)
 				return
 			} else {
 				value := buffer.String()
-				params[key] = base.String{value}
+				params.Add(key, base.String{value})
 			}
 			buffer.Reset()
 			parsingKey = true
@@ -695,13 +699,13 @@ parseLoop:
 	if inQuotes {
 		err = fmt.Errorf("Unclosed quotes in parameter string: %s", source)
 	} else if parsingKey && permitSingletons {
-		params[buffer.String()] = base.NoString{}
+		params.Add(buffer.String(), base.NoString{})
 	} else if parsingKey {
 		err = fmt.Errorf("Singleton param '%s' when parsing params which disallow singletons: \"%s\"",
 			buffer.String(), source)
 	} else {
 		value := buffer.String()
-		params[key] = base.String{value}
+		params.Add(key, base.String{value})
 	}
 	return
 }
@@ -807,7 +811,7 @@ func parseAddressHeader(headerName string, headerText string) (
 				switch uris[idx].(type) {
 				case base.ContactUri:
 					if uris[idx].(base.ContactUri).IsWildcard() {
-						if len(paramSets[idx]) > 0 {
+						if paramSets[idx].Length() > 0 {
 							// Wildcard headers do not contain parameters.
 							err = fmt.Errorf("wildcard contact header should contain no parameters: '%s",
 								headerText)
@@ -962,6 +966,7 @@ func parseViaHeader(headerName string, headerText string) (
 			if err != nil {
 				return
 			}
+			hop.Params = base.NewParams()
 		} else {
 			host, port, err = parseHostPort(viaBody[:paramsIdx])
 			if err != nil {
@@ -1059,6 +1064,8 @@ func parseAddressValues(addresses string) (
 func parseAddressValue(addressText string) (
 	displayName base.MaybeString, uri base.Uri,
 	headerParams base.Params, err error) {
+
+	headerParams = base.NewParams()
 
 	if len(addressText) == 0 {
 		err = fmt.Errorf("address-type header has empty body")
