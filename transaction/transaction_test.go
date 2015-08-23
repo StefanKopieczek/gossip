@@ -140,6 +140,16 @@ func (actn *transportRecv) Act(test *transactionTest) error {
 	}
 }
 
+type wait struct {
+	d time.Duration
+}
+
+func (actn *wait) Act(test *transactionTest) error {
+	test.t.Logf("Elapsing time by %v", actn.d)
+	timing.Elapse(actn.d)
+	return nil
+}
+
 func assert(t *testing.T, b bool, msg string) {
 	if !b {
 		t.Errorf(msg)
