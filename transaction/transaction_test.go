@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/stefankopieczek/gossip/base"
 	"github.com/stefankopieczek/gossip/parser"
+	"github.com/stefankopieczek/gossip/timing"
 	"github.com/stefankopieczek/gossip/transport"
 	"strings"
 	"testing"
@@ -63,8 +64,8 @@ type transactionTest struct {
 }
 
 func (test *transactionTest) Execute() {
-	defer func() { <-time.After(time.Millisecond * 200) }()
 	var err error
+	timing.MockMode = true
 	transport := newDummyTransport()
 	test.tm, err = NewManager(transport, c_CLIENT)
 	assertNoError(test.t, err)
