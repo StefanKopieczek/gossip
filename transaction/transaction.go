@@ -7,6 +7,7 @@ import (
 	"github.com/discoviking/fsm"
 	"github.com/stefankopieczek/gossip/base"
 	"github.com/stefankopieczek/gossip/log"
+	"github.com/stefankopieczek/gossip/timing"
 	"github.com/stefankopieczek/gossip/transport"
 )
 
@@ -61,10 +62,10 @@ type ClientTransaction struct {
 	tu           chan *base.Response // Channel to transaction user.
 	tu_err       chan error          // Channel to report up errors to TU.
 	timer_a_time time.Duration       // Current duration of timer A.
-	timer_a      *time.Timer
-	timer_b      *time.Timer
+	timer_a      timing.Timer
+	timer_b      timing.Timer
 	timer_d_time time.Duration // Current duration of timer A.
-	timer_d      *time.Timer
+	timer_d      timing.Timer
 }
 
 type ServerTransaction struct {
@@ -73,9 +74,9 @@ type ServerTransaction struct {
 	tu      chan *base.Response // Channel to transaction user.
 	tu_err  chan error          // Channel to report up errors to TU.
 	ack     chan *base.Request  // Channel we send the ACK up on.
-	timer_g *time.Timer
-	timer_h *time.Timer
-	timer_i *time.Timer
+	timer_g timing.Timer
+	timer_h timing.Timer
+	timer_i timing.Timer
 }
 
 func (tx *ServerTransaction) Receive(m base.SipMessage) {
