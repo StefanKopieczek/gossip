@@ -506,11 +506,10 @@ func (callId CallId) String() string {
 	return "Call-Id: " + (string)(callId)
 }
 
-func (h *CallId) Name() string { return "Call-Id" }
+func (h CallId) Name() string { return "Call-Id" }
 
-func (h *CallId) Copy() SipHeader {
-	temp := *h
-	return &temp
+func (h CallId) Copy() SipHeader {
+	return h
 }
 
 type CSeq struct {
