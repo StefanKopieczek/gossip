@@ -47,6 +47,7 @@ type mockTimer struct {
 	EndTime time.Time
 	Chan    chan time.Time
 	fired   bool
+	toRun   func()
 }
 
 func (t *mockTimer) C() <-chan time.Time {
@@ -76,7 +77,7 @@ func (t *mockTimer) Stop() bool {
 // depending on whether MockMode is set.
 func NewTimer(d time.Duration) Timer {
 	if MockMode {
-		t := mockTimer{currentTimeMock.Add(d), make(chan time.Time, 1), false}
+		t := mockTimer{currentTimeMock.Add(d), make(chan time.Time, 1), false, nil}
 		if d == 0 {
 			t.Chan <- currentTimeMock
 		} else {
@@ -95,13 +96,18 @@ func After(d time.Duration) <-chan time.Time {
 
 // See built-in time.AfterFunc() function.
 func AfterFunc(d time.Duration, f func()) Timer {
-	t := NewTimer(d)
-	go func() {
-		if _, ok := <-t.C(); ok {
-			f()
+	if MockMode {
+		t := mockTimer{currentTimeMock.Add(d), make(chan time.Time, 1), false, f}
+		if d == 0 {
+			go f()
+			t.Chan <- currentTimeMock
+		} else {
+			mockTimers = append(mockTimers, &t)
 		}
-	}()
-	return t
+		return &t
+	} else {
+		return &realTimer{time.AfterFunc(d, f)}
+	}
 }
 
 // See built-in time.Sleep() function.
@@ -119,6 +125,16 @@ func Elapse(d time.Duration) {
 	for _, t := range mockTimers {
 		t.fired = false
 		if !t.EndTime.After(currentTimeMock) {
+			if t.toRun != nil {
+				go t.toRun()
+			}
+
+			// Clear the channel if something is already in it.
+			select {
+			case <-t.Chan:
+			default:
+			}
+
 			t.Chan <- currentTimeMock
 			t.fired = true
 		}

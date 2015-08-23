@@ -86,17 +86,44 @@ func TestAfterFuncReset(t *testing.T) {
 
 	select {
 	case <-done:
-		t.Fatal("AfterFunc fired at it's old end time after being reset.")
+		t.Fatal("AfterFunc fired at its old end time after being reset.")
 	case <-time.After(50 * time.Millisecond):
-		t.Log("AfterFunc correctly didn't fire at it's old end time after being reset.")
+		t.Log("AfterFunc correctly didn't fire at its old end time after being reset.")
 	}
 
 	Elapse(3 * time.Second)
 	select {
 	case <-done:
-		t.Log("Timer correctly fired at it's new end time after being reset.")
+		t.Log("AfterFunc correctly fired at its new end time after being reset.")
 	case <-time.After(50 * time.Millisecond):
-		t.Fatal("Timer didn't fire at it's new end time after being reset.")
+		t.Fatal("AfterFunc didn't fire at its new end time after being reset.")
+	}
+}
+
+func TestAfterFuncExpiredReset(t *testing.T) {
+	MockMode = true
+	done := make(chan struct{})
+	timer := AfterFunc(5*time.Second,
+		func() {
+			done <- struct{}{}
+		})
+
+	Elapse(5 * time.Second)
+
+	select {
+	case <-done:
+		t.Log("AfterFunc correctly fired at its end time.")
+	case <-time.After(50 * time.Millisecond):
+		t.Fatal("AfterFunc didn't fire at its end time")
+	}
+
+	timer.Reset(5 * time.Second)
+	Elapse(5 * time.Second)
+	select {
+	case <-done:
+		t.Log("AfterFunc correctly fired at its new end time after being reset.")
+	case <-time.After(50 * time.Millisecond):
+		t.Fatal("AfterFunc didn't fire at its new end time after being reset.")
 	}
 }
 
@@ -122,17 +149,17 @@ func TestExpiredReset(t *testing.T) {
 	Elapse(2 * time.Second)
 	select {
 	case <-done:
-		t.Fatal("Timer fired at it's old end time after being reset.")
+		t.Fatal("Timer fired at its old end time after being reset.")
 	case <-time.After(50 * time.Millisecond):
-		t.Log("Timer correctly didn't fire at it's old end time after being reset.")
+		t.Log("Timer correctly didn't fire at its old end time after being reset.")
 	}
 
 	Elapse(1 * time.Second)
 	select {
 	case <-done:
-		t.Log("Timer correctly fired at it's new end time after being reset.")
+		t.Log("Timer correctly fired at its new end time after being reset.")
 	case <-time.After(50 * time.Millisecond):
-		t.Fatal("Timer didn't fire at it's new end time after being reset.")
+		t.Fatal("Timer didn't fire at its new end time after being reset.")
 	}
 }
 
@@ -152,17 +179,17 @@ func TestNotExpiredReset(t *testing.T) {
 
 	select {
 	case <-done:
-		t.Fatal("Timer fired at it's old end time after being reset.")
+		t.Fatal("Timer fired at its old end time after being reset.")
 	case <-time.After(50 * time.Millisecond):
-		t.Log("Timer correctly didn't fire at it's old end time after being reset.")
+		t.Log("Timer correctly didn't fire at its old end time after being reset.")
 	}
 
 	Elapse(4 * time.Second)
 	select {
 	case <-done:
-		t.Log("Timer correctly fired at it's new end time after being reset.")
+		t.Log("Timer correctly fired at its new end time after being reset.")
 	case <-time.After(50 * time.Millisecond):
-		t.Fatal("Timer didn't fire at it's new end time after being reset.")
+		t.Fatal("Timer didn't fire at its new end time after being reset.")
 	}
 }
 
