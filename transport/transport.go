@@ -14,7 +14,14 @@ const c_BUFSIZE int = 65507
 const c_LISTENER_QUEUE_SIZE int = 1000
 const c_SOCKET_EXPIRY time.Duration = time.Hour
 
-type Manager struct {
+type Manager interface {
+	Listen(address string) error
+	Send(addr string, message base.SipMessage) error
+	Stop()
+	GetChannel() listener
+}
+
+type manager struct {
 	notifier
 	transport transport
 }
@@ -26,7 +33,7 @@ type transport interface {
 	Stop()
 }
 
-func NewManager(transportType string) (manager *Manager, err error) {
+func NewManager(transportType string) (m Manager, err error) {
 	err = fmt.Errorf("Unknown transport type '%s'", transportType)
 
 	var n notifier
@@ -43,7 +50,7 @@ func NewManager(transportType string) (manager *Manager, err error) {
 	}
 
 	if transport != nil && err == nil {
-		manager = &Manager{notifier: n, transport: transport}
+		m = &manager{notifier: n, transport: transport}
 	} else {
 		// Close the input chan in order to stop the notifier; this prevents
 		// us leaking it.
@@ -53,15 +60,15 @@ func NewManager(transportType string) (manager *Manager, err error) {
 	return
 }
 
-func (manager *Manager) Listen(address string) error {
+func (manager *manager) Listen(address string) error {
 	return manager.transport.Listen(address)
 }
 
-func (manager *Manager) Send(addr string, message base.SipMessage) error {
+func (manager *manager) Send(addr string, message base.SipMessage) error {
 	return manager.transport.Send(addr, message)
 }
 
-func (manager *Manager) Stop() {
+func (manager *manager) Stop() {
 	manager.transport.Stop()
 	manager.notifier.stop()
 }
