@@ -1,6 +1,7 @@
 package base
 
 import (
+	"github.com/stefankopieczek/gossip/log"
 	"github.com/stefankopieczek/gossip/utils"
 )
 
@@ -93,14 +94,14 @@ type SipUri struct {
 	// These are used to provide information about requests that may be constructed from the URI.
 	// (For more details, see RFC 3261 section 19.1.1).
 	// These appear as a semicolon-separated list of key=value pairs following the host[:port] part.
-	UriParams *Params
+	UriParams Params
 
 	// Any headers to be included on requests constructed from this URI.
 	// These appear as a '&'-separated list at the end of the URI, introduced by '?'.
 	// Although the values of the map are MaybeStrings, they will never be NoString in practice as the parser
 	// guarantees to not return blank values for header elements in SIP URIs.
 	// You should not set the values of headers to NoString.
-	Headers *Params
+	Headers Params
 }
 
 // Copy the Sip URI.
@@ -233,33 +234,45 @@ func (uri WildcardUri) Equals(other Uri) bool {
 }
 
 // Generic list of parameters on a header.
-type Params struct {
+type Params interface {
+	Get(k string) (MaybeString, bool)
+	Add(k string, v MaybeString) Params
+	Copy() Params
+	Equals(p Params) bool
+	ToString(sep uint8) string
+	Length() int
+	Items() map[string]MaybeString
+	Keys() []string
+}
+
+type params struct {
 	params     map[string]MaybeString
 	paramOrder []string
 }
 
 // Create an empty set of parameters.
-func NewParams() *Params {
-	return &Params{map[string]MaybeString{}, []string{}}
+func NewParams() Params {
+	return &params{map[string]MaybeString{}, []string{}}
 }
 
 // Returns the entire parameter map.
-func (p *Params) Params() map[string]MaybeString {
+func (p *params) Items() map[string]MaybeString {
 	return p.params
 }
 
+// Returns a slice of keys, in order.
+func (p *params) Keys() []string {
+	return p.paramOrder
+}
+
 // Returns the requested parameter value.
-func (p *Params) Get(k string) (MaybeString, bool) {
+func (p *params) Get(k string) (MaybeString, bool) {
 	v, ok := p.params[k]
 	return v, ok
 }
 
-func (p *Params) Add(k string, v MaybeString) *Params {
-	if p.params == nil {
-		p.params = map[string]MaybeString{}
-		p.paramOrder = []string{}
-	}
-
+// Add a new parameter.
+func (p *params) Add(k string, v MaybeString) Params {
 	// Add param to order list if new.
 	if _, ok := p.params[k]; !ok {
 		p.paramOrder = append(p.paramOrder, k)
@@ -273,10 +286,14 @@ func (p *Params) Add(k string, v MaybeString) *Params {
 }
 
 // Copy a list of params.
-func (p *Params) Copy() *Params {
-	dup := &Params{}
-	for k, v := range p.params {
-		dup.Add(k, v)
+func (p *params) Copy() Params {
+	dup := NewParams()
+	for _, k := range p.Keys() {
+		if v, ok := p.Get(k); ok {
+			dup.Add(k, v)
+		} else {
+			log.Severe("Internal consistency error. Key %v present in param.Keys() but failed to Get()!", k)
+		}
 	}
 
 	return dup
@@ -284,11 +301,17 @@ func (p *Params) Copy() *Params {
 
 // Render params to a string.
 // Note that this does not escape special characters, this should already have been done before calling this method.
-func (p *Params) ToString(sep uint8) string {
+func (p *params) ToString(sep uint8) string {
 	var buffer bytes.Buffer
 	first := true
 
-	for k, v := range p.params {
+	for _, k := range p.Keys() {
+		v, ok := p.Get(k)
+		if !ok {
+			log.Severe("Internal consistency error. Key %v present in param.Keys() but failed to Get()!", k)
+			continue
+		}
+
 		if !first {
 			buffer.WriteString(fmt.Sprintf("%c", sep))
 		}
@@ -310,17 +333,13 @@ func (p *Params) ToString(sep uint8) string {
 }
 
 // Returns number of params.
-func (p *Params) Length() int {
-	if p == nil {
-		return 0
-	}
-
+func (p *params) Length() int {
 	return len(p.params)
 }
 
 // Check if two maps of parameters are equal in the sense of having the same keys with the same values.
 // This does not rely on any ordering of the keys of the map in memory.
-func (p *Params) Equals(q *Params) bool {
+func (p *params) Equals(q Params) bool {
 	if p.Length() == 0 && q.Length() == 0 {
 		return true
 	}
@@ -329,8 +348,8 @@ func (p *Params) Equals(q *Params) bool {
 		return false
 	}
 
-	for k, p_val := range p.params {
-		q_val, ok := q.params[k]
+	for k, p_val := range p.Items() {
+		q_val, ok := q.Get(k)
 		if !ok {
 			return false
 		}
@@ -375,7 +394,7 @@ type ToHeader struct {
 	Address Uri
 
 	// Any parameters present in the header.
-	Params *Params
+	Params Params
 }
 
 func (to *ToHeader) String() string {
@@ -411,7 +430,7 @@ type FromHeader struct {
 	Address Uri
 
 	// Any parameters present in the header.
-	Params *Params
+	Params Params
 }
 
 func (from *FromHeader) String() string {
@@ -446,7 +465,7 @@ type ContactHeader struct {
 	Address ContactUri
 
 	// Any parameters present in the header.
-	Params *Params
+	Params Params
 }
 
 func (contact *ContactHeader) String() string {
@@ -543,7 +562,7 @@ type ViaHop struct {
 	// The port for this via hop. This is stored as a pointer type, since it is an optional field.
 	Port *uint16
 
-	Params *Params
+	Params Params
 }
 
 func (hop *ViaHop) String() string {
