@@ -117,6 +117,7 @@ func Elapse(d time.Duration) {
 
 	// Fire any timers whose time has come up.
 	for _, t := range mockTimers {
+		t.fired = false
 		if !t.EndTime.After(currentTimeMock) {
 			t.Chan <- currentTimeMock
 			t.fired = true
