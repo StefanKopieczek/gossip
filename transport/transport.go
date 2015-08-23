@@ -18,7 +18,7 @@ type Manager interface {
 	Listen(address string) error
 	Send(addr string, message base.SipMessage) error
 	Stop()
-	GetChannel() listener
+	GetChannel() Listener
 }
 
 type manager struct {
@@ -74,28 +74,28 @@ func (manager *manager) Stop() {
 }
 
 type notifier struct {
-	listeners    map[listener]bool
+	listeners    map[Listener]bool
 	listenerLock sync.Mutex
 	inputs       chan base.SipMessage
 }
 
 func (n *notifier) init() {
-	n.listeners = make(map[listener]bool)
+	n.listeners = make(map[Listener]bool)
 	n.inputs = make(chan base.SipMessage)
 	go n.forward()
 }
 
-func (n *notifier) register(l listener) {
+func (n *notifier) register(l Listener) {
 	log.Debug("Notifier %p has new listener %p", n, l)
 	if n.listeners == nil {
-		n.listeners = make(map[listener]bool)
+		n.listeners = make(map[Listener]bool)
 	}
 	n.listenerLock.Lock()
 	n.listeners[l] = true
 	n.listenerLock.Unlock()
 }
 
-func (n *notifier) GetChannel() (l listener) {
+func (n *notifier) GetChannel() (l Listener) {
 	c := make(chan base.SipMessage, c_LISTENER_QUEUE_SIZE)
 	n.register(c)
 	return c
@@ -129,12 +129,12 @@ func (n *notifier) stop() {
 	n.listenerLock.Unlock()
 }
 
-type listener chan base.SipMessage
+type Listener chan base.SipMessage
 
 // notify tries to send a message to the listener.
 // If the underlying channel has been closed by the receiver, return 'false';
 // otherwise, return true.
-func (c listener) notify(message base.SipMessage) (ok bool) {
+func (c Listener) notify(message base.SipMessage) (ok bool) {
 	defer func() { recover() }()
 	c <- message
 	return true
