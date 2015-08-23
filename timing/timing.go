@@ -168,11 +168,7 @@ func removeMockTimer(t *mockTimer) bool {
 
 	if found {
 		// We found the given timer. Remove it.
-		if idx == len(mockTimers)-1 {
-			mockTimers = mockTimers[:idx]
-		} else {
-			mockTimers = append(mockTimers[:idx], mockTimers[idx+1])
-		}
+		mockTimers = append(mockTimers[:idx], mockTimers[idx+1:]...)
 		return true
 	} else {
 		// The timer was not present, indicating that it was already expired.
