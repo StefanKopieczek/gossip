@@ -1,11 +1,10 @@
 package transaction
 
 import (
-	"time"
-
 	"github.com/discoviking/fsm"
 	"github.com/stefankopieczek/gossip/base"
 	"github.com/stefankopieczek/gossip/log"
+	"github.com/stefankopieczek/gossip/timing"
 )
 
 // SIP Client Transaction FSM
@@ -65,7 +64,7 @@ func (tx *ClientTransaction) initInviteFSM() {
 		if tx.timer_d != nil {
 			tx.timer_d.Stop()
 		}
-		tx.timer_d = time.AfterFunc(tx.timer_d_time, func() {
+		tx.timer_d = timing.AfterFunc(tx.timer_d_time, func() {
 			tx.fsm.Spin(client_input_timer_d)
 		})
 		return fsm.NO_INPUT
@@ -198,7 +197,7 @@ func (tx *ClientTransaction) initNonInviteFSM() {
 		if tx.timer_d != nil {
 			tx.timer_d.Stop()
 		}
-		tx.timer_d = time.AfterFunc(tx.timer_d_time, func() {
+		tx.timer_d = timing.AfterFunc(tx.timer_d_time, func() {
 			tx.fsm.Spin(client_input_timer_d)
 		})
 		return fsm.NO_INPUT

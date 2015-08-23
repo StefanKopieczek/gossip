@@ -8,6 +8,7 @@ import (
 
 	"github.com/stefankopieczek/gossip/base"
 	"github.com/stefankopieczek/gossip/log"
+	"github.com/stefankopieczek/gossip/timing"
 	"github.com/stefankopieczek/gossip/transport"
 )
 
@@ -198,10 +199,10 @@ func (mng *Manager) Send(r *base.Request, dest string) *ClientTransaction {
 	tx.tu_err = make(chan error, 1)
 
 	tx.timer_a_time = T1
-	tx.timer_a = time.AfterFunc(tx.timer_a_time, func() {
+	tx.timer_a = timing.AfterFunc(tx.timer_a_time, func() {
 		tx.fsm.Spin(client_input_timer_a)
 	})
-	tx.timer_b = time.AfterFunc(64*T1, func() {
+	tx.timer_b = timing.AfterFunc(64*T1, func() {
 		tx.fsm.Spin(client_input_timer_b)
 	})
 
