@@ -1060,6 +1060,8 @@ func parseAddressValue(addressText string) (
 	displayName base.MaybeString, uri base.Uri,
 	headerParams base.Params, err error) {
 
+	headerParams = base.NewParams()
+
 	if len(addressText) == 0 {
 		err = fmt.Errorf("address-type header has empty body")
 		return

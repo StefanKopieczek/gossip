@@ -38,6 +38,7 @@ type test struct {
 
 func doTests(tests []test, t *testing.T) {
 	for _, test := range tests {
+		t.Logf("Running test with input: %v", test.args.String())
 		testsRun++
 		output := test.args.evaluate()
 		pass, reason := test.expected.equals(output)
@@ -58,6 +59,7 @@ var port5060 uint16 = uint16(5060)
 var ui16_5 uint16 = uint16(5)
 var ui16_5060 = uint16(5060)
 var ui16_9 uint16 = uint16(9)
+var noParams = base.NewParams()
 
 func TestAAAASetup(t *testing.T) {
 	log.SetDefaultLogLevel(c_LOG_LEVEL)
@@ -140,34 +142,34 @@ func TestParams(t *testing.T) {
 
 func TestSipUris(t *testing.T) {
 	doTests([]test{
-		test{sipUriInput("sip:bob@example.com"), &sipUriResult{pass, base.SipUri{User: base.String{"bob"}, Password: base.NoString{}, Host: "example.com"}}},
-		test{sipUriInput("sip:bob@192.168.0.1"), &sipUriResult{pass, base.SipUri{User: base.String{"bob"}, Password: base.NoString{}, Host: "192.168.0.1"}}},
-		test{sipUriInput("sip:bob:Hunter2@example.com"), &sipUriResult{pass, base.SipUri{User: base.String{"bob"}, Password: base.String{"Hunter2"}, Host: "example.com"}}},
+		test{sipUriInput("sip:bob@example.com"), &sipUriResult{pass, base.SipUri{User: base.String{"bob"}, Password: base.NoString{}, Host: "example.com", UriParams: noParams, Headers: noParams}}},
+		test{sipUriInput("sip:bob@192.168.0.1"), &sipUriResult{pass, base.SipUri{User: base.String{"bob"}, Password: base.NoString{}, Host: "192.168.0.1", UriParams: noParams, Headers: noParams}}},
+		test{sipUriInput("sip:bob:Hunter2@example.com"), &sipUriResult{pass, base.SipUri{User: base.String{"bob"}, Password: base.String{"Hunter2"}, Host: "example.com", UriParams: noParams, Headers: noParams}}},
 		test{sipUriInput("sips:bob:Hunter2@example.com"), &sipUriResult{pass, base.SipUri{IsEncrypted: true, User: base.String{"bob"}, Password: base.String{"Hunter2"},
-			Host: "example.com"}}},
-		test{sipUriInput("sips:bob@example.com"), &sipUriResult{pass, base.SipUri{IsEncrypted: true, User: base.String{"bob"}, Password: base.NoString{}, Host: "example.com"}}},
-		test{sipUriInput("sip:example.com"), &sipUriResult{pass, base.SipUri{User: base.NoString{}, Password: base.NoString{}, Host: "example.com"}}},
+			Host: "example.com", UriParams: noParams, Headers: noParams}}},
+		test{sipUriInput("sips:bob@example.com"), &sipUriResult{pass, base.SipUri{IsEncrypted: true, User: base.String{"bob"}, Password: base.NoString{}, Host: "example.com", UriParams: noParams, Headers: noParams}}},
+		test{sipUriInput("sip:example.com"), &sipUriResult{pass, base.SipUri{User: base.NoString{}, Password: base.NoString{}, Host: "example.com", UriParams: noParams, Headers: noParams}}},
 		test{sipUriInput("example.com"), &sipUriResult{fail, base.SipUri{}}},
 		test{sipUriInput("bob@example.com"), &sipUriResult{fail, base.SipUri{}}},
-		test{sipUriInput("sip:bob@example.com:5060"), &sipUriResult{pass, base.SipUri{User: base.String{"bob"}, Password: base.NoString{}, Host: "example.com", Port: &ui16_5060}}},
-		test{sipUriInput("sip:bob@88.88.88.88:5060"), &sipUriResult{pass, base.SipUri{User: base.String{"bob"}, Password: base.NoString{}, Host: "88.88.88.88", Port: &ui16_5060}}},
+		test{sipUriInput("sip:bob@example.com:5060"), &sipUriResult{pass, base.SipUri{User: base.String{"bob"}, Password: base.NoString{}, Host: "example.com", Port: &ui16_5060, UriParams: noParams, Headers: noParams}}},
+		test{sipUriInput("sip:bob@88.88.88.88:5060"), &sipUriResult{pass, base.SipUri{User: base.String{"bob"}, Password: base.NoString{}, Host: "88.88.88.88", Port: &ui16_5060, UriParams: noParams, Headers: noParams}}},
 		test{sipUriInput("sip:bob:Hunter2@example.com:5060"), &sipUriResult{pass, base.SipUri{User: base.String{"bob"}, Password: base.String{"Hunter2"},
-			Host: "example.com", Port: &ui16_5060}}},
-		test{sipUriInput("sip:bob@example.com:5"), &sipUriResult{pass, base.SipUri{User: base.String{"bob"}, Password: base.NoString{}, Host: "example.com", Port: &ui16_5}}},
+			Host: "example.com", Port: &ui16_5060, UriParams: noParams, Headers: noParams}}},
+		test{sipUriInput("sip:bob@example.com:5"), &sipUriResult{pass, base.SipUri{User: base.String{"bob"}, Password: base.NoString{}, Host: "example.com", Port: &ui16_5, UriParams: noParams, Headers: noParams}}},
 		test{sipUriInput("sip:bob@example.com;foo=bar"), &sipUriResult{pass, base.SipUri{User: base.String{"bob"}, Password: base.NoString{}, Host: "example.com",
-			UriParams: base.NewParams().Add("foo", base.String{"bar"})}}},
+			UriParams: base.NewParams().Add("foo", base.String{"bar"}), Headers: noParams}}},
 		test{sipUriInput("sip:bob@example.com:5060;foo=bar"), &sipUriResult{pass, base.SipUri{User: base.String{"bob"}, Password: base.NoString{}, Host: "example.com", Port: &ui16_5060,
-			UriParams: base.NewParams().Add("foo", base.String{"bar"})}}},
+			UriParams: base.NewParams().Add("foo", base.String{"bar"}), Headers: noParams}}},
 		test{sipUriInput("sip:bob@example.com:5;foo"), &sipUriResult{pass, base.SipUri{User: base.String{"bob"}, Password: base.NoString{}, Host: "example.com", Port: &ui16_5,
-			UriParams: base.NewParams().Add("foo", base.NoString{})}}},
+			UriParams: base.NewParams().Add("foo", base.NoString{}), Headers: noParams}}},
 		test{sipUriInput("sip:bob@example.com:5;foo;baz=bar"), &sipUriResult{pass, base.SipUri{User: base.String{"bob"}, Password: base.NoString{}, Host: "example.com", Port: &ui16_5,
-			UriParams: base.NewParams().Add("foo", base.NoString{}).Add("baz", base.String{"bar"})}}},
+			UriParams: base.NewParams().Add("foo", base.NoString{}).Add("baz", base.String{"bar"}), Headers: noParams}}},
 		test{sipUriInput("sip:bob@example.com:5;baz=bar;foo"), &sipUriResult{pass, base.SipUri{User: base.String{"bob"}, Password: base.NoString{}, Host: "example.com", Port: &ui16_5,
-			UriParams: base.NewParams().Add("foo", base.NoString{}).Add("baz", base.String{"bar"})}}},
+			UriParams: base.NewParams().Add("foo", base.NoString{}).Add("baz", base.String{"bar"}), Headers: noParams}}},
 		test{sipUriInput("sip:bob@example.com:5;foo;baz=bar;a=b"), &sipUriResult{pass, base.SipUri{User: base.String{"bob"}, Password: base.NoString{}, Host: "example.com", Port: &ui16_5,
-			UriParams: base.NewParams().Add("foo", base.NoString{}).Add("baz", base.String{"bar"}).Add("a", base.String{"b"})}}},
+			UriParams: base.NewParams().Add("foo", base.NoString{}).Add("baz", base.String{"bar"}).Add("a", base.String{"b"}), Headers: noParams}}},
 		test{sipUriInput("sip:bob@example.com:5;baz=bar;foo;a=b"), &sipUriResult{pass, base.SipUri{User: base.String{"bob"}, Password: base.NoString{}, Host: "example.com", Port: &ui16_5,
-			UriParams: base.NewParams().Add("foo", base.NoString{}).Add("baz", base.String{"bar"}).Add("a", base.String{"b"})}}},
+			UriParams: base.NewParams().Add("foo", base.NoString{}).Add("baz", base.String{"bar"}).Add("a", base.String{"b"}), Headers: noParams}}},
 		test{sipUriInput("sip:bob@example.com?foo=bar"), &sipUriResult{pass, base.SipUri{User: base.String{"bob"}, Password: base.NoString{}, Host: "example.com",
 			Headers: base.NewParams().Add("foo", base.String{"bar"})}}},
 		test{sipUriInput("sip:bob@example.com?foo="), &sipUriResult{pass, base.SipUri{User: base.String{"bob"}, Password: base.NoString{}, Host: "example.com",
@@ -255,7 +257,6 @@ func TestHeaderBlocks(t *testing.T) {
 func TestToHeaders(t *testing.T) {
 	fooEqBar := base.NewParams().Add("foo", base.String{"bar"})
 	fooSingleton := base.NewParams().Add("foo", base.NoString{})
-	noParams := base.NewParams()
 	doTests([]test{
 		test{toHeaderInput("To: \"Alice Liddell\" <sip:alice@wonderland.com>"), &toHeaderResult{pass,
 			&base.ToHeader{DisplayName: base.String{"Alice Liddell"},
@@ -390,7 +391,6 @@ func TestFromHeaders(t *testing.T) {
 	// These are identical to the To: header tests, but there's no clean way to share them :(
 	fooEqBar := base.NewParams().Add("foo", base.String{"bar"})
 	fooSingleton := base.NewParams().Add("foo", base.NoString{})
-	noParams := base.NewParams()
 	doTests([]test{
 		test{fromHeaderInput("From: \"Alice Liddell\" <sip:alice@wonderland.com>"), &fromHeaderResult{pass,
 			&base.FromHeader{DisplayName: base.String{"Alice Liddell"},
@@ -524,7 +524,6 @@ func TestFromHeaders(t *testing.T) {
 func TestContactHeaders(t *testing.T) {
 	fooEqBar := base.NewParams().Add("foo", base.String{"bar"})
 	fooSingleton := base.NewParams().Add("foo", base.NoString{})
-	noParams := base.NewParams()
 	doTests([]test{
 		test{contactHeaderInput("Contact: \"Alice Liddell\" <sip:alice@wonderland.com>"), &contactHeaderResult{
 			pass,
@@ -904,7 +903,6 @@ func TestContentLength(t *testing.T) {
 
 func TestViaHeaders(t *testing.T) {
 	// branch=z9hG4bKnashds8
-	noParams := base.NewParams()
 	fooEqBar := base.NewParams().Add("foo", base.String{"bar"})
 	fooEqSlashBar := base.NewParams().Add("foo", base.String{"//bar"})
 	singleFoo := base.NewParams().Add("foo", base.NoString{})
@@ -940,7 +938,6 @@ func TestViaHeaders(t *testing.T) {
 
 // Basic test of unstreamed parsing, using empty INVITE.
 func TestUnstreamedParse1(t *testing.T) {
-	noParams := base.NewParams()
 	test := ParserTest{false, []parserTestStep{
 		// Steps each have: Input, result, sent error, returned error
 		parserTestStep{"INVITE sip:bob@biloxi.com SIP/2.0\r\n\r\n",
@@ -958,7 +955,6 @@ func TestUnstreamedParse1(t *testing.T) {
 
 // Test unstreamed parsing with a header and body.
 func TestUnstreamedParse2(t *testing.T) {
-	noParams := base.NewParams()
 	test := ParserTest{false, []parserTestStep{
 		// Steps each have: Input, result, sent error, returned error
 		parserTestStep{"INVITE sip:bob@biloxi.com SIP/2.0\r\n" +
@@ -1072,8 +1068,6 @@ func TestUnstreamedParse6(t *testing.T) {
 
 // Test requests of minimal length.
 func TestUnstreamedParse7(t *testing.T) {
-	noParams := base.NewParams()
-
 	test := ParserTest{false, []parserTestStep{
 		parserTestStep{"ACK sip:foo@bar.com SIP/2.0\r\n\r\n",
 			base.NewRequest(base.ACK,
@@ -1093,7 +1087,6 @@ func TestUnstreamedParse7(t *testing.T) {
 
 // Basic streamed parsing, using empty INVITE.
 func TestStreamedParse1(t *testing.T) {
-	noParams := base.NewParams()
 	contentLength := base.ContentLength(0)
 	test := ParserTest{true, []parserTestStep{
 		// Steps each have: Input, result, sent error, returned error
@@ -1113,7 +1106,6 @@ func TestStreamedParse1(t *testing.T) {
 
 // Test writing a single message in two stages (breaking after the start line).
 func TestStreamedParse2(t *testing.T) {
-	noParams := base.NewParams()
 	contentLength := base.ContentLength(0)
 	test := ParserTest{true, []parserTestStep{
 		// Steps each have: Input, result, sent error, returned error
@@ -1133,7 +1125,6 @@ func TestStreamedParse2(t *testing.T) {
 
 // Test writing two successive messages, both with bodies.
 func TestStreamedParse3(t *testing.T) {
-	noParams := base.NewParams()
 	contentLength23 := base.ContentLength(23)
 	contentLength33 := base.ContentLength(33)
 	test := ParserTest{true, []parserTestStep{
@@ -1187,7 +1178,7 @@ func (data *paramInput) evaluate() result {
 
 type paramResult struct {
 	err      error
-	params   *base.Params
+	params   base.Params
 	consumed int
 }
 
