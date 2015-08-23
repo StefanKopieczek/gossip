@@ -72,6 +72,34 @@ func TestAfterFunc(t *testing.T) {
 	<-done
 }
 
+func TestAfterFuncReset(t *testing.T) {
+	MockMode = true
+	done := make(chan struct{})
+	timer := AfterFunc(5*time.Second,
+		func() {
+			done <- struct{}{}
+		})
+
+	Elapse(3 * time.Second)
+	timer.Reset(5 * time.Second)
+	Elapse(2 * time.Second)
+
+	select {
+	case <-done:
+		t.Fatal("AfterFunc fired at it's old end time after being reset.")
+	case <-time.After(50 * time.Millisecond):
+		t.Log("AfterFunc correctly didn't fire at it's old end time after being reset.")
+	}
+
+	Elapse(3 * time.Second)
+	select {
+	case <-done:
+		t.Log("Timer correctly fired at it's new end time after being reset.")
+	case <-time.After(50 * time.Millisecond):
+		t.Fatal("Timer didn't fire at it's new end time after being reset.")
+	}
+}
+
 func TestExpiredReset(t *testing.T) {
 	MockMode = true
 	timer := NewTimer(5 * time.Second)
