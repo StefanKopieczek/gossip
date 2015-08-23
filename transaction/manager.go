@@ -19,7 +19,7 @@ var (
 
 type Manager struct {
 	txs       map[key]Transaction
-	transport *transport.Manager
+	transport transport.Manager
 	requests  chan *ServerTransaction
 	txLock    *sync.RWMutex
 }
@@ -30,12 +30,7 @@ type key struct {
 	method string
 }
 
-func NewManager(trans, addr string) (*Manager, error) {
-	t, err := transport.NewManager(trans)
-	if err != nil {
-		return nil, err
-	}
-
+func NewManager(t transport.Manager, addr string) (*Manager, error) {
 	mng := &Manager{
 		txs:       map[key]Transaction{},
 		txLock:    &sync.RWMutex{},
@@ -52,7 +47,7 @@ func NewManager(trans, addr string) (*Manager, error) {
 		}
 	}()
 
-	err = mng.transport.Listen(addr)
+	err := mng.transport.Listen(addr)
 	if err != nil {
 		return nil, err
 	}
