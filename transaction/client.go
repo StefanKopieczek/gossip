@@ -48,9 +48,7 @@ func (tx *ClientTransaction) initInviteFSM() {
 	act_resend := func() fsm.Input {
 		log.Debug("Client transaction %p, act_resend", tx)
 		tx.timer_a_time *= 2
-		tx.timer_a = timing.AfterFunc(tx.timer_a_time, func() {
-			tx.fsm.Spin(client_input_timer_a)
-		})
+		tx.timer_a.Reset(tx.timer_a_time)
 		tx.resend()
 		return fsm.NO_INPUT
 	}
