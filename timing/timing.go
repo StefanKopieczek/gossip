@@ -46,6 +46,7 @@ func (t *realTimer) Stop() bool {
 type mockTimer struct {
 	EndTime time.Time
 	Chan    chan time.Time
+	fired   bool
 }
 
 func (t *mockTimer) C() <-chan time.Time {
@@ -75,7 +76,7 @@ func (t *mockTimer) Stop() bool {
 // depending on whether MockMode is set.
 func NewTimer(d time.Duration) Timer {
 	if MockMode {
-		t := mockTimer{currentTimeMock.Add(d), make(chan time.Time, 1)}
+		t := mockTimer{currentTimeMock.Add(d), make(chan time.Time, 1), false}
 		if d == 0 {
 			t.Chan <- currentTimeMock
 		} else {
@@ -112,28 +113,22 @@ func Sleep(d time.Duration) {
 // This function can only be called in Mock Mode, otherwise we will panic.
 func Elapse(d time.Duration) {
 	requireMockMode()
-	fired := make([]*mockTimer, 0)
 	currentTimeMock = currentTimeMock.Add(d)
 
 	// Fire any timers whose time has come up.
 	for _, t := range mockTimers {
-		if !t.EndTime.Before(currentTimeMock) {
+		if !t.EndTime.After(currentTimeMock) {
 			t.Chan <- currentTimeMock
-			fired = append(fired, t)
+			t.fired = true
 		}
 	}
 
 	// Stop tracking any fired timers.
 	remainingTimers := make([]*mockTimer, 0)
-loop:
 	for _, t := range mockTimers {
-		for _, fired_t := range fired {
-			if t == fired_t {
-				continue loop
-			}
+		if !t.fired {
+			remainingTimers = append(remainingTimers, t)
 		}
-
-		remainingTimers = append(remainingTimers, t)
 	}
 
 	mockTimers = remainingTimers
