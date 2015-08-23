@@ -21,7 +21,7 @@ type Transaction interface {
 	Receive(m base.SipMessage)
 	Origin() *base.Request
 	Destination() string
-	Transport() *transport.Manager
+	Transport() transport.Manager
 	Delete()
 }
 
@@ -30,7 +30,7 @@ type transaction struct {
 	origin    *base.Request  // Request that started this transaction.
 	lastResp  *base.Response // Most recently received message.
 	dest      string         // Of the form hostname:port
-	transport *transport.Manager
+	transport transport.Manager
 	tm        *Manager
 }
 
@@ -42,7 +42,7 @@ func (tx *transaction) Destination() string {
 	return tx.dest
 }
 
-func (tx *transaction) Transport() *transport.Manager {
+func (tx *transaction) Transport() transport.Manager {
 	return tx.transport
 }
 
