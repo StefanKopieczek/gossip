@@ -71,3 +71,69 @@ func TestAfterFunc(t *testing.T) {
 	Elapse(5 * time.Second)
 	<-done
 }
+
+func TestExpiredReset(t *testing.T) {
+	MockMode = true
+	timer := NewTimer(5 * time.Second)
+	done := make(chan struct{})
+
+	go func() {
+		<-timer.C()
+		done <- struct{}{}
+	}()
+
+	Elapse(5 * time.Second)
+	<-done
+
+	timer.Reset(3 * time.Second)
+	go func() {
+		<-timer.C()
+		done <- struct{}{}
+	}()
+
+	Elapse(2 * time.Second)
+	select {
+	case <-done:
+		t.Fatal("Timer fired at it's old end time after being reset.")
+	case <-time.After(50 * time.Millisecond):
+		t.Log("Timer correctly didn't fire at it's old end time after being reset.")
+	}
+
+	Elapse(1 * time.Second)
+	select {
+	case <-done:
+		t.Log("Timer correctly fired at it's new end time after being reset.")
+	case <-time.After(50 * time.Millisecond):
+		t.Fatal("Timer didn't fire at it's new end time after being reset.")
+	}
+}
+
+func TestNotExpiredReset(t *testing.T) {
+	MockMode = true
+	timer := NewTimer(5 * time.Second)
+	done := make(chan struct{})
+
+	go func() {
+		<-timer.C()
+		done <- struct{}{}
+	}()
+
+	Elapse(4 * time.Second)
+	timer.Reset(5 * time.Second)
+	Elapse(1 * time.Second)
+
+	select {
+	case <-done:
+		t.Fatal("Timer fired at it's old end time after being reset.")
+	case <-time.After(50 * time.Millisecond):
+		t.Log("Timer correctly didn't fire at it's old end time after being reset.")
+	}
+
+	Elapse(4 * time.Second)
+	select {
+	case <-done:
+		t.Log("Timer correctly fired at it's new end time after being reset.")
+	case <-time.After(50 * time.Millisecond):
+		t.Fatal("Timer didn't fire at it's new end time after being reset.")
+	}
+}
