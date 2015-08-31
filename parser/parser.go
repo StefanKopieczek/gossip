@@ -1076,10 +1076,8 @@ func parseAddressValue(addressText string) (
 	addressText = strings.TrimSpace(addressText)
 
 	firstAngleBracket := findUnescaped(addressText, '<', quotes_delim)
-	firstSpace := findAnyUnescaped(addressText, c_ABNF_WS, quotes_delim, angles_delim)
 	displayName = base.NoString{}
-	if firstAngleBracket != -1 && firstSpace != -1 &&
-		firstSpace < firstAngleBracket {
+	if firstAngleBracket > 0 {
 		// There is a display name present. Let's parse it.
 		if addressText[0] == '"' {
 			// The display name is within quotations.
@@ -1099,9 +1097,9 @@ func parseAddressValue(addressText string) (
 		} else {
 			// The display name is unquoted, so match until the next whitespace
 			// character.
-			nameField := addressText[:firstSpace]
-			displayName = base.String{nameField}
-			addressText = addressText[firstSpace+1:]
+			nameField := addressText[:firstAngleBracket]
+			displayName = base.String{strings.TrimSpace(nameField)}
+			addressText = addressText[firstAngleBracket:]
 		}
 	}
 
