@@ -104,6 +104,13 @@ type SipUri struct {
 	Headers Params
 }
 
+func copyWithNil(params Params) Params {
+	if (params == nil) {
+		return NewParams()
+	}
+	return params.Copy()
+}
+
 // Copy the Sip URI.
 func (uri *SipUri) Copy() Uri {
 	var port *uint16
@@ -118,8 +125,8 @@ func (uri *SipUri) Copy() Uri {
 		uri.Password,
 		uri.Host,
 		port,
-		uri.UriParams.Copy(),
-		uri.Headers.Copy(),
+		copyWithNil(uri.UriParams),
+		copyWithNil(uri.Headers),
 	}
 }
 
@@ -193,12 +200,12 @@ func (uri *SipUri) String() string {
 		buffer.WriteString(strconv.Itoa(int(*uri.Port)))
 	}
 
-	if uri.UriParams.Length() > 0 {
+	if (uri.UriParams != nil) && uri.UriParams.Length() > 0 {
 		buffer.WriteString(";")
 		buffer.WriteString(uri.UriParams.ToString(';'))
 	}
 
-	if uri.Headers.Length() > 0 {
+	if (uri.Headers != nil) && uri.Headers.Length() > 0 {
 		buffer.WriteString("?")
 		buffer.WriteString(uri.Headers.ToString('&'))
 	}
@@ -485,7 +492,7 @@ func (contact *ContactHeader) String() string {
 		buffer.WriteString(fmt.Sprintf("<%s>", contact.Address.String()))
 	}
 
-	if contact.Params.Length() > 0 {
+	if (contact.Params != nil) && (contact.Params.Length() > 0) {
 		buffer.WriteString(";")
 		buffer.WriteString(contact.Params.ToString(';'))
 	}
