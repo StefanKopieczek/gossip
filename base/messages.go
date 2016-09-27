@@ -108,6 +108,25 @@ func (hs *headers) AddHeader(h SipHeader) {
 	}
 }
 
+// AddFrontHeader adds header to the front of header list
+// if there is no header has h's name, add h to the tail of all headers
+// if there are some headers have h's name, add h to front of the sublist
+func (hs *headers) AddFrontHeader(h SipHeader) {
+	if hs.headers == nil {
+		hs.headers = map[string][]SipHeader{}
+		hs.headerOrder = []string{}
+	}
+	name := h.Name()
+	if hdrs, ok := hs.headers[name]; ok {
+		newHdrs := make([]SipHeader, 1, len(hdrs)+1)
+		newHdrs[0] = h
+		hs.headers[name] = append(newHdrs, hdrs...)
+	} else {
+		hs.headers[name] = []SipHeader{h}
+		hs.headerOrder = append(hs.headerOrder, name)
+	}
+}
+
 // Gets some headers.
 func (hs *headers) Headers(name string) []SipHeader {
 	if hs.headers == nil {
