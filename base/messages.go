@@ -253,6 +253,13 @@ func (request *Request) GetBody() string {
 
 func (request *Request) SetBody(body string) {
 	request.Body = body
+	hdrs := request.Headers("Content-Length")
+	if len(hdrs) == 0 {
+		length := ContentLength(len(body))
+		request.AddHeader(length)
+	} else {
+		hdrs[0] = ContentLength(len(body))
+	}
 }
 
 // A SIP response object  (c.f. RFC 3261 section 7.2).
@@ -380,4 +387,11 @@ func (response *Response) GetBody() string {
 
 func (response *Response) SetBody(body string) {
 	response.Body = body
+	hdrs := response.Headers("Content-Length")
+	if len(hdrs) == 0 {
+		length := ContentLength(len(body))
+		response.AddHeader(length)
+	} else {
+		hdrs[0] = ContentLength(len(body))
+	}
 }
