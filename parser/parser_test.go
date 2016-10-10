@@ -384,6 +384,26 @@ func TestToHeaders(t *testing.T) {
 		test{toHeaderInput("To: *"), &toHeaderResult{fail, &base.ToHeader{}}},
 
 		test{toHeaderInput("To: <*>"), &toHeaderResult{fail, &base.ToHeader{}}},
+
+		test{toHeaderInput("To: \"Alice Liddell\"<sip:alice@wonderland.com>"), &toHeaderResult{pass,
+			&base.ToHeader{DisplayName: base.String{"Alice Liddell"},
+				Address: &base.SipUri{false, base.String{"alice"}, base.NoString{}, "wonderland.com", nil, noParams, noParams},
+				Params:  noParams}}},
+
+		test{toHeaderInput("To: Alice Liddell <sip:alice@wonderland.com>"), &toHeaderResult{pass,
+			&base.ToHeader{DisplayName: base.String{"Alice Liddell"},
+				Address: &base.SipUri{false, base.String{"alice"}, base.NoString{}, "wonderland.com", nil, noParams, noParams},
+				Params:  noParams}}},
+
+		test{toHeaderInput("To: Alice Liddell<sip:alice@wonderland.com>"), &toHeaderResult{pass,
+			&base.ToHeader{DisplayName: base.String{"Alice Liddell"},
+				Address: &base.SipUri{false, base.String{"alice"}, base.NoString{}, "wonderland.com", nil, noParams, noParams},
+				Params:  noParams}}},
+
+		test{toHeaderInput("To: Alice<sip:alice@wonderland.com>"), &toHeaderResult{pass,
+			&base.ToHeader{DisplayName: base.String{"Alice"},
+				Address: &base.SipUri{false, base.String{"alice"}, base.NoString{}, "wonderland.com", nil, noParams, noParams},
+				Params:  noParams}}},
 	}, t)
 }
 
