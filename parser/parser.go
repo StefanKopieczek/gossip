@@ -723,11 +723,12 @@ func (p *parser) parseHeader(headerText string) (headers []base.SipHeader, err e
 		return
 	}
 
-	fieldName := strings.ToLower(strings.TrimSpace(headerText[:colonIdx]))
+	fieldName := strings.TrimSpace(headerText[:colonIdx])
+	lowerFieldName := strings.ToLower(fieldName)
 	fieldText := strings.TrimSpace(headerText[colonIdx+1:])
-	if headerParser, ok := p.headerParsers[fieldName]; ok {
+	if headerParser, ok := p.headerParsers[lowerFieldName]; ok {
 		// We have a registered parser for this header type - use it.
-		headers, err = headerParser(fieldName, fieldText)
+		headers, err = headerParser(lowerFieldName, fieldText)
 	} else {
 		// We have no registered parser for this header type,
 		// so we encapsulate the header data in a GenericHeader struct.
