@@ -723,11 +723,12 @@ func (p *parser) parseHeader(headerText string) (headers []base.SipHeader, err e
 		return
 	}
 
-	fieldName := strings.ToLower(strings.TrimSpace(headerText[:colonIdx]))
+	fieldName := strings.TrimSpace(headerText[:colonIdx])
+	lowerFieldName := strings.ToLower(fieldName)
 	fieldText := strings.TrimSpace(headerText[colonIdx+1:])
-	if headerParser, ok := p.headerParsers[fieldName]; ok {
+	if headerParser, ok := p.headerParsers[lowerFieldName]; ok {
 		// We have a registered parser for this header type - use it.
-		headers, err = headerParser(fieldName, fieldText)
+		headers, err = headerParser(lowerFieldName, fieldText)
 	} else {
 		// We have no registered parser for this header type,
 		// so we encapsulate the header data in a GenericHeader struct.
@@ -1076,13 +1077,14 @@ func parseAddressValue(addressText string) (
 	addressText = strings.TrimSpace(addressText)
 
 	firstAngleBracket := findUnescaped(addressText, '<', quotes_delim)
-	firstSpace := findAnyUnescaped(addressText, c_ABNF_WS, quotes_delim, angles_delim)
 	displayName = base.NoString{}
-	if firstAngleBracket != -1 && firstSpace != -1 &&
-		firstSpace < firstAngleBracket {
-		// There is a display name present. Let's parse it.
+	if firstAngleBracket > 0 {
+		// We have an angle bracket, and it's not the first character.
+		// Since we have just trimmed whitespace, this means there must
+		// be a display name.
 		if addressText[0] == '"' {
 			// The display name is within quotations.
+			// So it is comprised of all text until the closing quote.
 			addressText = addressText[1:]
 			nextQuote := strings.Index(addressText, "\"")
 
@@ -1097,11 +1099,15 @@ func parseAddressValue(addressText string) (
 			displayName = base.String{nameField}
 			addressText = addressText[nextQuote+1:]
 		} else {
-			// The display name is unquoted, so match until the next whitespace
-			// character.
-			nameField := addressText[:firstSpace]
-			displayName = base.String{nameField}
-			addressText = addressText[firstSpace+1:]
+			// The display name is unquoted, so it is comprised of
+			// all text until the opening angle bracket, except surrounding whitespace.
+			// According to the ABNF grammar: display-name   =  *(token LWS)/ quoted-string
+			// there are certain characters the display name cannot contain unless it's quoted,
+			// however we don't check for them here since it doesn't impact parsing.
+			// May as well be lenient.
+			nameField := addressText[:firstAngleBracket]
+			displayName = base.String{strings.TrimSpace(nameField)}
+			addressText = addressText[firstAngleBracket:]
 		}
 	}
 
