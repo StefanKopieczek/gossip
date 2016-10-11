@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"os"
 	"testing"
 	"time"
 )
@@ -15,9 +16,10 @@ import (
 
 var c_LOG_LEVEL = log.WARN
 
-func TestAAAAA(t *testing.T) {
+func TestMain(m *testing.M) {
 	timing.MockMode = true
 	log.SetDefaultLogLevel(c_LOG_LEVEL)
+	os.Exit(m.Run())
 }
 
 // Test that we can store and retrieve a connection.
@@ -45,7 +47,7 @@ func TestBasicExpiry(t *testing.T) {
 	timing.Elapse(c_SOCKET_EXPIRY)
 	timing.Elapse(time.Nanosecond)
 
-	if table.GetConn("bar") != nil {
+	if !testutils.Eventually(func() bool { return table.GetConn("bar") != nil }) {
 		t.FailNow()
 	}
 }
@@ -95,6 +97,12 @@ func TestReuse1(t *testing.T) {
 	timing.Elapse(c_SOCKET_EXPIRY)
 	timing.Elapse(time.Nanosecond)
 
+	// Wait for connection to definitely expire.
+	if !testutils.Eventually(func() bool { return table.GetConn("foo") == nil }) {
+		t.FailNow()
+	}
+
+	// Re-store and retrieve.
 	table.Notify("foo", conn)
 	if table.GetConn("foo") != conn {
 		t.FailNow()
@@ -106,11 +114,16 @@ func TestReuse1(t *testing.T) {
 func TestReuse2(t *testing.T) {
 	var table connTable
 	table.Init()
-	defer table.Stop() // This currently panics due to issue #13.
+	defer table.Stop()
 
 	table.Notify("foo", makeTestConn())
 	timing.Elapse(c_SOCKET_EXPIRY)
 	timing.Elapse(time.Nanosecond)
+
+	// Wait for connection to definitely expire.
+	if !testutils.Eventually(func() bool { return table.GetConn("foo") == nil }) {
+		t.FailNow()
+	}
 
 	conn2 := makeTestConn()
 	table.Notify("foo", conn2)
