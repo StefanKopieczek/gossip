@@ -242,12 +242,6 @@ func (mng *Manager) request(r *base.Request) {
 		return
 	}
 
-	// If we failed to correlate an ACK, just drop it.
-	if r.Method == base.ACK {
-		log.Warn("Couldn't correlate ACK to an open transaction. Dropping it.")
-		return
-	}
-
 	// Create a new transaction
 	tx := &ServerTransaction{}
 	tx.tm = mng
@@ -288,9 +282,20 @@ func (mng *Manager) request(r *base.Request) {
 	tx.tu_err = make(chan error, 1)
 	tx.ack = make(chan *base.Request, 1)
 
-	// Send a 100 Trying immediately.
-	// Technically we shouldn't do this if we trustthe user to do it within 200ms,
-	// but I'm not sure how to handle that situation right now.
+    if r.Method != base.ACK {
+        // Send a 100 Trying immediately.
+        // Technically we shouldn't do this if we trust the user to do it within 200ms,
+        // but I'm not sure how to handle that situation right now.
+        // Explicitly don't do this for ACKs; 2xx ACKs are their own transaction but
+        // don't engender a provisional response - we just pass them up to the user
+        // to handle at the dialog scope.
+        mng.sendPresumptiveTrying(tx)
+    }
+
+	mng.requests <- tx
+}
+
+func (mng *Manager) sendPresumptiveTrying(tx *ServerTransaction) {
 
 	// Pretend the user sent us a 100 to send.
 	trying := base.NewResponse(
@@ -309,6 +314,4 @@ func (mng *Manager) request(r *base.Request) {
 
 	tx.lastResp = trying
 	tx.fsm.Spin(server_input_user_1xx)
-
-	mng.requests <- tx
 }
