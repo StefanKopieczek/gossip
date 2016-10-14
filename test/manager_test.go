@@ -1,4 +1,4 @@
-package transaction
+package test
 
 import (
 	"github.com/stefankopieczek/gossip/transaction"
