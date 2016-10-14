@@ -8,6 +8,7 @@ import (
 
 	"github.com/stefankopieczek/gossip/base"
 	"github.com/stefankopieczek/gossip/log"
+	"github.com/stefankopieczek/gossip/timing"
 	"github.com/stefankopieczek/gossip/transport"
 )
 
@@ -19,7 +20,7 @@ var (
 
 type Manager struct {
 	txs       map[key]Transaction
-	transport *transport.Manager
+	transport transport.Manager
 	requests  chan *ServerTransaction
 	txLock    *sync.RWMutex
 }
@@ -30,12 +31,7 @@ type key struct {
 	method string
 }
 
-func NewManager(trans, addr string) (*Manager, error) {
-	t, err := transport.NewManager(trans)
-	if err != nil {
-		return nil, err
-	}
-
+func NewManager(t transport.Manager, addr string) (*Manager, error) {
 	mng := &Manager{
 		txs:       map[key]Transaction{},
 		txLock:    &sync.RWMutex{},
@@ -52,7 +48,7 @@ func NewManager(trans, addr string) (*Manager, error) {
 		}
 	}()
 
-	err = mng.transport.Listen(addr)
+	err := mng.transport.Listen(addr)
 	if err != nil {
 		return nil, err
 	}
@@ -203,10 +199,12 @@ func (mng *Manager) Send(r *base.Request, dest string) *ClientTransaction {
 	tx.tu_err = make(chan error, 1)
 
 	tx.timer_a_time = T1
-	tx.timer_a = time.AfterFunc(tx.timer_a_time, func() {
+	tx.timer_a = timing.AfterFunc(tx.timer_a_time, func() {
 		tx.fsm.Spin(client_input_timer_a)
 	})
-	tx.timer_b = time.AfterFunc(64*T1, func() {
+	log.Debug("Client transaction %p, timer_b set to %v!", tx, 64*T1)
+	tx.timer_b = timing.AfterFunc(64*T1, func() {
+		log.Debug("Client transaction %p, timer_b fired!", tx)
 		tx.fsm.Spin(client_input_timer_b)
 	})
 

@@ -14,7 +14,14 @@ const c_BUFSIZE int = 65507
 const c_LISTENER_QUEUE_SIZE int = 1000
 const c_SOCKET_EXPIRY time.Duration = time.Hour
 
-type Manager struct {
+type Manager interface {
+	Listen(address string) error
+	Send(addr string, message base.SipMessage) error
+	Stop()
+	GetChannel() Listener
+}
+
+type manager struct {
 	notifier
 	transport transport
 }
@@ -26,7 +33,7 @@ type transport interface {
 	Stop()
 }
 
-func NewManager(transportType string) (manager *Manager, err error) {
+func NewManager(transportType string) (m Manager, err error) {
 	err = fmt.Errorf("Unknown transport type '%s'", transportType)
 
 	var n notifier
@@ -43,7 +50,7 @@ func NewManager(transportType string) (manager *Manager, err error) {
 	}
 
 	if transport != nil && err == nil {
-		manager = &Manager{notifier: n, transport: transport}
+		m = &manager{notifier: n, transport: transport}
 	} else {
 		// Close the input chan in order to stop the notifier; this prevents
 		// us leaking it.
@@ -53,42 +60,42 @@ func NewManager(transportType string) (manager *Manager, err error) {
 	return
 }
 
-func (manager *Manager) Listen(address string) error {
+func (manager *manager) Listen(address string) error {
 	return manager.transport.Listen(address)
 }
 
-func (manager *Manager) Send(addr string, message base.SipMessage) error {
+func (manager *manager) Send(addr string, message base.SipMessage) error {
 	return manager.transport.Send(addr, message)
 }
 
-func (manager *Manager) Stop() {
+func (manager *manager) Stop() {
 	manager.transport.Stop()
 	manager.notifier.stop()
 }
 
 type notifier struct {
-	listeners    map[listener]bool
+	listeners    map[Listener]bool
 	listenerLock sync.Mutex
 	inputs       chan base.SipMessage
 }
 
 func (n *notifier) init() {
-	n.listeners = make(map[listener]bool)
+	n.listeners = make(map[Listener]bool)
 	n.inputs = make(chan base.SipMessage)
 	go n.forward()
 }
 
-func (n *notifier) register(l listener) {
+func (n *notifier) register(l Listener) {
 	log.Debug("Notifier %p has new listener %p", n, l)
 	if n.listeners == nil {
-		n.listeners = make(map[listener]bool)
+		n.listeners = make(map[Listener]bool)
 	}
 	n.listenerLock.Lock()
 	n.listeners[l] = true
 	n.listenerLock.Unlock()
 }
 
-func (n *notifier) GetChannel() (l listener) {
+func (n *notifier) GetChannel() (l Listener) {
 	c := make(chan base.SipMessage, c_LISTENER_QUEUE_SIZE)
 	n.register(c)
 	return c
@@ -122,12 +129,12 @@ func (n *notifier) stop() {
 	n.listenerLock.Unlock()
 }
 
-type listener chan base.SipMessage
+type Listener chan base.SipMessage
 
 // notify tries to send a message to the listener.
 // If the underlying channel has been closed by the receiver, return 'false';
 // otherwise, return true.
-func (c listener) notify(message base.SipMessage) (ok bool) {
+func (c Listener) notify(message base.SipMessage) (ok bool) {
 	defer func() { recover() }()
 	c <- message
 	return true

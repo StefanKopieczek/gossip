@@ -80,7 +80,7 @@ func TestMassUDP(t *testing.T) {
 	return
 }
 
-func sendAndCheckReceipt(from *Manager, to string,
+func sendAndCheckReceipt(from Manager, to string,
 	receiver chan base.SipMessage,
 	msg base.SipMessage, timeout time.Duration) bool {
 	from.Send(to, msg)

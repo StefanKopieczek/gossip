@@ -2,11 +2,11 @@ package transaction
 
 import (
 	"errors"
-	"time"
 
 	"github.com/discoviking/fsm"
 	"github.com/stefankopieczek/gossip/base"
 	"github.com/stefankopieczek/gossip/log"
+	"github.com/stefankopieczek/gossip/timing"
 )
 
 // SIP Server Transaction FSM
@@ -55,7 +55,7 @@ func (tx *ServerTransaction) act_final() fsm.Input {
 	}
 
 	// Start timer J (we just reuse timer h)
-	tx.timer_h = time.AfterFunc(64*T1, func() {
+	tx.timer_h = timing.AfterFunc(64*T1, func() {
 		tx.fsm.Spin(server_input_timer_h)
 	})
 

@@ -7,6 +7,7 @@ import (
 	"github.com/discoviking/fsm"
 	"github.com/stefankopieczek/gossip/base"
 	"github.com/stefankopieczek/gossip/log"
+	"github.com/stefankopieczek/gossip/timing"
 	"github.com/stefankopieczek/gossip/transport"
 )
 
@@ -21,7 +22,7 @@ type Transaction interface {
 	Receive(m base.SipMessage)
 	Origin() *base.Request
 	Destination() string
-	Transport() *transport.Manager
+	Transport() transport.Manager
 	Delete()
 }
 
@@ -30,7 +31,7 @@ type transaction struct {
 	origin    *base.Request  // Request that started this transaction.
 	lastResp  *base.Response // Most recently received message.
 	dest      string         // Of the form hostname:port
-	transport *transport.Manager
+	transport transport.Manager
 	tm        *Manager
 }
 
@@ -42,7 +43,7 @@ func (tx *transaction) Destination() string {
 	return tx.dest
 }
 
-func (tx *transaction) Transport() *transport.Manager {
+func (tx *transaction) Transport() transport.Manager {
 	return tx.transport
 }
 
@@ -61,10 +62,10 @@ type ClientTransaction struct {
 	tu           chan *base.Response // Channel to transaction user.
 	tu_err       chan error          // Channel to report up errors to TU.
 	timer_a_time time.Duration       // Current duration of timer A.
-	timer_a      *time.Timer
-	timer_b      *time.Timer
+	timer_a      timing.Timer
+	timer_b      timing.Timer
 	timer_d_time time.Duration // Current duration of timer A.
-	timer_d      *time.Timer
+	timer_d      timing.Timer
 }
 
 type ServerTransaction struct {
@@ -73,9 +74,9 @@ type ServerTransaction struct {
 	tu      chan *base.Response // Channel to transaction user.
 	tu_err  chan error          // Channel to report up errors to TU.
 	ack     chan *base.Request  // Channel we send the ACK up on.
-	timer_g *time.Timer
-	timer_h *time.Timer
-	timer_i *time.Timer
+	timer_g timing.Timer
+	timer_h timing.Timer
+	timer_i timing.Timer
 }
 
 func (tx *ServerTransaction) Receive(m base.SipMessage) {
@@ -141,6 +142,7 @@ func (tx *ClientTransaction) Receive(m base.SipMessage) {
 
 // Resend the originating request.
 func (tx *ClientTransaction) resend() {
+	log.Info("Client transaction %p resending request: %v", tx, tx.origin.Short())
 	err := tx.transport.Send(tx.dest, tx.origin)
 	if err != nil {
 		tx.fsm.Spin(client_input_transport_err)
@@ -149,16 +151,19 @@ func (tx *ClientTransaction) resend() {
 
 // Pass up the most recently received response to the TU.
 func (tx *ClientTransaction) passUp() {
+	log.Info("Client transaction %p passing up response: %v", tx, tx.lastResp.Short())
 	tx.tu <- tx.lastResp
 }
 
 // Send an error to the TU.
 func (tx *ClientTransaction) transportError() {
+	log.Info("Client transaction %p had a transport-level error", tx)
 	tx.tu_err <- errors.New("failed to send message.")
 }
 
 // Inform the TU that the transaction timed out.
 func (tx *ClientTransaction) timeoutError() {
+	log.Info("Client transaction %p timed out", tx)
 	tx.tu_err <- errors.New("transaction timed out.")
 }
 
