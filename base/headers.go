@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"github.com/annttu/gossip/base"
 )
 
 // Whitespace recognised by SIP protocol.
