@@ -8,7 +8,10 @@ import (
 import "bytes"
 import "fmt"
 import "strconv"
-import "strings"
+import (
+	"strings"
+	"github.com/stefankopieczek/gossip/base"
+)
 
 // Whitespace recognised by SIP protocol.
 const c_ABNF_WS = " \t"
@@ -699,3 +702,23 @@ func (h *UnsupportedHeader) Copy() SipHeader {
 	copy(h.Options, dup)
 	return &UnsupportedHeader{dup}
 }
+
+type ContentType string
+
+func (contentType ContentType) String() string {
+	return fmt.Sprintf("Content-Type: %s", (string)(contentType))
+}
+
+func (h ContentType) Name() string { return "Content-Type" }
+
+func (h ContentType) Copy() SipHeader { return h }
+
+type UserAgent string
+
+func (userAgent UserAgent) String() string {
+	return fmt.Sprintf("User-Agent: %s", (string)(userAgent))
+}
+
+func (h UserAgent) Name() string { return "User-Agent" }
+
+func (h UserAgent) Copy() SipHeader { return h }

@@ -9,6 +9,7 @@ import (
 	"github.com/stefankopieczek/gossip/log"
 	"github.com/stefankopieczek/gossip/timing"
 	"github.com/stefankopieczek/gossip/transport"
+	"strings"
 )
 
 // Generic Client Transaction
@@ -169,26 +170,61 @@ func (tx *ClientTransaction) timeoutError() {
 
 // Send an automatic ACK.
 func (tx *ClientTransaction) Ack() {
+
+	// rfc3261
+	// TODO: fix later
+	var ackTarget base.Uri
+	if len(tx.lastResp.Headers("Contact")) > 0 {
+		var ackTargetHdr *base.ContactHeader
+		ackTargetHdrx := tx.lastResp.Headers("Contact")[0]
+		ackTargetHdr = ackTargetHdrx.(*base.ContactHeader)
+		ackTarget = ackTargetHdr.Address
+	} else {
+		ackTarget = tx.origin.Recipient
+	}
+
 	ack := base.NewRequest(base.ACK,
-		tx.origin.Recipient,
+		ackTarget,
 		tx.origin.SipVersion,
 		[]base.SipHeader{},
 		"")
 
 	// Copy headers from original request.
 	// TODO: Safety
-	base.CopyHeaders("From", tx.origin, ack)
-	base.CopyHeaders("Call-Id", tx.origin, ack)
-	base.CopyHeaders("Route", tx.origin, ack)
-	cseq := tx.origin.Headers("CSeq")[0].Copy()
-	cseq.(*base.CSeq).MethodName = base.ACK
-	ack.AddHeader(cseq)
-	via := tx.origin.Headers("Via")[0].Copy()
-	ack.AddHeader(via)
 
+	for _, via := range tx.origin.Headers("Via") {
+		xvia := via.Copy()
+		ack.AddHeader(xvia)
+	}
+
+	var maxForwards base.MaxForwards = 70
+	ack.AddHeader(maxForwards)
+
+
+	for index := range tx.lastResp.Headers("Record-Route") {
+		hdr := tx.lastResp.Headers("Record-Route")[len(tx.lastResp.Headers("Record-Route"))-1-index]
+		rt := strings.SplitN(hdr.String(), ":", 2)[1]
+		var route base.GenericHeader = base.GenericHeader{
+			HeaderName: "Route",
+			Contents: rt[1:],
+		}
+		ack.AddHeader(route.Copy())
+	}
+
+
+	base.CopyHeaders("From", tx.origin, ack)
 	// Copy headers from response.
 	base.CopyHeaders("To", tx.lastResp, ack)
 
+	base.CopyHeaders("Call-Id", tx.origin, ack)
+
+	// base.CopyHeaders("Route", tx.origin, ack)
+	cseq := tx.origin.Headers("CSeq")[0].Copy()
+	cseq.(*base.CSeq).MethodName = base.ACK
+	ack.AddHeader(cseq)
+
+
+	ack.AddHeader(base.ContentLength(0))
 	// Send the ACK.
 	tx.transport.Send(tx.dest, ack)
 }
