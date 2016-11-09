@@ -1,16 +1,13 @@
 package base
 
 import (
-	"github.com/stefankopieczek/gossip/log"
-	"github.com/stefankopieczek/gossip/utils"
-)
-
-import "bytes"
-import "fmt"
-import "strconv"
-import (
+	"github.com/annttu/gossip/log"
+	"github.com/annttu/gossip/utils"
+	"bytes"
+	"fmt"
+	"strconv"
 	"strings"
-	"github.com/stefankopieczek/gossip/base"
+	"github.com/annttu/gossip/base"
 )
 
 // Whitespace recognised by SIP protocol.
