@@ -99,7 +99,7 @@ func (hs *headers) AddHeader(h SipHeader) {
 		hs.headers = map[string][]SipHeader{}
 		hs.headerOrder = []string{}
 	}
-	name := h.Name()
+	name := strings.ToLower(h.Name())
 	if _, ok := hs.headers[name]; ok {
 		hs.headers[name] = append(hs.headers[name], h)
 	} else {
@@ -114,7 +114,7 @@ func (hs *headers) Headers(name string) []SipHeader {
 		hs.headers = map[string][]SipHeader{}
 		hs.headerOrder = []string{}
 	}
-	if headers, ok := hs.headers[name]; ok {
+	if headers, ok := hs.headers[strings.ToLower(name)]; ok {
 		return headers
 	} else {
 		return []SipHeader{}
