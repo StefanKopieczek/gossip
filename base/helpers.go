@@ -1,9 +1,9 @@
 package base
 
 import (
-	"errors"
-	"strconv"
-	"time"
+	"strings"
+
+	"github.com/weave-lab/wlib/werror"
 )
 
 func (hs *headers) From() (*FromHeader, bool) {
@@ -47,20 +47,22 @@ func (hs *headers) CSeq() (*CSeq, bool) {
 	return &CSeq{}, false
 }
 
-func (hs *headers) Expires() (*time.Duration, error) {
-	expiresHeaders, ok := hs.headers["expires"]
-	if !ok {
-		return nil, errors.New("expire header does not exist")
+func (hs *headers) HeaderContents(name string) ([]string, error) {
+	headers := hs.headers[strings.ToLower(name)]
+	if len(headers) < 1 {
+		return nil, werror.New("missing header").Add("name", name)
 	}
 
-	expires := expiresHeaders[0].(*GenericHeader)
+	var contents []string
 
-	expiresInt, err := strconv.Atoi(expires.Contents)
-	if err != nil {
-		return nil, err
+	for _, header := range headers {
+		genHeader, ok := header.(*GenericHeader)
+		if !ok {
+			return nil, werror.New("error casting to generic header").Add("name", name)
+		}
+
+		contents = append(contents, genHeader.Contents)
 	}
+	return contents, nil
 
-	duration := time.Second * time.Duration(expiresInt)
-
-	return &duration, nil
 }
