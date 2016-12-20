@@ -1,9 +1,8 @@
 package base
 
 import (
+	"fmt"
 	"strings"
-
-	"github.com/weave-lab/wlib/werror"
 )
 
 func (hs *headers) From() (*FromHeader, bool) {
@@ -50,7 +49,7 @@ func (hs *headers) CSeq() (*CSeq, bool) {
 func (hs *headers) HeaderContents(name string) ([]string, error) {
 	headers := hs.headers[strings.ToLower(name)]
 	if len(headers) < 1 {
-		return nil, werror.New("missing header").Add("name", name)
+		return nil, fmt.Errorf("missing header, name: %s", name)
 	}
 
 	var contents []string
@@ -58,7 +57,7 @@ func (hs *headers) HeaderContents(name string) ([]string, error) {
 	for _, header := range headers {
 		genHeader, ok := header.(*GenericHeader)
 		if !ok {
-			return nil, werror.New("error casting to generic header").Add("name", name)
+			return nil, fmt.Errorf("error casting to generic header, name: %s", name)
 		}
 
 		contents = append(contents, genHeader.Contents)
