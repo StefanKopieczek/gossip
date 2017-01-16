@@ -30,6 +30,20 @@ func (hs *headers) Contact() (*ContactHeader, bool) {
 	}
 }
 
+func (hs *headers) Via() ([]*ViaHeader, bool) {
+	headers, ok := hs.headers["via"]
+	if !ok {
+		return nil, false
+	}
+
+	var viaHeaders []*ViaHeader
+	for _, header := range headers {
+		viaHeaders = append(viaHeaders, header.(*ViaHeader))
+	}
+
+	return viaHeaders, true
+}
+
 func (hs *headers) CallID() (*CallId, bool) {
 	if headers, ok := hs.headers["call-id"]; ok {
 		return headers[0].(*CallId), ok
@@ -55,12 +69,9 @@ func (hs *headers) HeaderContents(name string) ([]string, error) {
 	var contents []string
 
 	for _, header := range headers {
-		genHeader, ok := header.(*GenericHeader)
-		if !ok {
-			return nil, fmt.Errorf("error casting to generic header, name: %s", name)
-		}
-
-		contents = append(contents, genHeader.Contents)
+		headerStr := header.String()
+		sep := strings.Index(headerStr, ":")
+		contents = append(contents, strings.TrimSpace(headerStr[sep+1:]))
 	}
 	return contents, nil
 
