@@ -4,9 +4,6 @@ import (
 	"github.com/annttu/gossip/base"
 	"github.com/annttu/gossip/log"
 	"github.com/annttu/gossip/utils"
-)
-
-import (
 	"bytes"
 	"fmt"
 	"strconv"
