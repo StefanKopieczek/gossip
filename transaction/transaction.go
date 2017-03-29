@@ -31,6 +31,7 @@ type transaction struct {
 	fsm       *fsm.FSM       // FSM which governs the behavior of this transaction.
 	origin    *base.Request  // Request that started this transaction.
 	lastResp  *base.Response // Most recently received message.
+    lastReq   *base.Request  // Most recently received request.
 	dest      string         // Of the form hostname:port
 	transport transport.Manager
 	tm        *Manager
@@ -55,12 +56,16 @@ func (tx *ServerTransaction) Delete() {
 func (tx *ClientTransaction) Delete() {
 	log.Warn("Tx: %p, tm: %p", tx, tx.tm)
 	tx.tm.delTx(tx)
+    tx.tm.delCallTx(tx)
+    close(tx.tu)
+    close(tx.tr)
 }
 
 type ClientTransaction struct {
 	transaction
 
 	tu           chan *base.Response // Channel to transaction user.
+    tr           chan *base.Request  // Channel to transaction user.
 	tu_err       chan error          // Channel to report up errors to TU.
 	timer_a_time time.Duration       // Current duration of timer A.
 	timer_a      timing.Timer
@@ -121,22 +126,38 @@ func (tx *ServerTransaction) Ack() <-chan *base.Request {
 }
 
 func (tx *ClientTransaction) Receive(m base.SipMessage) {
+    var input fsm.Input
 	r, ok := m.(*base.Response)
 	if !ok {
-		log.Warn("Client transaction received request")
-	}
 
-	tx.lastResp = r
+        req, ok := m.(*base.Request)
 
-	var input fsm.Input
-	switch {
-	case r.StatusCode < 200:
-		input = client_input_1xx
-	case r.StatusCode < 300:
-		input = client_input_2xx
-	default:
-		input = client_input_300_plus
-	}
+        if !ok {
+            log.Warn("Skipping uknown message type, %v", m)
+            return
+        }
+        log.Warn("Client transaction received type request message")
+        switch req.Method {
+        case base.BYE:
+            // Got bye message
+            tx.lastReq = req
+            input = client_input_bye
+        default:
+            log.Warn("Skipping uknown method %v", req.Method)
+            return
+        }
+	} else {
+        tx.lastResp = r
+        switch {
+        case r.StatusCode < 200:
+            input = client_input_1xx
+        case r.StatusCode < 300:
+            input = client_input_2xx
+        default:
+            input = client_input_300_plus
+        }
+
+    }
 
 	tx.fsm.Spin(input)
 }
@@ -154,6 +175,11 @@ func (tx *ClientTransaction) resend() {
 func (tx *ClientTransaction) passUp() {
 	log.Info("Client transaction %p passing up response: %v", tx, tx.lastResp.Short())
 	tx.tu <- tx.lastResp
+}
+
+func (tx *ClientTransaction) passUpRequest() {
+    log.Info("Client transaction %p passing up request %v", tx, tx.lastReq.Short())
+    tx.tr <- tx.lastReq
 }
 
 // Send an error to the TU.
@@ -232,6 +258,11 @@ func (tx *ClientTransaction) Ack() {
 // Return the channel we send responses on.
 func (tx *ClientTransaction) Responses() <-chan *base.Response {
 	return (<-chan *base.Response)(tx.tu)
+}
+
+// Return the channel we send requests on.
+func (tx *ClientTransaction) Requests() <-chan *base.Request {
+    return (<-chan *base.Request)(tx.tr)
 }
 
 // Return the channel we send errors on.

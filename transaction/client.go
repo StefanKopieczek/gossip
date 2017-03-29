@@ -16,6 +16,7 @@ const (
 	client_state_proceeding
 	client_state_completed
 	client_state_terminated
+	client_state_on_call
 )
 
 // FSM Inputs
@@ -23,6 +24,7 @@ const (
 	client_input_1xx fsm.Input = iota
 	client_input_2xx
 	client_input_300_plus
+	client_input_bye
 	client_input_timer_a
 	client_input_timer_b
 	client_input_timer_d
@@ -99,7 +101,7 @@ func (tx *ClientTransaction) initInviteFSM() {
 	// Pass up the response and delete the transaction.
 	act_passup_delete := func() fsm.Input {
 		log.Debug("Client transaction %p, act_passup_delete", tx)
-		tx.passUp()
+		tx.passUpRequest()
 		tx.Delete()
 		return fsm.NO_INPUT
 	}
@@ -118,8 +120,9 @@ func (tx *ClientTransaction) initInviteFSM() {
 		Index: client_state_calling,
 		Outcomes: map[fsm.Input]fsm.Outcome{
 			client_input_1xx:           {client_state_proceeding, act_passup},
-			client_input_2xx:           {client_state_terminated, act_passup_delete},
+			client_input_2xx:           {client_state_on_call, act_passup},
 			client_input_300_plus:      {client_state_completed, act_300},
+            client_input_bye:           {client_state_terminated, fsm.NO_ACTION},
 			client_input_timer_a:       {client_state_calling, act_resend},
 			client_input_timer_b:       {client_state_terminated, act_timeout},
 			client_input_transport_err: {client_state_terminated, act_trans_err},
@@ -131,12 +134,26 @@ func (tx *ClientTransaction) initInviteFSM() {
 		Index: client_state_proceeding,
 		Outcomes: map[fsm.Input]fsm.Outcome{
 			client_input_1xx:      {client_state_proceeding, act_passup},
-			client_input_2xx:      {client_state_terminated, act_passup_delete},
+			client_input_2xx:      {client_state_on_call, act_passup},
 			client_input_300_plus: {client_state_completed, act_300},
+            client_input_bye:      {client_state_proceeding, fsm.NO_ACTION},
 			client_input_timer_a:  {client_state_proceeding, fsm.NO_ACTION},
 			client_input_timer_b:  {client_state_proceeding, fsm.NO_ACTION},
 		},
 	}
+
+    // On call
+    client_state_def_on_call := fsm.State{
+        Index: client_state_on_call,
+        Outcomes: map[fsm.Input]fsm.Outcome{
+            client_input_1xx:           {client_state_on_call, fsm.NO_ACTION},
+            client_input_2xx:           {client_state_on_call, fsm.NO_ACTION},
+            client_input_300_plus:      {client_state_on_call, fsm.NO_ACTION},
+            client_input_bye:           {client_state_terminated, act_passup_delete},
+            client_input_timer_a:       {client_state_on_call, fsm.NO_ACTION},
+            client_input_timer_b:       {client_state_on_call, fsm.NO_ACTION},
+        },
+    }
 
 	// Completed
 	client_state_def_completed := fsm.State{
@@ -145,6 +162,7 @@ func (tx *ClientTransaction) initInviteFSM() {
 			client_input_1xx:           {client_state_completed, fsm.NO_ACTION},
 			client_input_2xx:           {client_state_completed, fsm.NO_ACTION},
 			client_input_300_plus:      {client_state_completed, act_ack},
+            client_input_bye:           {client_state_completed, fsm.NO_ACTION},
 			client_input_timer_d:       {client_state_terminated, act_delete},
 			client_input_transport_err: {client_state_terminated, act_trans_err},
 			client_input_timer_a:       {client_state_completed, fsm.NO_ACTION},
@@ -159,6 +177,7 @@ func (tx *ClientTransaction) initInviteFSM() {
 			client_input_1xx:      {client_state_terminated, fsm.NO_ACTION},
 			client_input_2xx:      {client_state_terminated, fsm.NO_ACTION},
 			client_input_300_plus: {client_state_terminated, fsm.NO_ACTION},
+            client_input_bye:      {client_state_terminated, fsm.NO_ACTION},
 			client_input_timer_a:  {client_state_terminated, fsm.NO_ACTION},
 			client_input_timer_b:  {client_state_terminated, fsm.NO_ACTION},
 			client_input_delete:   {client_state_terminated, act_delete},
@@ -168,6 +187,7 @@ func (tx *ClientTransaction) initInviteFSM() {
 	fsm, err := fsm.Define(
 		client_state_def_calling,
 		client_state_def_proceeding,
+        client_state_def_on_call,
 		client_state_def_completed,
 		client_state_def_terminated,
 	)
