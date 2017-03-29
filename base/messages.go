@@ -99,7 +99,7 @@ func (hs *headers) AddHeader(h SipHeader) {
 		hs.headers = map[string][]SipHeader{}
 		hs.headerOrder = []string{}
 	}
-	name := h.Name()
+	name := strings.ToLower(h.Name())
 	if _, ok := hs.headers[name]; ok {
 		hs.headers[name] = append(hs.headers[name], h)
 	} else {
@@ -116,7 +116,7 @@ func (hs *headers) AddFrontHeader(h SipHeader) {
 		hs.headers = map[string][]SipHeader{}
 		hs.headerOrder = []string{}
 	}
-	name := h.Name()
+	name := strings.ToLower(h.Name())
 	if hdrs, ok := hs.headers[name]; ok {
 		newHdrs := make([]SipHeader, 1, len(hdrs)+1)
 		newHdrs[0] = h
@@ -129,6 +129,7 @@ func (hs *headers) AddFrontHeader(h SipHeader) {
 
 // Gets some headers.
 func (hs *headers) Headers(name string) []SipHeader {
+    name = strings.ToLower(name)
 	if hs.headers == nil {
 		hs.headers = map[string][]SipHeader{}
 		hs.headerOrder = []string{}
@@ -143,6 +144,7 @@ func (hs *headers) Headers(name string) []SipHeader {
 // Copy all headers of one type from one message to another.
 // Appending to any headers that were already there.
 func CopyHeaders(name string, from, to SipMessage) {
+    name = strings.ToLower(name)
 	for _, h := range from.Headers(name) {
 		to.AddHeader(h.Copy())
 	}
