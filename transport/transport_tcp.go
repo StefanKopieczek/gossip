@@ -81,19 +81,22 @@ func (tcp *Tcp) Send(addr string, msg base.SipMessage) error {
 }
 
 func (tcp *Tcp) serve(listeningPoint *net.TCPListener) {
-	log.Info("Begin serving TCP on address " + listeningPoint.Addr().String())
+    log.Info("Begin serving TCP on address " + listeningPoint.Addr().String())
 
-	for {
-		baseConn, err := listeningPoint.Accept()
-		if err != nil {
-			log.Severe("Failed to accept TCP conn on address " + listeningPoint.Addr().String() + "; " + err.Error())
-			continue
-		}
+    for {
+        baseConn, err := listeningPoint.Accept()
+        if err != nil {
+            if tcp.stop {
+                break
+            }
+            log.Severe("Failed to accept TCP conn on address " + listeningPoint.Addr().String() + "; " + err.Error())
+            continue
+        }
 
-		conn := NewConn(baseConn, tcp.output)
-		log.Debug("Accepted new TCP conn %p from %s on address %s", &conn, conn.baseConn.RemoteAddr(), conn.baseConn.LocalAddr())
-		tcp.connTable.Notify(baseConn.RemoteAddr().String(), conn)
-	}
+        conn := NewConn(baseConn, tcp.output)
+        log.Debug("Accepted new TCP conn %p from %s on address %s", &conn, conn.baseConn.RemoteAddr(), conn.baseConn.LocalAddr())
+        tcp.connTable.Notify(baseConn.RemoteAddr().String(), conn)
+    }
 }
 
 func (tcp *Tcp) Stop() {
