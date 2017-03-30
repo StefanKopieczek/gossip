@@ -249,10 +249,79 @@ func (tx *ClientTransaction) Ack() {
 	cseq.(*base.CSeq).MethodName = base.ACK
 	ack.AddHeader(cseq)
 
-
 	ack.AddHeader(base.ContentLength(0))
 	// Send the ACK.
 	tx.transport.Send(tx.dest, ack)
+}
+
+// TODO: create general non-invite send function
+func (tx *ClientTransaction) MakeBye() (*base.Request, error) {
+    var byeTarget base.Uri
+    if len(tx.lastResp.Headers("Contact")) > 0 {
+        var ackTargetHdr *base.ContactHeader
+        ackTargetHdrx := tx.lastResp.Headers("Contact")[0]
+        ackTargetHdr = ackTargetHdrx.(*base.ContactHeader)
+        byeTarget = ackTargetHdr.Address
+    } else {
+        byeTarget = tx.origin.Recipient
+    }
+
+    bye := base.NewRequest(base.BYE,
+        byeTarget,
+        tx.origin.SipVersion,
+        []base.SipHeader{},
+        "")
+
+    // Copy headers from original request.
+
+    // ViaHeader must be created manually because ViaHeader.Copy() returns SipHeader
+    for _, via := range tx.origin.Headers("Via") {
+        // xvia := via.Copy()
+        xvia, ok := via.(*base.ViaHeader)
+        if !ok {
+            log.Warn("Failed to convert SipHeader to viaHeader")
+            continue
+        }
+        var viahops []*base.ViaHop
+        viahops = make([]*base.ViaHop, 0, len(*xvia))
+        for _, viahop := range *xvia {
+            viahops = append(viahops, viahop.Copy())
+        }
+        viaheader := base.ViaHeader(viahops)
+        bye.AddHeader(&viaheader)
+    }
+
+    var maxForwards base.MaxForwards = 70
+    bye.AddHeader(maxForwards)
+
+
+    for index := range tx.lastResp.Headers("Record-Route") {
+        hdr := tx.lastResp.Headers("Record-Route")[len(tx.lastResp.Headers("Record-Route"))-1-index]
+        rt := strings.SplitN(hdr.String(), ":", 2)[1]
+        var route base.GenericHeader = base.GenericHeader{
+            HeaderName: "Route",
+            Contents: rt[1:],
+        }
+        bye.AddHeader(route.Copy())
+    }
+
+
+    base.CopyHeaders("From", tx.origin, bye)
+    // Copy headers from response.
+    base.CopyHeaders("To", tx.lastResp, bye)
+
+    base.CopyHeaders("Call-Id", tx.origin, bye)
+
+    // base.CopyHeaders("Route", tx.origin, ack)
+    cseq := tx.origin.Headers("CSeq")[0].Copy()
+    cseq.(*base.CSeq).MethodName = base.BYE
+    cseq.(*base.CSeq).SeqNo += 1
+    bye.AddHeader(cseq)
+
+
+    bye.AddHeader(base.ContentLength(0))
+
+    return bye, nil
 }
 
 // Return the channel we send responses on.
