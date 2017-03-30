@@ -254,8 +254,11 @@ func (tx *ClientTransaction) Ack() {
 	tx.transport.Send(tx.dest, ack)
 }
 
-// TODO: create general non-invite send function
-func (tx *ClientTransaction) MakeBye() (*base.Request, error) {
+func (tx *ClientTransaction) MakeBye () (*base.Request, error) {
+    return tx.MakeNonInviteMessage(base.BYE)
+}
+
+func (tx *ClientTransaction) MakeNonInviteMessage(method base.Method) (*base.Request, error) {
     var byeTarget base.Uri
     if len(tx.lastResp.Headers("Contact")) > 0 {
         var ackTargetHdr *base.ContactHeader
@@ -266,7 +269,7 @@ func (tx *ClientTransaction) MakeBye() (*base.Request, error) {
         byeTarget = tx.origin.Recipient
     }
 
-    bye := base.NewRequest(base.BYE,
+    bye := base.NewRequest(method,
         byeTarget,
         tx.origin.SipVersion,
         []base.SipHeader{},
@@ -305,7 +308,6 @@ func (tx *ClientTransaction) MakeBye() (*base.Request, error) {
         bye.AddHeader(route.Copy())
     }
 
-
     base.CopyHeaders("From", tx.origin, bye)
     // Copy headers from response.
     base.CopyHeaders("To", tx.lastResp, bye)
@@ -314,7 +316,7 @@ func (tx *ClientTransaction) MakeBye() (*base.Request, error) {
 
     // base.CopyHeaders("Route", tx.origin, ack)
     cseq := tx.origin.Headers("CSeq")[0].Copy()
-    cseq.(*base.CSeq).MethodName = base.BYE
+    cseq.(*base.CSeq).MethodName = method
     cseq.(*base.CSeq).SeqNo += 1
     bye.AddHeader(cseq)
 
