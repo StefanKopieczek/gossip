@@ -7,6 +7,7 @@ import (
 	"github.com/stefankopieczek/gossip/parser"
 	"github.com/stefankopieczek/gossip/timing"
 	"github.com/stefankopieczek/gossip/transport"
+	"net"
 	"strings"
 	"testing"
 	"time"
@@ -212,4 +213,94 @@ func TestListenRequest(t *testing.T) {
 	}
 
 	m.Stop()
+}
+
+func TestUDPResponseUsesSameSourcePort(t *testing.T) {
+	log.SetDefaultLogLevel(log.DEBUG)
+	client_hostport := "127.0.0.1:10001"
+	server_hostport := "127.0.0.1:10002"
+
+	// Resolve client UDP endpoint.
+	client_addr, err := net.ResolveUDPAddr("udp", client_hostport)
+	if err != nil {
+		t.Fatalf("Error resolving UDP addr %s: %v", client_addr, err)
+	}
+
+	// Resolve server UDP endpoint.
+	server_addr, err := net.ResolveUDPAddr("udp", server_hostport)
+	if err != nil {
+		t.Fatalf("Error resolving UDP addr %s: %v", server_hostport, err)
+	}
+
+	// Start the server process.
+	server_transport, err := transport.NewManager("udp")
+	if err != nil {
+		t.Fatalf("Error creating transport: %v", err)
+	}
+	server, err := NewManager(server_transport, server_hostport)
+	if err != nil {
+		t.Fatalf("Error creating transport manager: %v", err)
+	}
+
+	// Set up server daemon to reply to incoming requests with a 200 OK.
+	ok := base.NewResponse(
+		"SIP/2.0",
+		200,
+		"SIP/2.0",
+		make([]base.SipHeader, 0),
+		"")
+	go func() {
+		log.Debug("Server started listening for invites")
+		transaction := <-server.requests
+		log.Debug("Server received invite")
+		transaction.Respond(ok)
+		log.Debug("Server responded to invite")
+	}()
+
+	// Open the client->server connection that will be used to send the initial INVITE and receive the reply.
+	conn, err := net.DialUDP("udp", client_addr, server_addr)
+	if err != nil {
+		t.Fatalf("Error opening a server connection from %v to %v: %v", client_addr, server_addr, err)
+	}
+
+	// Start listening for the 200 OK reply from the server.
+	complete := make(chan bool, 0)
+	go func() {
+		log.Info("Started listening for replies from the server on %v", conn.LocalAddr())
+		buffer := make([]byte, 65507)
+		_, laddr, err := conn.ReadFromUDP(buffer)
+		if err != nil {
+			t.Fatalf("Error reading from UDP conn %v: %v", conn, err)
+		} else if laddr.String() != client_hostport {
+			t.Errorf("Received response from port %s; was expecting %s", laddr.String(), client_hostport)
+		} else {
+			log.Info("Received response on correct port")
+			complete <- true
+		}
+	}()
+
+	// Send the test INVITE to the server.
+	log.Info("Starting sleep")
+	<-time.After(time.Second * 5)
+	log.Info("Waking up to send packet")
+	to_uri, _ := parser.ParseUri("sip:bob@example.com")
+	via_port := uint16(client_addr.Port)
+	via_hop := base.ViaHop{"SIP", "2.0", "udp", client_addr.IP.String(), &via_port,
+		base.NewParams().Add("branch", base.String{"z9hG4bKkjshdyff"})}
+	var via_header base.ViaHeader = []*base.ViaHop{&via_hop}
+	invite := base.NewRequest(
+		base.INVITE,
+		to_uri,
+		"SIP/2.0",
+		[]base.SipHeader{via_header},
+		"")
+	_, err = conn.Write([]byte(invite.String()))
+
+	// Wait for the listener process to confirm it's received a valid reply from the server..
+	select {
+	case <-complete:
+		break
+	case <-time.After(time.Second * 10):
+		t.Errorf("Timed out waiting for response from server")
+	}
 }
