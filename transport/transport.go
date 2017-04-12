@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/annttu/gossip/base"
-	"github.com/annttu/gossip/log"
+	"github.com/jkjuopperi/gossip/base"
+	"github.com/jkjuopperi/gossip/log"
 )
 
 const c_BUFSIZE int = 65507

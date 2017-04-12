@@ -5,10 +5,10 @@ import (
 	"time"
 
 	"github.com/discoviking/fsm"
-	"github.com/annttu/gossip/base"
-	"github.com/annttu/gossip/log"
-	"github.com/annttu/gossip/timing"
-	"github.com/annttu/gossip/transport"
+	"github.com/jkjuopperi/gossip/base"
+	"github.com/jkjuopperi/gossip/log"
+	"github.com/jkjuopperi/gossip/timing"
+	"github.com/jkjuopperi/gossip/transport"
 	"strings"
 )
 

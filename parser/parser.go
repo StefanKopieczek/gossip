@@ -1,9 +1,9 @@
 package parser
 
 import (
-	"github.com/annttu/gossip/base"
-	"github.com/annttu/gossip/log"
-	"github.com/annttu/gossip/utils"
+	"github.com/jkjuopperi/gossip/base"
+	"github.com/jkjuopperi/gossip/log"
+	"github.com/jkjuopperi/gossip/utils"
 	"bytes"
 	"fmt"
 	"strconv"
