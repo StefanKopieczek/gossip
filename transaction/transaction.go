@@ -254,6 +254,35 @@ func (tx *ClientTransaction) Ack() {
 	tx.transport.Send(tx.dest, ack)
 }
 
+// Cancel message sent by the state machine
+func (tx *ClientTransaction) sendCancel() {
+
+    cancel := base.NewRequest(base.CANCEL, tx.origin.Recipient, tx.origin.SipVersion, []base.SipHeader{}, "")
+
+    base.CopyHeaders("Call-ID", tx.origin, cancel)
+    base.CopyHeaders("To", tx.origin, cancel)
+    base.CopyHeaders("From", tx.origin, cancel)
+    base.CopyHeaders("Route", tx.origin, cancel)
+
+    // Take the first Via headers as per RFC
+    viaHeaders := tx.origin.Headers("Via")
+    if len(viaHeaders) > 0 {
+        cancel.AddHeader(viaHeaders[0].Copy())
+    }
+
+    // CSeq with same SeqNo but CANCEL as method
+    cseq := tx.origin.Headers("CSeq")[0].Copy()
+    cseq.(*base.CSeq).MethodName = base.CANCEL
+    cancel.AddHeader(cseq)
+
+    tx.transport.Send(tx.dest, cancel)
+}
+
+// Terminate this transaction
+func (tx *ClientTransaction) Terminate() {
+    tx.fsm.Spin(client_input_terminate)
+}
+
 func (tx *ClientTransaction) MakeBye () (*base.Request, error) {
     return tx.MakeNonInviteMessage(base.BYE)
 }
@@ -324,6 +353,13 @@ func (tx *ClientTransaction) MakeNonInviteMessage(method base.Method) (*base.Req
     bye.AddHeader(base.ContentLength(0))
 
     return bye, nil
+}
+
+func (tx *ClientTransaction) sendBye() {
+    byeMessage, err := tx.MakeBye()
+    if err == nil {
+        tx.transport.Send(tx.dest, byeMessage)
+    }
 }
 
 // Return the channel we send responses on.

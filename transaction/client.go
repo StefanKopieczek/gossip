@@ -17,6 +17,8 @@ const (
 	client_state_completed
 	client_state_terminated
 	client_state_on_call
+    client_state_canceling
+    client_state_bye_sent
 )
 
 // FSM Inputs
@@ -30,6 +32,7 @@ const (
 	client_input_timer_d
 	client_input_transport_err
 	client_input_delete
+    client_input_terminate // Selectively CANCEL or BYE to terminate
 )
 
 // Initialises the correct kind of FSM based on request method.
@@ -113,6 +116,19 @@ func (tx *ClientTransaction) initInviteFSM() {
 		return fsm.NO_INPUT
 	}
 
+    // Cancel ongoing invite
+    act_cancel := func() fsm.Input {
+        log.Debug("Client transaction %p, act_cancel", tx)
+        tx.sendCancel();
+        return fsm.NO_INPUT
+    }
+
+    act_bye := func() fsm.Input {
+        log.Debug("Client transaction %p, act_cancel", tx)
+        tx.sendBye();
+        return fsm.NO_INPUT
+    }
+
 	// Define States
 
 	// Calling
@@ -126,6 +142,7 @@ func (tx *ClientTransaction) initInviteFSM() {
 			client_input_timer_a:       {client_state_calling, act_resend},
 			client_input_timer_b:       {client_state_terminated, act_timeout},
 			client_input_transport_err: {client_state_terminated, act_trans_err},
+            client_input_terminate:     {client_state_canceling, fsm.NO_ACTION},
 		},
 	}
 
@@ -139,6 +156,7 @@ func (tx *ClientTransaction) initInviteFSM() {
             client_input_bye:      {client_state_proceeding, fsm.NO_ACTION},
 			client_input_timer_a:  {client_state_proceeding, fsm.NO_ACTION},
 			client_input_timer_b:  {client_state_proceeding, fsm.NO_ACTION},
+            client_input_terminate:{client_state_canceling, act_cancel},
 		},
 	}
 
@@ -152,6 +170,7 @@ func (tx *ClientTransaction) initInviteFSM() {
             client_input_bye:           {client_state_terminated, act_passup_delete},
             client_input_timer_a:       {client_state_on_call, fsm.NO_ACTION},
             client_input_timer_b:       {client_state_on_call, fsm.NO_ACTION},
+            client_input_terminate:     {client_state_bye_sent, act_bye},
         },
     }
 
@@ -184,12 +203,42 @@ func (tx *ClientTransaction) initInviteFSM() {
 		},
 	}
 
+    // Canceling
+    client_state_def_canceling := fsm.State{
+        Index: client_state_canceling,
+        Outcomes: map[fsm.Input]fsm.Outcome{
+            client_input_1xx:      {client_state_canceling, act_cancel},
+            client_input_2xx:      {client_state_bye_sent, act_bye}, // CANCEL was too late, need BYE
+            client_input_300_plus: {client_state_terminated, fsm.NO_ACTION},
+            client_input_bye:      {client_state_terminated, fsm.NO_ACTION},
+            client_input_timer_a:  {client_state_canceling, act_cancel}, // XXX
+            client_input_timer_b:  {client_state_terminated, fsm.NO_ACTION}, // XXX
+            client_input_delete:   {client_state_terminated, act_delete},
+        },
+    }
+
+    // BYE sent
+    client_state_def_bye_sent := fsm.State{
+        Index: client_state_bye_sent,
+        Outcomes: map[fsm.Input]fsm.Outcome{
+            client_input_1xx:      {client_state_canceling, act_cancel}, // ???
+            client_input_2xx:      {client_state_on_call, fsm.NO_ACTION}, // YAY, session dead
+            client_input_300_plus: {client_state_terminated, fsm.NO_ACTION},
+            client_input_bye:      {client_state_terminated, fsm.NO_ACTION},
+            client_input_timer_a:  {client_state_canceling, act_cancel}, // XXX
+            client_input_timer_b:  {client_state_terminated, fsm.NO_ACTION}, // XXX
+            client_input_delete:   {client_state_terminated, act_delete},
+        },
+    }
+
 	fsm, err := fsm.Define(
 		client_state_def_calling,
 		client_state_def_proceeding,
         client_state_def_on_call,
 		client_state_def_completed,
 		client_state_def_terminated,
+        client_state_def_canceling,
+        client_state_def_bye_sent,
 	)
 
 	if err != nil {
