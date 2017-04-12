@@ -275,6 +275,8 @@ func (tx *ClientTransaction) sendCancel() {
     cseq.(*base.CSeq).MethodName = base.CANCEL
     cancel.AddHeader(cseq)
 
+    cancel.AddHeader(base.ContentLength(0))
+
     tx.transport.Send(tx.dest, cancel)
 }
 
