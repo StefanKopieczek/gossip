@@ -31,7 +31,8 @@ func TestBasicStorage(t *testing.T) {
 	conn := makeTestConn()
 	table.Notify("foo", conn)
 
-	if table.GetConn("foo") != conn {
+	// Ensure it has been created.
+	if !testutils.Eventually(func() bool { return table.GetConn("foo") == conn }) {
 		t.FailNow()
 	}
 }
@@ -44,10 +45,17 @@ func TestBasicExpiry(t *testing.T) {
 	defer table.Stop() // This currently panics due to issue #13.
 
 	table.Notify("bar", makeTestConn())
+
+	// Ensure it has been created.
+	if !testutils.Eventually(func() bool { return table.GetConn("bar") != nil }) {
+		t.FailNow()
+	}
+
 	timing.Elapse(c_SOCKET_EXPIRY)
 	timing.Elapse(time.Nanosecond)
 
-	if !testutils.Eventually(func() bool { return table.GetConn("bar") != nil }) {
+	// Ensure it has been expired.
+	if !testutils.Eventually(func() bool { return table.GetConn("bar") == nil }) {
 		t.FailNow()
 	}
 }
@@ -60,12 +68,17 @@ func TestDoubleStorage(t *testing.T) {
 
 	conn1 := makeTestConn()
 	table.Notify("foo", conn1)
+
 	conn2 := makeTestConn()
 	table.Notify("bar", conn2)
 
-	if table.GetConn("foo") != conn1 {
+	// Ensure foo has been created.
+	if !testutils.Eventually(func() bool { return table.GetConn("foo") == conn1 }) {
 		t.FailNow()
-	} else if table.GetConn("bar") != conn2 {
+	}
+
+	// Ensure bar has been created.
+	if !testutils.Eventually(func() bool { return table.GetConn("bar") == conn2 }) {
 		t.FailNow()
 	}
 }
@@ -80,7 +93,7 @@ func TestUpdate(t *testing.T) {
 	conn2 := makeTestConn()
 	table.Notify("foo", conn2)
 
-	if table.GetConn("foo") != conn2 {
+	if !testutils.Eventually(func() bool { return table.GetConn("foo") == conn2 }) {
 		t.FailNow()
 	}
 }
@@ -94,17 +107,26 @@ func TestReuse1(t *testing.T) {
 
 	conn := makeTestConn()
 	table.Notify("foo", conn)
+
+	// Wait for connection to definitely exist.
+	if !testutils.Eventually(func() bool { return table.GetConn("foo") != nil }) {
+		t.Log("Connection foo couldn't be retrieved")
+		t.FailNow()
+	}
+
 	timing.Elapse(c_SOCKET_EXPIRY)
 	timing.Elapse(time.Nanosecond)
 
 	// Wait for connection to definitely expire.
 	if !testutils.Eventually(func() bool { return table.GetConn("foo") == nil }) {
+		t.Log("Connection foo was never nil")
 		t.FailNow()
 	}
 
 	// Re-store and retrieve.
 	table.Notify("foo", conn)
 	if table.GetConn("foo") != conn {
+		t.Log("Re-stored connection wasn't the one we put in")
 		t.FailNow()
 	}
 }
@@ -117,17 +139,26 @@ func TestReuse2(t *testing.T) {
 	defer table.Stop()
 
 	table.Notify("foo", makeTestConn())
+
+	// Wait for connection to definitely exist.
+	if !testutils.Eventually(func() bool { return table.GetConn("foo") != nil }) {
+		t.Log("Connection foo couldn't be retrieved")
+		t.FailNow()
+	}
+
 	timing.Elapse(c_SOCKET_EXPIRY)
 	timing.Elapse(time.Nanosecond)
 
 	// Wait for connection to definitely expire.
 	if !testutils.Eventually(func() bool { return table.GetConn("foo") == nil }) {
+		t.Log("Connection foo was never nil")
 		t.FailNow()
 	}
 
 	conn2 := makeTestConn()
 	table.Notify("foo", conn2)
 	if table.GetConn("foo") != conn2 {
+		t.Log("Re-stored connection wasn't the one we put in")
 		t.FailNow()
 	}
 }
