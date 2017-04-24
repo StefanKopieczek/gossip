@@ -1,8 +1,8 @@
 package test
 
 import (
-	"github.com/jkjuopperi/gossip/transaction"
-	"github.com/jkjuopperi/gossip/transport"
+	"github.com/remodoy/gossip/transaction"
+	"github.com/remodoy/gossip/transport"
 	"testing"
 )
 
