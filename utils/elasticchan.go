@@ -1,6 +1,6 @@
 package utils
 
-import "github.com/jkjuopperi/gossip/log"
+import "github.com/remodoy/gossip/log"
 
 // The buffer size of the primitive input and output chans.
 const c_ELASTIC_CHANSIZE = 3
