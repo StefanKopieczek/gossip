@@ -550,7 +550,20 @@ func ParseSipUri(uriStr string) (uri base.SipUri, err error) {
 // The port may or may not be present, so we represent it with a *uint16,
 // and return 'nil' if no port was present.
 func parseHostPort(rawText string) (host string, port *uint16, err error) {
-	colonIdx := strings.Index(rawText, ":")
+    var colonIdx int
+
+    bracketIdx := strings.Index(rawText, "]")
+    if bracketIdx != -1 {
+        //host = rawText[1:bracketIdx]
+
+        colonIdx = strings.LastIndex(rawText[bracketIdx:], ":")
+        if colonIdx > -1 {
+            colonIdx = colonIdx + bracketIdx
+        }
+    } else {
+        colonIdx = strings.LastIndex(rawText, ":")
+    }
+
 	if colonIdx == -1 {
 		host = rawText
 		return

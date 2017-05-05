@@ -941,6 +941,11 @@ func TestViaHeaders(t *testing.T) {
 	fooEqBar := base.NewParams().Add("foo", base.String{"bar"})
 	fooEqSlashBar := base.NewParams().Add("foo", base.String{"//bar"})
 	singleFoo := base.NewParams().Add("foo", base.NoString{})
+    branchHdr := base.NewParams()
+    branchHdr.Add("branch", base.String{"z9hG4bKtg48taU3kxxxhMI5PLNf7_epkc."})
+    branchHdr.Add("rport", base.String{"5065"})
+    branchHdr.Add("received", base.String{"1.2.3.4"})
+
 	doTests([]test{
 		test{viaInput("Via: SIP/2.0/UDP pc33.atlanta.com"), &viaResult{pass, &base.ViaHeader{&base.ViaHop{"SIP", "2.0", "UDP", "pc33.atlanta.com", nil, noParams}}}},
 		test{viaInput("Via: bAzz/fooo/BAAR pc33.atlanta.com"), &viaResult{pass, &base.ViaHeader{&base.ViaHop{"bAzz", "fooo", "BAAR", "pc33.atlanta.com", nil, noParams}}}},
@@ -968,6 +973,16 @@ func TestViaHeaders(t *testing.T) {
 		test{viaInput("Via:\t"), &viaResult{fail, &base.ViaHeader{}}},
 		test{viaInput("Via: box:5060"), &viaResult{fail, &base.ViaHeader{}}},
 		test{viaInput("Via: box:5060;foo=bar"), &viaResult{fail, &base.ViaHeader{}}},
+        test{viaInput("Via: SIP/2.0/TCP [aaaa:2222:1111::333]:5060;branch=z9hG4bKtg48taU3kxxxhMI5PLNf7_epkc.;rport=5065;received=1.2.3.4"),
+            &viaResult{pass, &base.ViaHeader{
+                &base.ViaHop{"SIP", "2.0", "TCP", "[aaaa:2222:1111::333]", &ui16_5060, branchHdr}},
+            },
+        },
+        test{viaInput("Via: SIP/2.0/TCP [aaaa:2222:1111::333]"),
+            &viaResult{pass, &base.ViaHeader{
+                &base.ViaHop{"SIP", "2.0", "TCP", "[aaaa:2222:1111::333]", nil, noParams}},
+            },
+        },
 	}, t)
 }
 
