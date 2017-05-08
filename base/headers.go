@@ -488,7 +488,7 @@ func (contact *ContactHeader) String() string {
 		// Treat the Wildcard URI separately as it must not be contained in < > angle brackets.
 		buffer.WriteString("*")
 	default:
-		buffer.WriteString(fmt.Sprintf("<%s>", contact.Address.String()))
+		buffer.WriteString(fmt.Sprintf("<%s", contact.Address.String()))
 	}
 
 	if (contact.Params != nil) && (contact.Params.Length() > 0) {
@@ -496,6 +496,12 @@ func (contact *ContactHeader) String() string {
 		buffer.WriteString(contact.Params.ToString(';'))
 	}
 
+    switch contact.Address.(type) {
+    case *WildcardUri:
+        buffer.WriteString("")
+    default:
+        buffer.WriteString(">")
+    }
 	return buffer.String()
 }
 
