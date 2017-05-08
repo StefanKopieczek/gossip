@@ -70,6 +70,14 @@ func (tcp *Tcp) getConnection(addr string) (*connection, error) {
 	return conn, nil
 }
 
+func (tcp *Tcp) LocalAddress(addr string) (net.Addr, error) {
+    conn, err := tcp.getConnection(addr)
+    if err != nil {
+        return nil, err
+    }
+    return conn.LocalAddress(), nil
+}
+
 func (tcp *Tcp) Send(addr string, msg base.SipMessage) error {
 	conn, err := tcp.getConnection(addr)
 	if err != nil {

@@ -104,6 +104,7 @@ func (tx *ClientTransaction) initInviteFSM() {
 	// Pass up the response and delete the transaction.
 	act_passup_delete := func() fsm.Input {
 		log.Debug("Client transaction %p, act_passup_delete", tx)
+        tx.Ok()
 		tx.passUpRequest()
 		tx.Delete()
 		return fsm.NO_INPUT

@@ -88,6 +88,19 @@ func (udp *Udp) listen(conn *net.UDPConn) {
 	}
 }
 
+// TODO: fix later
+func (udp *Udp) LocalAddress(addr string) (net.Addr, error) {
+    raddr, err := net.ResolveUDPAddr("udp", addr)
+    if err != nil {
+        return nil, err
+    }
+    conn, err := net.DialUDP("udp", nil, raddr)
+    if err != nil {
+        return nil, err
+    }
+    return conn.LocalAddr(), nil
+}
+
 func (udp *Udp) Stop() {
 	udp.stop = true
 	for _, lp := range udp.listeningPoints {

@@ -10,6 +10,7 @@ import (
 	"github.com/remodoy/gossip/log"
 	"github.com/remodoy/gossip/timing"
 	"github.com/remodoy/gossip/transport"
+    "net"
 )
 
 var (
@@ -285,6 +286,10 @@ func (mng *Manager) Send(r *base.Request, dest string) *ClientTransaction {
     mng.putCallTx(tx)
 
 	return tx
+}
+
+func (mng *Manager) LocalAddress(addr string) (net.Addr, error) {
+    return mng.transport.LocalAddress(addr)
 }
 
 // Give a received response to the correct transaction.
