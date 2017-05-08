@@ -116,3 +116,7 @@ func (connection *connection) pipeOutput() {
 	log.Info("Parser stopped in ConnWrapper %v (local addr %s; remote addr %s); stopping listening",
 		connection, connection.baseConn.LocalAddr(), connection.baseConn.RemoteAddr())
 }
+
+func (connection *connection) LocalAddress() (net.Addr) {
+    return connection.baseConn.LocalAddr()
+}

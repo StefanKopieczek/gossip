@@ -31,7 +31,7 @@ type transaction struct {
 	fsm       *fsm.FSM       // FSM which governs the behavior of this transaction.
 	origin    *base.Request  // Request that started this transaction.
 	lastResp  *base.Response // Most recently received message.
-    lastReq   *base.Request  // Most recently received request.
+	lastReq   *base.Request  // Most recently received request.
 	dest      string         // Of the form hostname:port
 	transport transport.Manager
 	tm        *Manager
@@ -56,16 +56,16 @@ func (tx *ServerTransaction) Delete() {
 func (tx *ClientTransaction) Delete() {
 	log.Warn("Tx: %p, tm: %p", tx, tx.tm)
 	tx.tm.delTx(tx)
-    tx.tm.delCallTx(tx)
-    close(tx.tu)
-    close(tx.tr)
+	tx.tm.delCallTx(tx)
+	close(tx.tu)
+	close(tx.tr)
 }
 
 type ClientTransaction struct {
 	transaction
 
 	tu           chan *base.Response // Channel to transaction user.
-    tr           chan *base.Request  // Channel to transaction user.
+	tr           chan *base.Request  // Channel to transaction user.
 	tu_err       chan error          // Channel to report up errors to TU.
 	timer_a_time time.Duration       // Current duration of timer A.
 	timer_a      timing.Timer
@@ -126,38 +126,38 @@ func (tx *ServerTransaction) Ack() <-chan *base.Request {
 }
 
 func (tx *ClientTransaction) Receive(m base.SipMessage) {
-    var input fsm.Input
+	var input fsm.Input
 	r, ok := m.(*base.Response)
 	if !ok {
 
-        req, ok := m.(*base.Request)
+		req, ok := m.(*base.Request)
 
-        if !ok {
-            log.Warn("Skipping uknown message type, %v", m)
-            return
-        }
-        log.Warn("Client transaction received type request message")
-        switch req.Method {
-        case base.BYE:
-            // Got bye message
-            tx.lastReq = req
-            input = client_input_bye
-        default:
-            log.Warn("Skipping uknown method %v", req.Method)
-            return
-        }
+		if !ok {
+			log.Warn("Skipping uknown message type, %v", m)
+			return
+		}
+		log.Warn("Client transaction received type request message")
+		switch req.Method {
+		case base.BYE:
+			// Got bye message
+			tx.lastReq = req
+			input = client_input_bye
+		default:
+			log.Warn("Skipping uknown method %v", req.Method)
+			return
+		}
 	} else {
-        tx.lastResp = r
-        switch {
-        case r.StatusCode < 200:
-            input = client_input_1xx
-        case r.StatusCode < 300:
-            input = client_input_2xx
-        default:
-            input = client_input_300_plus
-        }
+		tx.lastResp = r
+		switch {
+		case r.StatusCode < 200:
+			input = client_input_1xx
+		case r.StatusCode < 300:
+			input = client_input_2xx
+		default:
+			input = client_input_300_plus
+		}
 
-    }
+	}
 
 	tx.fsm.Spin(input)
 }
@@ -178,8 +178,8 @@ func (tx *ClientTransaction) passUp() {
 }
 
 func (tx *ClientTransaction) passUpRequest() {
-    log.Info("Client transaction %p passing up request %v", tx, tx.lastReq.Short())
-    tx.tr <- tx.lastReq
+	log.Info("Client transaction %p passing up request %v", tx, tx.lastReq.Short())
+	tx.tr <- tx.lastReq
 }
 
 // Send an error to the TU.
@@ -226,17 +226,15 @@ func (tx *ClientTransaction) Ack() {
 	var maxForwards base.MaxForwards = 70
 	ack.AddHeader(maxForwards)
 
-
 	for index := range tx.lastResp.Headers("Record-Route") {
 		hdr := tx.lastResp.Headers("Record-Route")[len(tx.lastResp.Headers("Record-Route"))-1-index]
 		rt := strings.SplitN(hdr.String(), ":", 2)[1]
 		var route base.GenericHeader = base.GenericHeader{
 			HeaderName: "Route",
-			Contents: rt[1:],
+			Contents:   rt[1:],
 		}
 		ack.AddHeader(route.Copy())
 	}
-
 
 	base.CopyHeaders("From", tx.origin, ack)
 	// Copy headers from response.
@@ -254,114 +252,159 @@ func (tx *ClientTransaction) Ack() {
 	tx.transport.Send(tx.dest, ack)
 }
 
+// Send an automatic Ok.
+func (tx *ClientTransaction) Ok() {
+
+	msg := base.NewResponse(
+		tx.origin.SipVersion,
+		200,
+		"OK",
+		[]base.SipHeader{},
+		"")
+
+	// Copy headers from original request.
+	// TODO: Safety
+
+	for _, via := range tx.origin.Headers("Via") {
+		xvia := via.Copy()
+		msg.AddHeader(xvia)
+	}
+
+	var maxForwards base.MaxForwards = 70
+	msg.AddHeader(maxForwards)
+
+	for index := range tx.lastResp.Headers("Record-Route") {
+		hdr := tx.lastResp.Headers("Record-Route")[len(tx.lastResp.Headers("Record-Route"))-1-index]
+		rt := strings.SplitN(hdr.String(), ":", 2)[1]
+		var route base.GenericHeader = base.GenericHeader{
+			HeaderName: "Route",
+			Contents:   rt[1:],
+		}
+		msg.AddHeader(route.Copy())
+	}
+
+	base.CopyHeaders("From", tx.origin, msg)
+	// Copy headers from response.
+	base.CopyHeaders("To", tx.lastResp, msg)
+
+	base.CopyHeaders("Call-Id", tx.origin, msg)
+
+	// base.CopyHeaders("Route", tx.origin, ack)
+	cseq := tx.origin.Headers("CSeq")[0].Copy()
+	cseq.(*base.CSeq).MethodName = tx.lastReq.Method
+	msg.AddHeader(cseq)
+
+	msg.AddHeader(base.ContentLength(0))
+	// Send the OK.
+	tx.transport.Send(tx.dest, msg)
+}
+
 // Cancel message sent by the state machine
 func (tx *ClientTransaction) sendCancel() {
 
-    cancel := base.NewRequest(base.CANCEL, tx.origin.Recipient, tx.origin.SipVersion, []base.SipHeader{}, "")
+	cancel := base.NewRequest(base.CANCEL, tx.origin.Recipient, tx.origin.SipVersion, []base.SipHeader{}, "")
 
-    base.CopyHeaders("Call-ID", tx.origin, cancel)
-    base.CopyHeaders("To", tx.origin, cancel)
-    base.CopyHeaders("From", tx.origin, cancel)
-    base.CopyHeaders("Route", tx.origin, cancel)
+	base.CopyHeaders("Call-ID", tx.origin, cancel)
+	base.CopyHeaders("To", tx.origin, cancel)
+	base.CopyHeaders("From", tx.origin, cancel)
+	base.CopyHeaders("Route", tx.origin, cancel)
 
-    // Take the first Via headers as per RFC
-    viaHeaders := tx.origin.Headers("Via")
-    if len(viaHeaders) > 0 {
-        cancel.AddHeader(viaHeaders[0].Copy())
-    }
+	// Take the first Via headers as per RFC
+	viaHeaders := tx.origin.Headers("Via")
+	if len(viaHeaders) > 0 {
+		cancel.AddHeader(viaHeaders[0].Copy())
+	}
 
-    // CSeq with same SeqNo but CANCEL as method
-    cseq := tx.origin.Headers("CSeq")[0].Copy()
-    cseq.(*base.CSeq).MethodName = base.CANCEL
-    cancel.AddHeader(cseq)
+	// CSeq with same SeqNo but CANCEL as method
+	cseq := tx.origin.Headers("CSeq")[0].Copy()
+	cseq.(*base.CSeq).MethodName = base.CANCEL
+	cancel.AddHeader(cseq)
 
-    cancel.AddHeader(base.ContentLength(0))
+	cancel.AddHeader(base.ContentLength(0))
 
-    tx.transport.Send(tx.dest, cancel)
+	tx.transport.Send(tx.dest, cancel)
 }
 
 // Terminate this transaction
 func (tx *ClientTransaction) Terminate() {
-    tx.fsm.Spin(client_input_terminate)
+	tx.fsm.Spin(client_input_terminate)
 }
 
-func (tx *ClientTransaction) MakeBye () (*base.Request, error) {
-    return tx.MakeNonInviteMessage(base.BYE)
+func (tx *ClientTransaction) MakeBye() (*base.Request, error) {
+	return tx.MakeNonInviteMessage(base.BYE)
 }
 
 func (tx *ClientTransaction) MakeNonInviteMessage(method base.Method) (*base.Request, error) {
-    var byeTarget base.Uri
-    if len(tx.lastResp.Headers("Contact")) > 0 {
-        var ackTargetHdr *base.ContactHeader
-        ackTargetHdrx := tx.lastResp.Headers("Contact")[0]
-        ackTargetHdr = ackTargetHdrx.(*base.ContactHeader)
-        byeTarget = ackTargetHdr.Address
-    } else {
-        byeTarget = tx.origin.Recipient
-    }
+	var byeTarget base.Uri
+	if len(tx.lastResp.Headers("Contact")) > 0 {
+		var ackTargetHdr *base.ContactHeader
+		ackTargetHdrx := tx.lastResp.Headers("Contact")[0]
+		ackTargetHdr = ackTargetHdrx.(*base.ContactHeader)
+		byeTarget = ackTargetHdr.Address
+	} else {
+		byeTarget = tx.origin.Recipient
+	}
 
-    bye := base.NewRequest(method,
-        byeTarget,
-        tx.origin.SipVersion,
-        []base.SipHeader{},
-        "")
+	bye := base.NewRequest(method,
+		byeTarget,
+		tx.origin.SipVersion,
+		[]base.SipHeader{},
+		"")
 
-    // Copy headers from original request.
+	// Copy headers from original request.
 
-    // ViaHeader must be created manually because ViaHeader.Copy() returns SipHeader
-    for _, via := range tx.origin.Headers("Via") {
-        // xvia := via.Copy()
-        xvia, ok := via.(*base.ViaHeader)
-        if !ok {
-            log.Warn("Failed to convert SipHeader to viaHeader")
-            continue
-        }
-        var viahops []*base.ViaHop
-        viahops = make([]*base.ViaHop, 0, len(*xvia))
-        for _, viahop := range *xvia {
-            viahops = append(viahops, viahop.Copy())
-        }
-        viaheader := base.ViaHeader(viahops)
-        bye.AddHeader(&viaheader)
-    }
+	// ViaHeader must be created manually because ViaHeader.Copy() returns SipHeader
+	for _, via := range tx.origin.Headers("Via") {
+		// xvia := via.Copy()
+		xvia, ok := via.(*base.ViaHeader)
+		if !ok {
+			log.Warn("Failed to convert SipHeader to viaHeader")
+			continue
+		}
+		var viahops []*base.ViaHop
+		viahops = make([]*base.ViaHop, 0, len(*xvia))
+		for _, viahop := range *xvia {
+			viahops = append(viahops, viahop.Copy())
+		}
+		viaheader := base.ViaHeader(viahops)
+		bye.AddHeader(&viaheader)
+	}
 
-    var maxForwards base.MaxForwards = 70
-    bye.AddHeader(maxForwards)
+	var maxForwards base.MaxForwards = 70
+	bye.AddHeader(maxForwards)
 
+	for index := range tx.lastResp.Headers("Record-Route") {
+		hdr := tx.lastResp.Headers("Record-Route")[len(tx.lastResp.Headers("Record-Route"))-1-index]
+		rt := strings.SplitN(hdr.String(), ":", 2)[1]
+		var route base.GenericHeader = base.GenericHeader{
+			HeaderName: "Route",
+			Contents:   rt[1:],
+		}
+		bye.AddHeader(route.Copy())
+	}
 
-    for index := range tx.lastResp.Headers("Record-Route") {
-        hdr := tx.lastResp.Headers("Record-Route")[len(tx.lastResp.Headers("Record-Route"))-1-index]
-        rt := strings.SplitN(hdr.String(), ":", 2)[1]
-        var route base.GenericHeader = base.GenericHeader{
-            HeaderName: "Route",
-            Contents: rt[1:],
-        }
-        bye.AddHeader(route.Copy())
-    }
+	base.CopyHeaders("From", tx.origin, bye)
+	// Copy headers from response.
+	base.CopyHeaders("To", tx.lastResp, bye)
 
-    base.CopyHeaders("From", tx.origin, bye)
-    // Copy headers from response.
-    base.CopyHeaders("To", tx.lastResp, bye)
+	base.CopyHeaders("Call-Id", tx.origin, bye)
 
-    base.CopyHeaders("Call-Id", tx.origin, bye)
+	// base.CopyHeaders("Route", tx.origin, ack)
+	cseq := tx.origin.Headers("CSeq")[0].Copy()
+	cseq.(*base.CSeq).MethodName = method
+	cseq.(*base.CSeq).SeqNo += 1
+	bye.AddHeader(cseq)
 
-    // base.CopyHeaders("Route", tx.origin, ack)
-    cseq := tx.origin.Headers("CSeq")[0].Copy()
-    cseq.(*base.CSeq).MethodName = method
-    cseq.(*base.CSeq).SeqNo += 1
-    bye.AddHeader(cseq)
+	bye.AddHeader(base.ContentLength(0))
 
-
-    bye.AddHeader(base.ContentLength(0))
-
-    return bye, nil
+	return bye, nil
 }
 
 func (tx *ClientTransaction) sendBye() {
-    byeMessage, err := tx.MakeBye()
-    if err == nil {
-        tx.transport.Send(tx.dest, byeMessage)
-    }
+	byeMessage, err := tx.MakeBye()
+	if err == nil {
+		tx.transport.Send(tx.dest, byeMessage)
+	}
 }
 
 // Return the channel we send responses on.
@@ -371,7 +414,7 @@ func (tx *ClientTransaction) Responses() <-chan *base.Response {
 
 // Return the channel we send requests on.
 func (tx *ClientTransaction) Requests() <-chan *base.Request {
-    return (<-chan *base.Request)(tx.tr)
+	return (<-chan *base.Request)(tx.tr)
 }
 
 // Return the channel we send errors on.
