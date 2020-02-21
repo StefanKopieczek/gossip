@@ -1,9 +1,10 @@
 package test
 
 import (
+	"testing"
+
 	"github.com/cloudwebrtc/gossip/transaction"
 	"github.com/cloudwebrtc/gossip/transport"
-	"testing"
 )
 
 // Tests we can start/stop a transaction manager repeatedly on the same port.

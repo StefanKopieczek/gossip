@@ -3,6 +3,7 @@ package transaction
 import (
 	"errors"
 	"fmt"
+	"net"
 	"sync"
 	"time"
 
@@ -18,8 +19,11 @@ var (
 	}
 )
 
+type callID string
+
 type Manager struct {
 	txs       map[key]Transaction
+	callIDTxs map[callID]Transaction
 	transport transport.Manager
 	requests  chan *ServerTransaction
 	txLock    *sync.RWMutex
@@ -34,6 +38,7 @@ type key struct {
 func NewManager(t transport.Manager, addr string) (*Manager, error) {
 	mng := &Manager{
 		txs:       map[key]Transaction{},
+		callIDTxs: map[callID]Transaction{},
 		txLock:    &sync.RWMutex{},
 		transport: t,
 	}
@@ -101,6 +106,34 @@ func (mng *Manager) putTx(tx Transaction) {
 	mng.txLock.Unlock()
 }
 
+func (mng *Manager) getCallID(s base.SipMessage) (callID, bool) {
+	log.Info("F00")
+	callIDHeader := s.Headers("Call-Id")
+	if len(callIDHeader) == 0 {
+		// No call id in message
+		log.Warn("No Call-Id in message.")
+		return (callID)(""), false
+	}
+	id, ok := callIDHeader[0].(*base.CallId)
+	if !ok {
+		panic(errors.New("Headers('Call-Id') returned non-Call-id header!"))
+	}
+	log.Info("Call-id is: %s", (string)(*id))
+	return callID((string)(*id)), true
+}
+
+func (mng *Manager) putCallTx(tx Transaction) {
+	log.Info("putCallTx called")
+	id, ok := mng.getCallID(tx.Origin())
+	if !ok {
+		return
+	}
+	mng.txLock.Lock()
+	mng.callIDTxs[id] = tx
+	mng.txLock.Unlock()
+	log.Info("putCallTx(%s) success", (string)(id))
+}
+
 func (mng *Manager) makeKey(s base.SipMessage) (key, bool) {
 	viaHeaders := s.Headers("Via")
 	via, ok := viaHeaders[0].(*base.ViaHeader)
@@ -145,17 +178,30 @@ func (mng *Manager) makeKey(s base.SipMessage) (key, bool) {
 // Should only be called inside the storage handling goroutine to ensure concurrency safety.
 func (mng *Manager) getTx(s base.SipMessage) (Transaction, bool) {
 	key, ok := mng.makeKey(s)
-	if !ok {
-		// TODO: Here we should initiate more intense searching as specified in RFC3261 section 17
-		log.Warn("Could not correlate message to transaction by branch/method. Dropping.")
-		return nil, false
+	if ok {
+		mng.txLock.RLock()
+		tx, ok := mng.txs[key]
+		mng.txLock.RUnlock()
+
+		if ok {
+			return tx, ok
+		}
 	}
+	callkey, ok := mng.getCallID(s)
+	if ok {
+		log.Info("Found call-id, getting tx: %s", callkey)
+		log.Info("CallIDTxs: %v", mng.callIDTxs)
+		mng.txLock.RLock()
+		tx, ok := mng.callIDTxs[callkey]
+		mng.txLock.RUnlock()
 
-	mng.txLock.RLock()
-	tx, ok := mng.txs[key]
-	mng.txLock.RUnlock()
-
-	return tx, ok
+		if ok {
+			return tx, ok
+		}
+	}
+	// TODO: Here we should initiate more intense searching as specified in RFC3261 section 17
+	log.Warn("Could not correlate message to transaction by branch/method. Dropping.")
+	return nil, false
 }
 
 // Deletes a transaction from the transaction store.
@@ -171,15 +217,33 @@ func (mng *Manager) delTx(t Transaction) {
 	mng.txLock.Unlock()
 }
 
+// Deletes a transaction from the transaction store.
+// Should only be called inside the storage handling goroutine to ensure concurrency safety.
+func (mng *Manager) delCallTx(t Transaction) {
+	log.Info("delCallTx called")
+
+	key, ok := mng.getCallID(t.Origin())
+	if !ok {
+		log.Debug("Could not build lookup key for transaction. Is it missing a Call-Id parameter?")
+	}
+
+	mng.txLock.Lock()
+	delete(mng.callIDTxs, key)
+	mng.txLock.Unlock()
+}
+
 func (mng *Manager) handle(msg base.SipMessage) {
-	log.Info("Received message: %s", msg.Short())
+	log.Info("Received messagee: %s", msg.Short())
 	switch m := msg.(type) {
 	case *base.Request:
+		log.Info("Message is request")
 		mng.request(m)
 	case *base.Response:
+		log.Info("Message is response")
 		mng.correlate(m)
 	default:
 		// TODO: Error
+		log.Info("Unknown event.")
 	}
 }
 
@@ -196,6 +260,7 @@ func (mng *Manager) Send(r *base.Request, dest string) *ClientTransaction {
 	tx.initFSM()
 
 	tx.tu = make(chan *base.Response, 3)
+	tx.tr = make(chan *base.Request, 3)
 	tx.tu_err = make(chan error, 1)
 
 	tx.timer_a_time = T1
@@ -218,8 +283,13 @@ func (mng *Manager) Send(r *base.Request, dest string) *ClientTransaction {
 	}
 
 	mng.putTx(tx)
+	mng.putCallTx(tx)
 
 	return tx
+}
+
+func (mng *Manager) LocalAddress(addr string) (net.Addr, error) {
+	return mng.transport.LocalAddress(addr)
 }
 
 // Give a received response to the correct transaction.
@@ -245,6 +315,12 @@ func (mng *Manager) request(r *base.Request) {
 	// If we failed to correlate an ACK, just drop it.
 	if r.Method == base.ACK {
 		log.Warn("Couldn't correlate ACK to an open transaction. Dropping it.")
+		return
+	}
+
+	if r.Method == base.BYE {
+		log.Warn("Got BYE without context")
+		// We should respond with 200 OK without ACK
 		return
 	}
 

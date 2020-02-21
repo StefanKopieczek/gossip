@@ -3,12 +3,12 @@ package base
 import (
 	"github.com/cloudwebrtc/gossip/log"
 	"github.com/cloudwebrtc/gossip/utils"
-)
 
-import "bytes"
-import "fmt"
-import "strconv"
-import "strings"
+	"bytes"
+	"fmt"
+	"strconv"
+	"strings"
+)
 
 // Whitespace recognised by SIP protocol.
 const c_ABNF_WS = " \t"
@@ -489,7 +489,7 @@ func (contact *ContactHeader) String() string {
 		// Treat the Wildcard URI separately as it must not be contained in < > angle brackets.
 		buffer.WriteString("*")
 	default:
-		buffer.WriteString(fmt.Sprintf("<%s>", contact.Address.String()))
+		buffer.WriteString(fmt.Sprintf("<%s", contact.Address.String()))
 	}
 
 	if (contact.Params != nil) && (contact.Params.Length() > 0) {
@@ -497,6 +497,12 @@ func (contact *ContactHeader) String() string {
 		buffer.WriteString(contact.Params.ToString(';'))
 	}
 
+	switch contact.Address.(type) {
+	case *WildcardUri:
+		buffer.WriteString("")
+	default:
+		buffer.WriteString(">")
+	}
 	return buffer.String()
 }
 
@@ -699,3 +705,23 @@ func (h *UnsupportedHeader) Copy() SipHeader {
 	copy(h.Options, dup)
 	return &UnsupportedHeader{dup}
 }
+
+type ContentType string
+
+func (contentType ContentType) String() string {
+	return fmt.Sprintf("Content-Type: %s", (string)(contentType))
+}
+
+func (h ContentType) Name() string { return "Content-Type" }
+
+func (h ContentType) Copy() SipHeader { return h }
+
+type UserAgent string
+
+func (userAgent UserAgent) String() string {
+	return fmt.Sprintf("User-Agent: %s", (string)(userAgent))
+}
+
+func (h UserAgent) Name() string { return "User-Agent" }
+
+func (h UserAgent) Copy() SipHeader { return h }

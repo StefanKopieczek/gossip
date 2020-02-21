@@ -2,6 +2,7 @@ package transport
 
 import (
 	"fmt"
+	"net"
 	"strings"
 	"sync"
 	"time"
@@ -19,6 +20,7 @@ type Manager interface {
 	Send(addr string, message base.SipMessage) error
 	Stop()
 	GetChannel() Listener
+	LocalAddress(addr string) (net.Addr, error)
 }
 
 type manager struct {
@@ -31,6 +33,7 @@ type transport interface {
 	Listen(address string) error
 	Send(addr string, message base.SipMessage) error
 	Stop()
+	LocalAddress(address string) (net.Addr, error)
 }
 
 func NewManager(transportType string) (m Manager, err error) {
@@ -71,6 +74,10 @@ func (manager *manager) Send(addr string, message base.SipMessage) error {
 func (manager *manager) Stop() {
 	manager.transport.Stop()
 	manager.notifier.stop()
+}
+
+func (manager *manager) LocalAddress(addr string) (net.Addr, error) {
+	return manager.transport.LocalAddress(addr)
 }
 
 type notifier struct {

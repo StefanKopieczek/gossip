@@ -2,14 +2,15 @@ package transaction
 
 import (
 	"fmt"
+	"strings"
+	"testing"
+	"time"
+
 	"github.com/cloudwebrtc/gossip/base"
 	"github.com/cloudwebrtc/gossip/log"
 	"github.com/cloudwebrtc/gossip/parser"
 	"github.com/cloudwebrtc/gossip/timing"
 	"github.com/cloudwebrtc/gossip/transport"
-	"strings"
-	"testing"
-	"time"
 )
 
 // UTs for transaction layer.

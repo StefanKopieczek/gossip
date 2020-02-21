@@ -1,12 +1,12 @@
 package transport
 
 import (
+	"net"
+
 	"github.com/cloudwebrtc/gossip/base"
 	"github.com/cloudwebrtc/gossip/log"
 	"github.com/cloudwebrtc/gossip/parser"
 )
-
-import "net"
 
 type Tcp struct {
 	connTable
@@ -70,6 +70,14 @@ func (tcp *Tcp) getConnection(addr string) (*connection, error) {
 	return conn, nil
 }
 
+func (tcp *Tcp) LocalAddress(addr string) (net.Addr, error) {
+	conn, err := tcp.getConnection(addr)
+	if err != nil {
+		return nil, err
+	}
+	return conn.LocalAddress(), nil
+}
+
 func (tcp *Tcp) Send(addr string, msg base.SipMessage) error {
 	conn, err := tcp.getConnection(addr)
 	if err != nil {
@@ -86,6 +94,9 @@ func (tcp *Tcp) serve(listeningPoint *net.TCPListener) {
 	for {
 		baseConn, err := listeningPoint.Accept()
 		if err != nil {
+			if tcp.stop {
+				break
+			}
 			log.Severe("Failed to accept TCP conn on address " + listeningPoint.Addr().String() + "; " + err.Error())
 			continue
 		}
