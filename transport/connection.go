@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/stefankopieczek/gossip/base"
-	"github.com/stefankopieczek/gossip/log"
-	"github.com/stefankopieczek/gossip/parser"
+	"github.com/cloudwebrtc/gossip/base"
+	"github.com/cloudwebrtc/gossip/log"
+	"github.com/cloudwebrtc/gossip/parser"
 )
 
 type connection struct {

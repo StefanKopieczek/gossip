@@ -3,8 +3,8 @@ package transport
 import (
 	"time"
 
-	"github.com/stefankopieczek/gossip/log"
-	"github.com/stefankopieczek/gossip/timing"
+	"github.com/cloudwebrtc/gossip/log"
+	"github.com/cloudwebrtc/gossip/timing"
 )
 
 // Fields of connTable should only be modified by the dedicated goroutine called by Init().
@@ -60,10 +60,10 @@ func (t *connTable) manage() {
 				t.conns[addr].conn.Close()
 				delete(t.conns, addr)
 			} else {
-                // Due to a race condition, the socket has been updated since this expiry happened.
-                // Ignore the expiry since we already have a new socket for this address.
-                log.Warn("Ignored spurious expiry for address %s in conntable %p", t, addr)
-            }
+				// Due to a race condition, the socket has been updated since this expiry happened.
+				// Ignore the expiry since we already have a new socket for this address.
+				log.Warn("Ignored spurious expiry for address %s in conntable %p", t, addr)
+			}
 		case <-t.stop:
 			log.Info("Conntable %p stopped")
 			t.stopped = true

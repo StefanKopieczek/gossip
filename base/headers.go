@@ -1,8 +1,8 @@
 package base
 
 import (
-	"github.com/stefankopieczek/gossip/log"
-	"github.com/stefankopieczek/gossip/utils"
+	"github.com/cloudwebrtc/gossip/log"
+	"github.com/cloudwebrtc/gossip/utils"
 )
 
 import "bytes"
@@ -105,7 +105,7 @@ type SipUri struct {
 }
 
 func copyWithNil(params Params) Params {
-	if (params == nil) {
+	if params == nil {
 		return NewParams()
 	}
 	return params.Copy()

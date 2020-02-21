@@ -1,9 +1,9 @@
 package parser
 
 import (
-	"github.com/stefankopieczek/gossip/base"
-	"github.com/stefankopieczek/gossip/log"
-	"github.com/stefankopieczek/gossip/utils"
+	"github.com/cloudwebrtc/gossip/base"
+	"github.com/cloudwebrtc/gossip/log"
+	"github.com/cloudwebrtc/gossip/utils"
 )
 
 import (

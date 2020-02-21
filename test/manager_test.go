@@ -1,8 +1,8 @@
 package test
 
 import (
-	"github.com/stefankopieczek/gossip/transaction"
-	"github.com/stefankopieczek/gossip/transport"
+	"github.com/cloudwebrtc/gossip/transaction"
+	"github.com/cloudwebrtc/gossip/transport"
 	"testing"
 )
 

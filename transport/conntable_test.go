@@ -4,14 +4,12 @@ import (
 	"os"
 	"testing"
 	"time"
-)
 
-import (
-	"github.com/stefankopieczek/gossip/base"
-	"github.com/stefankopieczek/gossip/log"
-	"github.com/stefankopieczek/gossip/parser"
-	"github.com/stefankopieczek/gossip/testutils"
-	"github.com/stefankopieczek/gossip/timing"
+	"github.com/cloudwebrtc/gossip/base"
+	"github.com/cloudwebrtc/gossip/log"
+	"github.com/cloudwebrtc/gossip/parser"
+	"github.com/cloudwebrtc/gossip/testutils"
+	"github.com/cloudwebrtc/gossip/timing"
 )
 
 var c_LOG_LEVEL = log.WARN
